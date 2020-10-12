@@ -2,7 +2,7 @@
 
 int main() {
     forever {
-        ;
+        int i = 0;
     }
     return 0;
 }
