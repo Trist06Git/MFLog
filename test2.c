@@ -1,8 +1,8 @@
 #define forever while(1)
 
 int main() {
+    int i = 0;
     forever {
-        int i = 0;
         printf("%i\n", i);
         i++;
     }
