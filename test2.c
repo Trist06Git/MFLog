@@ -2,8 +2,6 @@
 
 int main() {
     int i = 0;
-    forever {
-        printf("%i\n", i++);
-    }
+    forever printf("%i\n", i++);
     return 0;
 }
