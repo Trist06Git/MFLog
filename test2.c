@@ -3,8 +3,7 @@
 int main() {
     int i = 0;
     forever {
-        printf("%i\n", i);
-        i++;
+        printf("%i\n", i++);
     }
     return 0;
 }
