@@ -1,3 +1,5 @@
+#include <stdio.h>
+
 #define forever while(1)
 
 int main() {
