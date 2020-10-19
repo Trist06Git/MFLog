@@ -18,10 +18,8 @@ test_results create_push_free(void);
 int main(int argc, char** argv) {
     printf(":: Running tests ::\n");
 
-    test_results res = create_push_free();
-    print_results(res);
-    res = push_10();
-    print_results(res);
+    print_results(create_push_free());
+    print_results(push_10());
 
     printf(":: Done ::\n");
 }
@@ -30,10 +28,10 @@ void print_results(test_results res) {
     printf("%s : %s ", res.name, (res.result ? passed:failed));
     if (res.result) {
         printf("\033[0;32m");//set colour to red
-        printf(tick);
+        printf("%s", tick);
     } else {
         printf("\033[0;31m");//set colour to green
-        printf(ecs);
+        printf("%s", ecs);
     }
     printf("\033[0m");//clear colour
     printf("\n");
