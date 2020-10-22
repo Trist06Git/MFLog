@@ -21,21 +21,23 @@ void sig_segfault(int);
 int get_open_max(void);
 
 typedef struct page_entry {
-    unsigned long int* start_addr;
+    long int* start_addr;
     size_t size;
 } page_entry;
 
 typedef struct array_store {
     char* name;
     page_entry* store;
+    page_entry* store_negative;
     size_t array_length;
+    size_t array_negative;
     bool freed;
 } array_store;
 
 enum val_opt {Value, Fail};
 typedef struct value {
     enum val_opt tag;
-    unsigned long int val;
+    long int val;
 } value;
 
 value at(array_store*, int);

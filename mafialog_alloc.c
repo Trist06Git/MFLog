@@ -6,6 +6,10 @@ value at(array_store* var, int index) {
     if (index >= 0 && index < var->array_length) {//for now only positive indicies
         result.tag = Value;
         result.val = var->store->start_addr[index];
+    } else if (index < 0 && index > -var->array_negative) {
+        index += 1;//add one for first neg index -1 -> 0
+        result.tag = Value;
+        result.val = var->store_negative->start_addr[-index];
     } else {
         //printf("Error! At from %s failed at index %i\n", var->name, index);
         //printf("length : %zu\n", var->array_length);
@@ -22,9 +26,19 @@ value set(array_store* var, value val, int index) {
         var->array_length++;
         var->store->start_addr[index] = val.val;
         return val;
+    } else if (index < 0 && index > -var->array_negative) {
+        index += 1;//add one for first neg index -1 -> 0
+        var->store_negative->start_addr[-index] = val.val;
+        return val;
+    } else if (index == -var->array_negative) {//push front
+        index += 1;
+        if (var->store_negative == NULL) {
+            var->store_negative = new_page(200000000);
+        }
+        var->array_negative++;
+        var->store_negative->start_addr[-index] = val.val;
+        return val;
     } else {
-        //printf("Error! Set on %s failed at index %i\n", var->name, index);
-        //printf("length : %zu\n", var->array_length);
         val.tag = Fail;
         return val;
     }
@@ -35,13 +49,16 @@ array_store* new_var(char* name) {
     var->name = name;
     var->store = new_page(200000000);
     var->array_length = 0;
+    var->store_negative = NULL;
+    var->array_negative = 1;
     var->freed = false;
 
     return var;
 }
 
 int free_var(array_store* var) {
-    free_page(var->store);
+    if (var->store != NULL) free_page(var->store);
+    if (var->store_negative != NULL) free_page(var->store_negative);
     free(var);
     
     return 0;
