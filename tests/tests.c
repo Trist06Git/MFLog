@@ -18,14 +18,16 @@ test_results push_back_single(void);
 test_results push_front_single(void);
 test_results invalid_index_back(void);
 test_results invalid_index_front(void);
-test_results create_push_free(void);
+test_results create_push_free_back(void);
+test_results create_push_free_front(void);
 
 //do tests for fail
 
 int main(int argc, char** argv) {
     printf(":: Running tests ::\n");
 
-    print_results(create_push_free());
+    print_results(create_push_free_back());
+    print_results(create_push_free_front());
     print_results(push_back_single());
     print_results(push_front_single());
     print_results(push_back_10());
@@ -151,7 +153,7 @@ test_results invalid_index_front(void) {
     return res;
 }
 
-test_results create_push_free(void) {
+test_results create_push_free_back(void) {
     array_store* myVar = new_var("myVar");
     value testVal = {.val = 88, .tag = Value};
 
@@ -161,10 +163,28 @@ test_results create_push_free(void) {
     free_var(myVar);
 
     ///WARN, not actually checking anything
+    //just relying on segfault
 
     test_results res;
-    //strcpy(res.name, "create, push and free");
-    res.name = "create, push and free";
+    res.name = "create, push and free back";
+    res.result = true;
+    return res;
+}
+
+test_results create_push_free_front(void) {
+    array_store* myVar = new_var("myVar");
+    value testVal = {.val = -88, .tag = Value};
+
+    for (int i = -1; i >= -16; i--) {
+        set(myVar, testVal, i);
+    }
+    free_var(myVar);
+
+    ///WARN, not actually checking anything
+    //just relying on segfault
+
+    test_results res;
+    res.name = "create, push and free front";
     res.result = true;
     return res;
 }
