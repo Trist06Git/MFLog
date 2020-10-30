@@ -20,6 +20,9 @@ test_results invalid_index_back(void);
 test_results invalid_index_front(void);
 test_results create_push_free_back(void);
 test_results create_push_free_front(void);
+test_results card_front(void);
+test_results card_back(void);
+test_results card_both(void);
 
 //do tests for fail
 
@@ -34,7 +37,9 @@ int main(int argc, char** argv) {
     print_results(push_front_10());
     print_results(invalid_index_back());
     print_results(invalid_index_front());
-    
+    print_results(card_front());
+    print_results(card_back());
+    print_results(card_both());
 
     printf(":: Done ::\n");
 }
@@ -150,6 +155,61 @@ test_results invalid_index_front(void) {
     value res_val = set(myVar, testVal, -10);
     res.result = res_val.tag == Fail ? true : false;//we want it to fail
 
+    return res;
+}
+
+test_results card_front(void) {
+    test_results res;
+    res.name = "cardinality of front only array";
+
+    array_store* myVar = new_var("myVar");
+    value testVal = {.val = 7, .tag = Value};
+
+    int target = 10;
+    for (int i = 0; i < target; i++) {
+        set(myVar, testVal, i);
+    }
+    
+    value cardinality = card(myVar);
+    res.result = cardinality.tag != Fail && cardinality.val == target;
+    return res;
+}
+
+test_results card_back(void) {
+    test_results res;
+    res.name = "cardinality of back only array";
+
+    array_store* myVar = new_var("myVar");
+    value testVal = {.val = 7, .tag = Value};
+
+    int target = 10;
+    for (int i = 0; i > -target; i--) {
+        set(myVar, testVal, i);
+    }
+
+    value cardinality = card(myVar);
+    res.result = cardinality.tag != Fail && cardinality.val == target;
+    return res;
+}
+
+
+test_results card_both(void) {
+    test_results res;
+    res.name = "cardinality of both front and back array";
+
+    array_store* myVar = new_var("myVar");
+    value testVal = {.val = 7, .tag = Value};
+
+    int target = 10;
+    for (int i = 1; i >= -target; i-- ) {
+        set(myVar, testVal, i);
+    }
+    for (int i = 0; i < target; i++) {
+        set(myVar, testVal, i);
+    }
+
+    value cardinality = card(myVar);
+    res.result = cardinality.tag != Fail && cardinality.val == target*2;
     return res;
 }
 

@@ -6,13 +6,11 @@ value at(array_store* var, int index) {
     if (index >= 0 && index < var->array_length) {//for now only positive indicies
         result.tag = Value;
         result.val = var->store->start_addr[index];
-    } else if (index < 0 && index > -var->array_negative) {
+    } else if (index < 0 && index > -var->array_negative-1) {
         index += 1;//add one for first neg index -1 -> 0
         result.tag = Value;
         result.val = var->store_negative->start_addr[-index];
     } else {
-        //printf("Error! At from %s failed at index %i\n", var->name, index);
-        //printf("length : %zu\n", var->array_length);
         result.tag = Fail;
     }
     return result;
@@ -24,10 +22,10 @@ value set(array_store* var, value val, int index) {
     } else if (index == var->array_length) {//push end
         var->array_length++;
         var->store->start_addr[index] = val.val;
-    } else if (index < 0 && index > -var->array_negative) {
+    } else if (index < 0 && index > -var->array_negative-1) {
         index += 1;//add one for first neg index -1 -> 0
         var->store_negative->start_addr[-index] = val.val;
-    } else if (index == -var->array_negative) {//push front
+    } else if (index == -var->array_negative-1) {//push front
         index += 1;
         if (var->store_negative == NULL) {
             var->store_negative = new_page(200000000);
@@ -40,13 +38,28 @@ value set(array_store* var, value val, int index) {
     return val;
 }
 
+//cardinality/size of an array
+value card(array_store* var) {
+    value res = {.val = 0, .tag = Fail};
+    if (var->freed) return res;
+    if (var->store != NULL) {
+        res.val += var->array_length;
+        res.tag = Value;
+    }
+    if (var->store_negative != NULL) {
+        res.val += var->array_negative;
+        res.tag = Value;
+    }
+    return res;
+}
+
 array_store* new_var(char* name) {
     array_store* var = malloc(sizeof(array_store));
     var->name = name;
     var->store = new_page(200000000);
     var->array_length = 0;
     var->store_negative = NULL;
-    var->array_negative = 1;
+    var->array_negative = 0;
     var->freed = false;
 
     return var;

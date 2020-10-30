@@ -42,6 +42,7 @@ typedef struct value {
 
 value at(array_store*, int);
 value set(array_store*, value, int);
+value card(array_store*);
 
 array_store* new_var(char*);
 int free_var(array_store*);
