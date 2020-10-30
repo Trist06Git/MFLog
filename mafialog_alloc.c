@@ -21,15 +21,12 @@ value at(array_store* var, int index) {
 value set(array_store* var, value val, int index) {
     if (index > 0 && index < var->array_length) {//set in middle
         var->store->start_addr[index] = val.val;
-        return val;
     } else if (index == var->array_length) {//push end
         var->array_length++;
         var->store->start_addr[index] = val.val;
-        return val;
     } else if (index < 0 && index > -var->array_negative) {
         index += 1;//add one for first neg index -1 -> 0
         var->store_negative->start_addr[-index] = val.val;
-        return val;
     } else if (index == -var->array_negative) {//push front
         index += 1;
         if (var->store_negative == NULL) {
@@ -37,11 +34,10 @@ value set(array_store* var, value val, int index) {
         }
         var->array_negative++;
         var->store_negative->start_addr[-index] = val.val;
-        return val;
     } else {
         val.tag = Fail;
-        return val;
     }
+    return val;
 }
 
 array_store* new_var(char* name) {
