@@ -192,7 +192,6 @@ test_results card_back(void) {
     return res;
 }
 
-
 test_results card_both(void) {
     test_results res;
     res.name = "cardinality of both front and back array";
