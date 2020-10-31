@@ -22,7 +22,8 @@ predicate database[] = {
     {.subs = NULL, .sub_count = 0, .res = Uneval, .name = "P3"}
 };
 
-void add_preds(predicate*, int, ...);
+predicate* pred_head(char*);
+void pred_subs(predicate*, int, ...);
 void eval_pred(predicate*);
 void print_pred(predicate*);
 
@@ -41,7 +42,7 @@ int main(void) {
     nl;
     */
 
-    add_preds(database+2, 4, taut, taut, taut, database[0]);
+    pred_subs(database+2, 4, taut, taut, taut, database[0]);
     eval_pred(database+2);
     nl;
     print_pred(database+2);
@@ -51,7 +52,16 @@ int main(void) {
     return EXIT_SUCCESS;
 }
 
-void add_preds(predicate* super, int count, ...) {
+predicate* pred_head(char* name) {
+    predicate* pred = malloc(sizeof(predicate));
+    pred->name = name;
+    pred->subs = NULL;
+    pred->sub_count = 0;
+    pred->res = Uneval;
+    return pred;
+}
+
+void pred_subs(predicate* super, int count, ...) {
     super->sub_count = count;
     super->subs = malloc(sizeof(predicate)*count);
 
