@@ -5,7 +5,8 @@
 #include <stdbool.h>
 
 #include "parse_lex.h"
-#include "token_vector.h"
+//#include "token_vector.h"
+#include "generic_vector.h"
 
 #define nl printf("\n")
 
@@ -13,8 +14,14 @@ char* test_prog = "pred1 :- pred2, pred3.\npred2 :- true.\npred3 :- true.\n";
 
 int main(void) {
     printf("Starting.\n");
+    printf("sizeof char     : %li\n", sizeof(char));
+    printf("sizeof char*    : %li\n", sizeof(char*));
+    printf("sizeof s_token  : %li\n", sizeof(s_token));
+    printf("sizeof s_token* : %li\n", sizeof(s_token*));
+    nl;
 
-    token_vector* tokens = new_token_vector(0);
+    vector* tokens = new_vector(0, sizeof(s_token));
+    tokens->type = "s_token";
     parse_string(tokens, test_prog);
     dump_tokens(tokens);
 
@@ -47,25 +54,25 @@ bool match_word(char* str, char** word, int* count) {
 }
 
 //thing:-thing, thing.
-void parse_string(token_vector* tokens, char* str) {
+void parse_string(vector* tokens, char* str) {
     while (str[0]) {
         bool match = false;
         char* word = NULL;
         int word_size = 0;
         if (match_token(str, ":-")) {
             match = true;
-            push_back(tokens, (s_token){.tag = NECK, .name = ""});
+            push_back(tokens, &(s_token){.tag = NECK, .name = ""});
             str += 2;
         } else if (match_token(str, ".")) {
             match = true;
-            push_back(tokens, (s_token){.tag = END_PRED, .name = ""});
+            push_back(tokens, &(s_token){.tag = END_PRED, .name = ""});
             str += 1;
         } else if (match_token(str, ",")) {
             match = true;
-            push_back(tokens, (s_token){.tag = AND, .name = ""});
+            push_back(tokens, &(s_token){.tag = AND, .name = ""});
             str += 1;
         } else if (match_word(str, &word, &word_size)) {
-            push_back(tokens, (s_token){.tag = PRED, .name = word});
+            push_back(tokens, &(s_token){.tag = PRED, .name = word});
             match = true;
             str += word_size;
         }
@@ -73,10 +80,10 @@ void parse_string(token_vector* tokens, char* str) {
     }
 }
 
-void dump_tokens(token_vector* tokens) {
+void dump_tokens(vector* tokens) {
     printf("Dumping tokens :\n");
     for (int i = 0; i < tokens->count; i++) {
-        printf("%s\n", token_to_string(at(tokens, i)));
+        printf("%s\n", token_to_string((s_token*)at(tokens, i)));
     }
     nl;
 }
