@@ -2,7 +2,7 @@
 :- use_module(library(readutil)).
 :- load_files(['./machine.pl', './utils.pl']).
 
-default_file('hello_world.b').
+default_file('reddit_prog3.b').
 
 :- write("Starting."), nl.
 

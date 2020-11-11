@@ -28,6 +28,20 @@ void* at(vector* vec, int i) {
     }
 }
 
+int remove_at(vector* vec, int i) {
+    if (vec == NULL || i >= vec->count) return -1;
+
+    free(((char*)vec->store) + vec->el_size*i);
+    printf("got here.\n");
+    for (int j = i+1; j < vec->count - 1; j++) {
+        //*(char*)at(vec, i) = *(char*)at(vec, j);///not going to work...
+        memcpy((char*)vec->store + vec->el_size*(j-1), (char*)vec->store + vec->el_size*(j), vec->el_size);
+    }
+    vec->count--;
+
+    return 0;
+}
+
 int size(vector* vec) {
     return vec->count;
 }
@@ -51,4 +65,11 @@ vector* new_vector(int init_size, int el_size) {
     printf("init allocated : %i\n", res->allocated);
     printf("element size   : %i\n\n", res->el_size);*/
     return res;
+}
+
+void free_vector(vector* vec) {
+    if (vec->store != NULL) {
+        free(vec->store);
+    }
+    free(vec);
 }

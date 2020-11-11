@@ -3,15 +3,9 @@
 #include <stdlib.h>
 #include <stdarg.h>
 
-#define nl printf("\n")
+#include "predicate_struct.h"
 
-enum pred_res {Fail, Pass, Uneval};
-typedef struct predicate {
-    struct predicate* subs;
-    int sub_count;
-    enum pred_res res;
-    char* name;
-} predicate;
+#define nl printf("\n")
 
 predicate taut = {.subs = NULL, .sub_count = 0, .res = Pass, .name = "true"};
 predicate fail = {.subs = NULL, .sub_count = 0, .res = Fail, .name = "false"};

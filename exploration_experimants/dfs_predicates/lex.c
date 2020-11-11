@@ -4,7 +4,7 @@
 #include <string.h>
 #include <stdbool.h>
 
-#include "parse_lex.h"
+#include "lex.h"
 //#include "token_vector.h"
 #include "generic_vector.h"
 
@@ -12,7 +12,7 @@
 
 char* test_prog = "pred1 :- pred2, pred3.\npred2 :- true.\npred3 :- true.\n";
 
-int main(void) {
+int main_test(void) {
     printf("Starting.\n");
     printf("sizeof char     : %li\n", sizeof(char));
     printf("sizeof char*    : %li\n", sizeof(char*));
