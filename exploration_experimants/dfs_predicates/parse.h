@@ -1,6 +1,10 @@
 #ifndef PARSE_H
 #define PARSE_H
 
+#include <stdbool.h>
+
+#include "generic_vector.h"
+
 #define TAG_PC 0
 #define TAG_AND 1
 
@@ -29,9 +33,30 @@ struct and {
 struct pred_def {
     char* name;
     expr ex;
+    bool headless;
 };
 
-//PRED, NECK, AND, END_PRED, ERROR
+enum e_errors {er_OK          =  0,
+               er_EXPR        = -1,
+               er_EXPR_SINGLE = -2,
+               er_EXPR_AND    = -3,
+               er_PRED_DEF    = -4,
+               er_PRED_END    = -5
+              };
+char* error_to_string(enum e_errors);
+
+int init_parser(bool);
+void close_parser(vector* parse_tree, bool);
+int get_unique(void);
+char* unique_head(void);
+enum e_errors parse(vector* tokens, vector* database);
+int parse_def(vector* tokens, vector* database);
+int parse_expr(vector* tokens, expr*);
+void free_expr(expr*);
+bool is_match(vector* tokens, vector* pattern);
+
+int get_sub_names(expr*, vector* names, int* count);
+
 /*
 expr -> pred_call
 expr -> expr AND expr

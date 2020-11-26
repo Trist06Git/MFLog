@@ -1,0 +1,9 @@
+
+pred1 :-
+  true.
+
+pred2 :-
+  pred1,
+  nonexistant.
+
+:- pred2.

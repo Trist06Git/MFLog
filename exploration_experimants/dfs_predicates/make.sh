@@ -1,4 +1,3 @@
 #!/bin/bash
 
-gcc parse.c lex.c generic_vector.c
-./a.out
+gcc lex.c parse.c generic_vector.c build.c runtime.c main.c

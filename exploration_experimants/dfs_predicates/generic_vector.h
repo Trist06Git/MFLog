@@ -12,6 +12,7 @@ typedef struct vector {
 void push_back(vector*, void*);
 void* at(vector*, int);
 int remove_at(vector*, int);
+int insert_at(vector*, int, void*);
 int size(vector*);
 char* type(vector*);
 vector* new_vector(int, int);

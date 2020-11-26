@@ -1,0 +1,12 @@
+
+Fat :- true.
+fluffy :- true.
+cat :- true.
+dog :- false.
+
+whiskey :-
+    Fat,
+    fluffy,
+    dog.
+
+:- whiskey.

@@ -5,29 +5,14 @@
 #include <stdbool.h>
 
 #include "lex.h"
-//#include "token_vector.h"
 #include "generic_vector.h"
 
 #define nl printf("\n")
 
-char* test_prog = "pred1 :- pred2, pred3.\npred2 :- true.\npred3 :- true.\n";
-
-int main_test(void) {
-    printf("Starting.\n");
-    printf("sizeof char     : %li\n", sizeof(char));
-    printf("sizeof char*    : %li\n", sizeof(char*));
-    printf("sizeof s_token  : %li\n", sizeof(s_token));
-    printf("sizeof s_token* : %li\n", sizeof(s_token*));
-    nl;
-
-    vector* tokens = new_vector(0, sizeof(s_token));
-    tokens->type = "s_token";
-    parse_string(tokens, test_prog);
-    dump_tokens(tokens);
-
-    printf("Done.\n");
-    return EXIT_SUCCESS;
-}
+char* pred_call = ":- true.";
+char* test_single_def = "pred1 :- pred2.";
+char* test_multi_pred = "pred1 :- pred2, pred3.";
+char* test_prog = "pred1 :- pred2, pred3.\npred2 :- true.\npred3 :- true. :- pred1. :- pred3.\n";
 
 bool match_token(char* str, char* toke) {
     bool res = true;
@@ -44,17 +29,19 @@ bool is_alpha_numer(char c) {
 }
 
 bool match_word(char* str, char** word, int* count) {
-    for (; str[*count] && is_alpha_numer(str[*count]); (*count)++);
+    for (*count = 0; str[*count] && is_alpha_numer(str[*count]); (*count)++);
 
-    *word = malloc(sizeof(char)*((*count)+1));//leak if no alpha found
-    memcpy(*word, str, sizeof(char)*(*count));
-    *(*word+*count) = '\0';//something to do with double pointer != pointer[], or some such
-
-    return (*count > 0);
+    if (*count > 0) {
+        *word = malloc(sizeof(char)*((*count)+1));
+        memcpy(*word, str, sizeof(char)*(*count));
+        *(*word+*count) = '\0';//something to do with double pointer != pointer[], or some such
+        return true;
+    } else {
+        return false;
+    }
 }
 
-//thing:-thing, thing.
-void parse_string(vector* tokens, char* str) {
+void lex(vector* tokens, char* str) {
     while (str[0]) {
         bool match = false;
         char* word = NULL;
@@ -88,6 +75,7 @@ void dump_tokens(vector* tokens) {
     nl;
 }
 
+//for debug
 const char* token_to_string(s_token* token) {
     char* ret = malloc(sizeof(char)*80);
     switch (token->tag) {

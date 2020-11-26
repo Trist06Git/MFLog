@@ -1,92 +1,111 @@
 
-#include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <stdbool.h>
 
-#include "predicate_struct.h"
+#include "runtime.h"
+#include "lex.h"
+#include "parse.h"
+#include "build.h"
 
-#define nl printf("\n")
+extern vector* database;
 
-predicate taut = {.subs = NULL, .sub_count = 0, .res = Pass, .name = "true"};
-predicate fail = {.subs = NULL, .sub_count = 0, .res = Fail, .name = "false"};
+void print_help(void);
+char* load_file(const char* filename);
 
-predicate database[] = {
-    {.subs = &taut, .sub_count = 1, .res = Uneval, .name = "P1"},
-    {.subs = &fail, .sub_count = 1, .res = Uneval, .name = "P2"},
-    {.subs = NULL, .sub_count = 0, .res = Uneval, .name = "P3"}
-};
-
-predicate* pred_head(char*);
-void pred_subs(predicate*, int, ...);
-void eval_pred(predicate*);
-void print_pred(predicate*);
-
-int main(void) {
-    printf("Starting.\n");
-
-    /*
-    eval_pred(database+0);
-    nl;
-    print_pred(database+0);
-    nl;
-
-    eval_pred(database+1);
-    nl;
-    print_pred(database+1);
-    nl;
-    */
-
-    pred_subs(database+2, 4, taut, taut, taut, database[0]);
-    eval_pred(database+2);
-    nl;
-    print_pred(database+2);
-    nl;
+int main(int argc, char** argv) {
+    bool verbose = false;
+    char* filename = NULL;
+    int option;
+    while ((option = getopt(argc, argv, "hvf:")) != -1) {
+        switch (option) {
+            case 'h': print_help(); return EXIT_SUCCESS;       break;
+            case 'v': verbose = true;                          break;
+            case 'f': filename = optarg;                       break;
+            case '?': printf("Unknown option : %c\n", optopt); break;
+            default :                                          break;
+        }
+    }
+    if (verbose) printf("Starting.\n");
+    if (optind < argc) filename = argv[argc-1];
+    if (filename == NULL) {
+        printf("Error, no input files\n");
+        return EXIT_FAILURE;
+    }
+    if (verbose) printf("Loading file : %s\n", filename);
+    char* program = load_file(filename);
+    if (program == NULL) {
+        if (verbose) printf("Exiting\n");
+        return EXIT_FAILURE;
+    }
     
-    printf("Done.\n");
+    init_parser(verbose);
+    //lex
+    if (verbose) printf("Lexing.\n");
+    vector* tokens = new_vector(0, sizeof(s_token));
+    tokens->type = "s_token";
+    lex(tokens, program);
+
+    //parse
+    if (verbose) printf("Parsing.\n");
+    vector* parse_tree = new_vector(0, sizeof(pred_def));
+    enum e_errors parse_res = parse(tokens, parse_tree);
+    if (parse_res != 0) {
+        printf("Parsing failed!\n%s\n", error_to_string(parse_res));
+        return EXIT_FAILURE;
+    }
+    
+    init_runtime(verbose);
+    if (verbose) printf("Building Predicate Heads.\n");
+    build_heads(parse_tree, database);
+    if (verbose) printf("Building Predicate Bodies.\n");
+    build_bodies(parse_tree, database);
+    close_parser(parse_tree, verbose);//slight overlap with parser/runtime
+
+    if (verbose) printf("Running headless predicates.\n");
+    run(database);
+    
+    if (verbose) printf("Done.\n");
+    
+    free_vector(tokens);
+    close_runtime(verbose);
+
     return EXIT_SUCCESS;
 }
 
-predicate* pred_head(char* name) {
-    predicate* pred = malloc(sizeof(predicate));
-    pred->name = name;
-    pred->subs = NULL;
-    pred->sub_count = 0;
-    pred->res = Uneval;
-    return pred;
+void print_help(void) {
+    char* red = "\033[0;31m";
+    char* clear = "\033[0m";
+    printf("First Order Logical %sP%sredicate %sC%sompililer (%sPC%s)\n", red, clear, red, clear, red, clear);
+    printf("Usage    : \"pc <filename>\" or \"pc -f <filename>\"\n");
+    printf("Options  : -v for verbose\n");
+    printf("         : -h for this message\n");
+    printf("Language : The input language is similar to Prolog, except\n");
+    printf("         : that there are no variables or unification.\n");
 }
 
-void pred_subs(predicate* super, int count, ...) {
-    super->sub_count = count;
-    super->subs = malloc(sizeof(predicate)*count);
-
-    va_list args;
-    va_start(args, count);
-    for (int i = 0; i < count; i++) {
-       super->subs[i] = va_arg(args, predicate);
+char* load_file(const char* filename) {
+    char* buffer = NULL;
+    long length;
+    
+    FILE* file = fopen(filename, "rb");
+    if (file == NULL) {
+        printf("Error! Could not open file : %s\n", filename);
+        return NULL;
     }
-    va_end(args);
-}
 
-void eval_pred(predicate* pred) {
-    //printf("evaluating %s\n", pred->name);
-    print_pred(pred);
-    if (pred->res != Uneval) {
-        return;
-    } else {
-        pred->res = Pass;
-        for (int i = 0; i < pred->sub_count; i++) {
-            eval_pred(pred->subs+i);
-            if ((pred->subs+i)->res == Fail) {
-                pred->res = Fail;
-                return;
-            }
-        }
+    fseek(file, 0, SEEK_END);
+    length = ftell(file);
+    rewind(file);
+
+    buffer = malloc(length);
+    if (buffer == NULL) {
+        printf("Error! Could not allocate buffer for file : %s\n", filename);
+        return NULL;
     }
-}
-
-void print_pred(predicate* pred) {
-    printf("Predicate : %s\n", pred->name);
-    if (pred->res == Uneval) printf("Is not yet evaluated\n");
-    if (pred->res == Pass)   printf("Has passed\n");
-    if (pred->res == Fail)   printf("Has failed\n");
+    fread(buffer, length, 1, file);
+    fclose(file);
+    
+    return buffer;
 }
