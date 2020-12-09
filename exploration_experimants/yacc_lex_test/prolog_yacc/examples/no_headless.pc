@@ -1,0 +1,3 @@
+
+pred1 :- false.
+pred2 :- true, pred1.
