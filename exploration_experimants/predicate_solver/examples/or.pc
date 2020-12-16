@@ -1,0 +1,7 @@
+
+pred1 :- false.
+pred1 :- true.
+
+pred2 :- pred1.
+
+:- pred2.
