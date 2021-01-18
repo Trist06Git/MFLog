@@ -1,8 +1,6 @@
 #ifndef INTERNAL_STRUCT_H
 #define INTERNAL_STRUCT_H
 
-#include <stdbool.h>
-
 #include "generic_vector.h"
 
 typedef struct atom atom;
@@ -33,7 +31,7 @@ struct atom {
 
 struct fcall {
     char* name;
-    vector* params;//as expressions
+    vector* params;
 };
 
 struct and {
@@ -46,13 +44,13 @@ struct equality {
     expr* rhs;
 };
 
-enum e_type {e_fcall, e_val, e_var, e_atom, e_equ, e_and, e_builtin};
+enum e_type {e_fcall, e_val, e_var, e_atom, e_equ, e_and};
 struct expr {
     enum e_type type;
     union {
         fcall f;
-        val vl;//probs take these out
-        var vr;//probs take these out
+        val vl;
+        var vr;
         atom a;
         and n;
         equality e;
@@ -61,23 +59,11 @@ struct expr {
 
 struct function {
     char* name;
-    vector* params;//as raw atoms
+    vector* params;
     expr e;
-    bool fully_defined;
 };
 
-and append_exprs_and(vector* exprs);
-and append_exprs_and_init(vector* exprs);
-void append_expr(expr* nd, expr* ex);
-expr* last_and(expr* nd);
-bool is_var_a(atom);
-bool is_var_e(expr);
-bool is_val_a(atom);
-bool is_val_e(expr);
-bool is_and_e(expr);
-bool is_fcall_e(expr);
-bool is_equ_e(expr);
-atom make_var_a(char*);
-expr make_var_e(char*);
+and append_exprs_and(vector*);
+and append_exprs_and_init(vector*);
 
 #endif

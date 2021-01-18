@@ -1,0 +1,57 @@
+
+
+f(x) =
+  x + 1.
+g(x) =
+  f(x),
+  1.
+
+h(x, y) =
+  f(x),
+  f(y).
+
+//g is g(X; R1, R1), so h becomes h(X, Y, Z, W; R1, R2). do we want this?
+/*w(x) =
+  h(
+    g(f(x)),
+    g(x)
+  ).*/
+
+//w(x) =
+  //h( g(x) ).
+
+r(X, Y, Z) =
+  X = 1,
+  Y = 2,
+  Z = 3.
+
+s(X) = r(g(X)).//need to decompose first, then disimplicate
+
+//testing yacc/lex on unicode
+αβγδεζηθικλμνξοπρσςτυφχψω(Γ) = Γ + 1.
+
+func_with_comments(a, b) =
+  //call f on a
+  f(a),
+  //call f on b
+  f(b),
+  //return 1
+  return = 1.
+
+Myfunc(Y) = Y.
+numb3r(E) = E.
+
+Func_with_CAps_and_3423s(X) =
+  X.
+
+α_transform(x) = f(x).
+β_transform(x) = f(x).
+
+//no root constants yet
+π = 3.141.
+
+//comment test
+//f(X) = X.
+
+/*comment
+      test*/
