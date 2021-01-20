@@ -79,5 +79,6 @@ bool is_fcall_e(expr);
 bool is_equ_e(expr);
 atom make_var_a(char*);
 expr make_var_e(char*);
+bool is_generated_var(expr e);
 
 #endif

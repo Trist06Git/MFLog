@@ -1,6 +1,17 @@
 
-h(z) = f(g(z)).
-f(x, y, z) =
+n(x) =                              n(x, return, return2) =
+  return = f(x) = other,                return = U_0 = other,
+  f(other, return2).                    f(other, return2),
+                                        f(x, U_0).
+
+n(x) =                              n(x, return, return2) =
+  return = f(x) = other = g(x, 1),      return = U_0 = other = U_1,
+  f(other, return2).                    f(other, return2),
+                                        f(x, U_0),
+                                        g(x, 1, U_1).
+
+h(z) = f(g(z)).         h(z) = f(g(z; y, x)),
+f(x, y, z) =                   g(z; y, x)
     x = 1,
     y = 2,
     z = 3.
@@ -21,6 +32,18 @@ g(x; y, z) =
         1.1.3: match call-site vars of f
     1.2: define h's head
 
+h(x) =          h(x) =
+    f(g(y)),        f(),
+    y = 1,          g(y; r1, r2),
+    x.              y = 1,
+                    x.
+
+w(a, b) =
+    a = 1,
+    b = 2.
+h(x; r1, r2) =              h(x; r1, r2) =
+    f(w(y, x); r1, r2).         f(y; r1, r2),
+                                w(y, x).
 h(z; r3) =
     f(r1, r2, r3),
     g(z; r1, r2).

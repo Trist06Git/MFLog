@@ -18,8 +18,7 @@ int extern errno;
 extern FILE* yyin;
 
 int flag;
-int verbose = 0;//not used yet
-int unique_main = 0;//old
+int verbose = 0;
 
 vector* func_defs;
 
@@ -34,6 +33,13 @@ function f_plus;
 function f_minus;
 
 void init(void);
+
+void disimp_func(function*);
+void disimp_func_expr(function*);
+void disimp_func_head(function*);
+void rec_disimp_func_expr(expr*, int* unique, vector* fcs_to_move, vector* singletons);
+void disimp_func_params(fcall*, int* unique, vector* fcs_to_move, vector* singletons);
+void disimp_callsite(fcall*, int* unique, vector* newly_generated);
 
 void name_vals_expr(expr* e, int* id);
 void name_vals_and(and* nd, int* id);
@@ -54,6 +60,7 @@ void dump_expr(expr, bool);
 void dump_func_call(fcall);
 char* expr_to_string(expr);
 char* atom_to_string(atom);
+void dump_expr_vec(vector*);
 
 void print_help(void);
 
@@ -89,11 +96,12 @@ int main(int argc, char** argv) {
     init();
     printf("Parsing/Lexing.\n");
     yyparse();
+    //close file here?
 
     printf("Disimplicating constants/variables.\n");
     for (int i = 0; i < size(func_defs); i++) {
         function* f = at(func_defs, i);
-        if (!f->fully_defined) name_vals_func(f);
+        disimp_func(f);
     }
 
     printf("Dumping internal representaiton.\n");
@@ -153,6 +161,113 @@ void init(void) {
     push_back(func_defs, &f_minus);
 }
 
+void disimp_func(function* f) {
+    if (f->fully_defined) return;
+    disimp_func_expr(f);
+    disimp_func_head(f);
+    f->fully_defined = true;
+}
+
+void disimp_func_expr(function* f) {
+    int unique = 0;
+    vector* moved_fcalls = new_vector(10, sizeof(expr));
+    vector* singletons = get_var_singles(f);
+    rec_disimp_func_expr(&f->e, &unique, moved_fcalls, singletons);
+    //and append moved fcalls
+    for (int i = 0; i < size(moved_fcalls); i++) {
+        expr* fc = at(moved_fcalls, i);
+        append_expr(&f->e, fc);
+    }
+}
+
+void rec_disimp_func_expr(expr* e, int* unique, vector* fc_to_move, vector* singletons) {
+    if (is_val_e(*e)) {
+        //replace with equality and unique var
+        expr new_left  = make_var_e(unique_name_incr(unique));
+        expr new_right = *e;
+        e->type = e_equ;
+        e->e.e.lhs = malloc(sizeof(expr));
+        e->e.e.rhs = malloc(sizeof(expr));
+        *e->e.e.lhs = new_left;
+        *e->e.e.rhs = new_right;
+    } else if (is_and_e(*e)) {
+        rec_disimp_func_expr(e->e.n.lhs, unique, fc_to_move, singletons);
+        rec_disimp_func_expr(e->e.n.rhs, unique, fc_to_move, singletons);
+    } else if (is_fcall_e(*e)) {
+        function* def = get_fdef(func_defs, e->e.f.name);
+        if (def == NULL) {
+            printf("Error, unknown function %s with arity %i.", e->e.f.name, size(e->e.f.params));
+            return;
+        }
+        disimp_func(def);
+        disimp_func_params(&e->e.f, unique, fc_to_move, singletons);
+        disimp_callsite(&e->e.f, unique, NULL);
+    }
+}
+
+void disimp_func_params(fcall* fc, int* unique, vector* fc_to_move, vector* singletons) {
+    for (int i = 0; i < size(fc->params); i++) {
+        expr* e = at(fc->params, i);
+        expr param = *e;
+        if (is_fcall_e(param)) {
+            function* def = get_fdef(func_defs, param.e.f.name);
+            if (def == NULL) {
+                printf("Error, unknown function %s with arity %i.", e->e.f.name, size(e->e.f.params));
+                return;
+            }
+            disimp_func(def);
+            disimp_func_params(&param.e.f, unique, fc_to_move, singletons);
+            vector* newly_generated = new_vector(0, sizeof(expr));
+            disimp_callsite(&param.e.f, unique, newly_generated);
+            ////decompose func
+            //push_back newly generated
+            for (int j = 0; j < size(newly_generated); j++) {
+                insert_at(fc->params, i, at(newly_generated, j)); i++;
+            }
+            free_vector(newly_generated);
+            //push_back singletons
+            for (int j = 0; j < size(param.e.f.params); j++) {
+                expr* pparam = at(param.e.f.params, j);
+                for (int k = 0; k < size(singletons); k++) {
+                    char* sing = at(singletons, k);
+                    if (is_var_e(*pparam)) {
+                        if (strcmp(sing, pparam->e.a.data.vr.symbol) == 0) {
+                            //is a singleton
+                            char* temp = malloc(sizeof(char)*(strlen(sing)+1));
+                            expr new_var = make_var_e(temp);
+                            insert_at(fc->params, i, &new_var); i++;
+                        }
+                    }   
+                }
+            }
+            push_back(fc_to_move, &param);
+            remove_at(fc->params, i); i--;
+        }
+    }
+}
+
+//newly_generated is optional, if not null, it will contain the newly
+//generated variables
+void disimp_callsite(fcall* fc, int* unique, vector* newly_generated) {
+    function* def = get_fdef(func_defs, fc->name);
+    if (def == NULL) {
+        printf("Error, unknown function %s with arity %i.", fc->name, size(fc->params));
+        return;
+    }
+    while (size(fc->params) < size(def->params)) {
+        expr new_name = make_var_e(unique_name_incr(unique));
+        push_back(fc->params, &new_name);
+        if (newly_generated != NULL) {
+            push_back(newly_generated, &new_name);
+        }
+    }
+}
+
+//will rename later
+void disimp_func_head(function* f) {
+    bind_func_returns(f);
+}
+
 void name_vals_expr(expr* e, int* id) {
     if (is_val_e(*e)) {
         expr old = *e;
@@ -191,13 +306,6 @@ void name_vals_expr(expr* e, int* id) {
     }
 }
 
-//skipping the equ's so only hitting the unbound values
-void name_vals_and(and* nd, int* id) {
-    name_vals_expr(nd->lhs, id);//lhs is always expr
-    name_vals_expr(nd->rhs, id);
-}
-
-//need to do func decomposition as a second pass
 void name_vals_func(function* f) {
     //printf("Naming vals for %s.\n", f->name);
     int unique = 0;
@@ -205,6 +313,12 @@ void name_vals_func(function* f) {
     decompose_fcalls(f);
     bind_func_returns(f);
     f->fully_defined = true;
+}
+
+//skipping the equ's so only hitting the unbound values
+void name_vals_and(and* nd, int* id) {
+    name_vals_expr(nd->lhs, id);//lhs is always expr
+    name_vals_expr(nd->rhs, id);
 }
 
 void bind_func_returns(function* f) {
@@ -445,7 +559,6 @@ char* expr_to_string(expr e) {
         case e_fcall : {////needs cleaning up, please remove...
             fcall f = e.e.f;
             int ssize = 0;
-            unique_main = 0;
             for (int i = 0; i < size(f.params); i++) {
                 expr p_i = *(expr*)at(f.params, i);
                 if (p_i.type == e_atom) {
@@ -465,7 +578,7 @@ char* expr_to_string(expr e) {
                 if (p_i.type == e_atom) {
                     sprintf(res, "%s%s", res, atom_to_string((*(expr*)at(f.params, i)).e.a));
                 } else {
-                    sprintf(res, "%sex_%i", res, unique_main++);
+                    sprintf(res, "%sex_$old$", res);
                 }
                 
                 if (i != size(f.params)-1) sprintf(res, "%s, ", res);
@@ -501,5 +614,12 @@ char* atom_to_string(atom a) {
         return res;
     } else {//a_var
         return a.data.vr.symbol;
+    }
+}
+
+void dump_expr_vec(vector* vec) {
+    for (int i = 0; i < size(vec); i++) {
+        expr* ex = at(vec, i);
+        dump_expr(*ex, false); nl;
     }
 }

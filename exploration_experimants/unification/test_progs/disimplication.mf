@@ -1,5 +1,4 @@
 
-
 f(x) =
   x + 1.
 g(x) =
@@ -10,12 +9,11 @@ h(x, y) =
   f(x),
   f(y).
 
-//g is g(X; R1, R1), so h becomes h(X, Y, Z, W; R1, R2). do we want this?
-/*w(x) =
+w(x) =
   h(
     g(f(x)),
     g(x)
-  ).*/
+  ).
 
 //w(x) =
   //h( g(x) ).
@@ -47,8 +45,22 @@ Func_with_CAps_and_3423s(X) =
 α_transform(x) = f(x).
 β_transform(x) = f(x).
 
+i(1) = 2.
+j(1) = 1.//should be the same as i
+k() = 1.
+
+l(x) =
+  return = f(x).
+
+n(x) =
+  return = f(x) = other,
+  f(other, return2).
+
+m(x) =
+  x = y = y.
+
 //no root constants yet
-π = 3.141.
+//π = 3.141.
 
 //comment test
 //f(X) = X.

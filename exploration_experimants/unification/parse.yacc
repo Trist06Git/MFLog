@@ -79,12 +79,20 @@ Func_def : Func_head Exprs END {
     insert_at(func_defs, 0, &f);
 };
 
-Func_head : WORD LP_ROUND Atom_params RP_ROUND EQUAL {
-    function f;
-    f.name = $1;
-    f.params = $3;
-    $$ = f;
-};
+Func_head 
+    : WORD LP_ROUND Atom_params RP_ROUND EQUAL {
+        function f;
+        f.name = $1;
+        f.params = $3;
+        $$ = f;
+    }
+    | WORD LP_ROUND RP_ROUND EQUAL {/*no params*/
+        function f;
+        f.name = $1;
+        f.params = new_vector(0, sizeof(expr));
+        $$ = f;
+    }
+    ;
 
 Atom_params
     : Atom {
