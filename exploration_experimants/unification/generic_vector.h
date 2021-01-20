@@ -1,6 +1,8 @@
 #ifndef GENERIC_VECTOR_H
 #define GENERIC_VECTOR_H
 
+#include <stdbool.h>
+
 typedef struct vector {
     int count;
     int allocated;
@@ -14,8 +16,11 @@ void* at(vector*, int);
 int remove_at(vector*, int);
 int insert_at(vector*, int, void*);
 int size(vector*);
-char* type(vector*);
+bool contains(vector*, void*);//should probably make some of these const
+bool contains_string(vector*, const char*);
+void append_vector(vector*, vector*);
 vector* new_vector(int, int);
-void free_vector(vector*);//...
+void free_vector(vector*);
+char* type(vector*);//old
 
 #endif

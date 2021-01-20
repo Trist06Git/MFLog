@@ -187,7 +187,7 @@ Atom
     }
     ;
 
-Equation : Expr_eq EQUAL Expr_eq {
+Equation : Expr EQUAL Expr_eq {
     expr lhs = $1;
     expr rhs = $3;
     equality eq;

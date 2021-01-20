@@ -59,6 +59,12 @@ n(x) =
 m(x) =
   x = y = y.
 
+o(x) =
+  y.
+
+p(x) =
+  f(x) = f(f(x)) = 1.
+
 //no root constants yet
 //π = 3.141.
 

@@ -30,6 +30,11 @@ test_results removing_at(void);
 test_results remove_correct_i(void);
 test_results push_enum(void);
 test_results element_overflow(void);
+test_results contains_char(void);
+test_results contains_int(void);
+test_results contains_struct(void);
+test_results vec_contains_string(void);
+test_results append_vectors(void);
 
 void dump_int_vector(vector*);
 
@@ -52,6 +57,11 @@ int main(int argc, char** argv) {
     print_results(remove_correct_i());
     print_results(push_enum());
     print_results(element_overflow());
+    print_results(contains_char());
+    print_results(contains_int());
+    print_results(contains_struct());
+    print_results(vec_contains_string());
+    print_results(append_vectors());
 
     printf(":: Done ::\n");
 }
@@ -305,6 +315,155 @@ test_results element_overflow(void) {
     }
     
     free_vector(vec);
+    return res;
+}
+
+test_results contains_char(void) {
+    test_results res;
+    res.name = "contains char";
+    res.result = true;
+
+    vector* vec = new_vector(0, sizeof(char));
+    for (char c = 'p'; c < 'v'; c++) {
+        push_back(vec, &c);
+    }
+
+    //contains: pqrstu
+    for (char c = 'p'; c < 'v'; c++) {
+        res.result &= contains(vec, &c);
+    }
+    
+    char a = 'a';
+    res.result &= !contains(vec, &a);
+    char z = 'z';
+    res.result &= !contains(vec, &z);
+
+    free_vector(vec);
+    return res;
+}
+
+test_results contains_int(void) {
+    test_results res;
+    res.name = "contains int";
+    res.result = true;
+
+    vector* vec = new_vector(0, sizeof(int));
+    int a = 0xff00ff00;
+    int b = 0x00ff00ff;
+    int c = 0x0000ffff;
+    push_back(vec, &a);
+    push_back(vec, &b);
+    push_back(vec, &c);
+    res.result &= contains(vec, &a);
+    res.result &= contains(vec, &b);
+    res.result &= contains(vec, &c);
+
+    int d = 0xffff0000;
+    int e = 0xff00ffff;
+    int f = 0x00ffff00;
+    res.result &= !contains(vec, &d);
+    res.result &= !contains(vec, &e);
+    res.result &= !contains(vec, &f);
+
+    free_vector(vec);
+    return res;
+}
+
+test_results contains_struct(void) {
+    test_results res;
+    res.name = "contains struct";
+    res.result = true;
+
+    typedef struct s s;
+    struct s {
+        int i;
+        char c;
+        bool b;
+    };
+    vector* vec = new_vector(0, sizeof(s));
+
+    int i = 0;
+    char c = 'a';
+    bool b = false;
+    for (; i < 4; i++, c++, b = !b) {
+        s st = {i, c, b};
+        push_back(vec, &st);
+    }
+    i = 0;
+    c = 'a';
+    b = false;
+    for (; i < 4; i++, c++, b = !b) {
+        s st = {i, c, b};
+        res.result &= contains(vec, &st);
+    }
+    i = 10;
+    c = 'j';
+    b = true;
+    for (; i < 14; i++, c++, b = !b) {
+        s st = {i, c, b};
+        res.result &= !contains(vec, &st);
+    }
+
+    free_vector(vec);
+    return res;
+}
+
+test_results vec_contains_string(void) {
+    test_results res;
+    res.name = "contains string";
+    res.result = true;
+
+    vector* vec = new_vector(0, sizeof(char*));
+
+    char* a = "abcdefg";
+    char* b = "R'lyeh wgah'nagl fhtagn";
+    char* c = "hello world";
+    push_back(vec, &a);
+    push_back(vec, &b);
+    push_back(vec, &c);
+    res.result &=  contains_string(vec, a);
+    res.result &=  contains_string(vec, b);
+    res.result &=  contains_string(vec, c);
+    res.result &= !contains_string(vec, "a");
+    res.result &= !contains_string(vec, "Ph'nglui mglw'nafh");
+    res.result &= !contains_string(vec, "goodbye world");
+
+    free_vector(vec);
+    return res;
+}
+
+test_results append_vectors(void) {
+    test_results res;
+    res.name = "append vectors";
+    res.result = true;
+
+    vector* vec1 = new_vector(0, sizeof(int));
+    vector* vec2 = new_vector(0, sizeof(int));
+
+    for (int i = 0; i < 5; i++) {
+        push_back(vec1, &i);
+        int j = 4-i;
+        push_back(vec2, &j);
+    }
+    int vec1_orig_size = size(vec1);
+    int vec2_orig_size = size(vec2);
+
+    append_vector(vec1, vec2);
+    res.result &= size(vec1) == vec1_orig_size+vec2_orig_size;
+    res.result &= size(vec2) == vec2_orig_size;
+
+    for (int i = 0; i < 5; i++) {
+        int* e = at(vec1, i);
+        res.result &= *e == i;
+    }
+    for (int i = 0; i < 5; i++) {
+        int* e = at(vec1, vec1_orig_size+i);
+        int j = 4-i;
+        res.result &= *e == j;
+    }
+
+    free_vector(vec1);
+    free_vector(vec2);
     return res;
 }
 

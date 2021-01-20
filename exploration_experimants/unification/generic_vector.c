@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
 
 void push_back(vector* vec, void* element) {
     if (vec->allocated == 0) {
@@ -22,7 +23,7 @@ void* at(vector* vec, int i) {
     if (i < vec->count) {
         return (char*)vec->store+(i*vec->el_size);
     } else {
-        return (void*)-1;
+        return (void*)-1;//should be null
     }
 }
 
@@ -66,8 +67,40 @@ int size(vector* vec) {
     return vec->count;
 }
 
-char* type(vector* vec) {
-    return vec->type;
+bool contains(vector* vec, void* item) {
+    for (int i = 0; i < size(vec); i++) {
+        void* element = at(vec, i);
+        bool res = true;
+        for (int j = 0; j < vec->el_size; j++) {
+            res &= ((char*)element)[j] == ((char*)item)[j];
+        }
+        if (res == true) return true;
+    }
+    return false;
+}
+
+bool contains_string(vector* vec, const char* str) {
+    for (int i = 0; i < size(vec); i++) {
+        char** element = at(vec, i);
+        if (strcmp(*element, str) == 0) return true;
+    }
+    return false;
+}
+
+//the start of vec2 will be connected to the end of vec1
+//vec1 will be modified in situ, and vec2 will not be freed
+//WARN! no type checking...
+void append_vector(vector* vec1, vector* vec2) {
+    int target_size = vec1->allocated;
+    while (target_size < size(vec1)+size(vec2)) {
+        target_size *= 2;
+    }
+    vec1->store = realloc(vec1->store, vec1->el_size*target_size);
+    if (vec1->store == NULL) printf("Error! something went wrong with realloc\n");
+    vec1->allocated = target_size;
+    for (int i = 0; i < size(vec2); i++) {//O(n) insertion
+        push_back(vec1, at(vec2, i));
+    }
 }
 
 vector* new_vector(int init_size, int el_size) {
@@ -82,9 +115,6 @@ vector* new_vector(int init_size, int el_size) {
         res->store = malloc((res->el_size)*init_size);
         res->allocated = init_size;
     }
-    /*printf("created vector ::\n");
-    printf("init allocated : %i\n", res->allocated);
-    printf("element size   : %i\n\n", res->el_size);*/
     return res;
 }
 
@@ -94,4 +124,9 @@ void free_vector(vector* vec) {
         free(vec->store);
     }
     free(vec);
+}
+
+//old
+char* type(vector* vec) {
+    return vec->type;
 }

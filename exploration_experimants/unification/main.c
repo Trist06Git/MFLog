@@ -38,19 +38,15 @@ void disimp_func(function*);
 void disimp_func_expr(function*);
 void disimp_func_head(function*);
 void rec_disimp_func_expr(expr*, int* unique, vector* fcs_to_move, vector* singletons);
+void rec_disimp_func_equ(expr*, int* unique, vector* fc_to_move, vector* singles);
 void disimp_func_params(fcall*, int* unique, vector* fcs_to_move, vector* singletons);
 void disimp_callsite(fcall*, int* unique, vector* newly_generated);
+//I think disimplicate actually means to nolonger imply any connection at all
+//explicate should probably be used instead
 
-void name_vals_expr(expr* e, int* id);
-void name_vals_and(and* nd, int* id);
-void name_vals_func(function*);
-
-void bind_func_returns(function*);
 vector* get_var_singles(function*);
 void rec_get_var_singles(expr*, map*);
 void check_var_singles_params(vector*, map*);
-void decompose_fcalls(function*);
-void rec_decompose_fcalls(fcall*, vector* singles, vector* outer_exs, vector* ret_vars, bool root_fcall);
 
 function* get_fdef(vector*, char* name);
 bool functor_arity_exists(vector* defs, fcall*);
@@ -58,6 +54,8 @@ bool functor_arity_exists(vector* defs, fcall*);
 void dump_func(function);
 void dump_expr(expr, bool);
 void dump_func_call(fcall);
+void dump_tuple(expr* t);
+void rec_dump_tuple(and*);
 char* expr_to_string(expr);
 char* atom_to_string(atom);
 void dump_expr_vec(vector*);
@@ -181,7 +179,7 @@ void disimp_func_expr(function* f) {
 }
 
 void rec_disimp_func_expr(expr* e, int* unique, vector* fc_to_move, vector* singletons) {
-    if (is_val_e(*e)) {
+    if (is_val_e(e)) {
         //replace with equality and unique var
         expr new_left  = make_var_e(unique_name_incr(unique));
         expr new_right = *e;
@@ -190,10 +188,10 @@ void rec_disimp_func_expr(expr* e, int* unique, vector* fc_to_move, vector* sing
         e->e.e.rhs = malloc(sizeof(expr));
         *e->e.e.lhs = new_left;
         *e->e.e.rhs = new_right;
-    } else if (is_and_e(*e)) {
+    } else if (is_and_e(e)) {
         rec_disimp_func_expr(e->e.n.lhs, unique, fc_to_move, singletons);
         rec_disimp_func_expr(e->e.n.rhs, unique, fc_to_move, singletons);
-    } else if (is_fcall_e(*e)) {
+    } else if (is_fcall_e(e)) {
         function* def = get_fdef(func_defs, e->e.f.name);
         if (def == NULL) {
             printf("Error, unknown function %s with arity %i.", e->e.f.name, size(e->e.f.params));
@@ -202,6 +200,25 @@ void rec_disimp_func_expr(expr* e, int* unique, vector* fc_to_move, vector* sing
         disimp_func(def);
         disimp_func_params(&e->e.f, unique, fc_to_move, singletons);
         disimp_callsite(&e->e.f, unique, NULL);
+    } else if (is_equ_e(e)) {
+        //printf("dis-imp of fcalls in equations not done yet..\n");
+        rec_disimp_func_equ(e, unique, fc_to_move, singletons);
+    }
+}
+
+void rec_disimp_func_equ(expr* e, int* unique, vector* fc_to_move, vector* singles) {
+    if (is_equ_e(e)) {
+        rec_disimp_func_equ(e->e.n.lhs, unique, fc_to_move, singles);
+        rec_disimp_func_equ(e->e.n.rhs, unique, fc_to_move, singles);
+    } else if (is_fcall_e(e)) {
+        rec_disimp_func_expr(e, unique, fc_to_move, singles);
+        //move fcall out
+        //for now this only substitues the last parameter of the fcall
+        //it should be changed to substitute all unbound variables anded
+        //togeather, resembling a tuple
+        push_back(fc_to_move, e);
+        expr* last_var = at(e->e.f.params, size(e->e.f.params)-1);
+        *e = copy_var_e(last_var);
     }
 }
 
@@ -209,7 +226,7 @@ void disimp_func_params(fcall* fc, int* unique, vector* fc_to_move, vector* sing
     for (int i = 0; i < size(fc->params); i++) {
         expr* e = at(fc->params, i);
         expr param = *e;
-        if (is_fcall_e(param)) {
+        if (is_fcall_e(&param)) {
             function* def = get_fdef(func_defs, param.e.f.name);
             if (def == NULL) {
                 printf("Error, unknown function %s with arity %i.", e->e.f.name, size(e->e.f.params));
@@ -230,7 +247,7 @@ void disimp_func_params(fcall* fc, int* unique, vector* fc_to_move, vector* sing
                 expr* pparam = at(param.e.f.params, j);
                 for (int k = 0; k < size(singletons); k++) {
                     char* sing = at(singletons, k);
-                    if (is_var_e(*pparam)) {
+                    if (is_var_e(pparam)) {
                         if (strcmp(sing, pparam->e.a.data.vr.symbol) == 0) {
                             //is a singleton
                             char* temp = malloc(sizeof(char)*(strlen(sing)+1));
@@ -263,70 +280,10 @@ void disimp_callsite(fcall* fc, int* unique, vector* newly_generated) {
     }
 }
 
-//will rename later
 void disimp_func_head(function* f) {
-    bind_func_returns(f);
-}
-
-void name_vals_expr(expr* e, int* id) {
-    if (is_val_e(*e)) {
-        expr old = *e;
-        e->type = e_equ;
-        e->e.e.lhs = malloc(sizeof(expr));
-        e->e.e.rhs = malloc(sizeof(expr));
-        memcpy(e->e.e.rhs, &old, sizeof(old));
-        expr new_name = make_var_e(unique_name_incr(id));
-        memcpy(e->e.e.lhs, &new_name, sizeof(new_name));
-    } else if (is_and_e(*e)) {
-        name_vals_and(&e->e.n, id);
-    } else if (is_fcall_e(*e)) {
-        fcall* fc = &e->e.f;
-        function* def = get_fdef(func_defs, fc->name);
-        if (def != NULL) {
-            if (def->fully_defined) {
-                printf("%s is already fully defined, skipping\n", def->name);
-            } else {
-                name_vals_func(def);
-            }
-            //disimplicate fcalls params
-            for (int i = 0; i < size(fc->params); i++) {
-                expr* par = at(fc->params, i);
-                if (is_fcall_e(*par)) {
-                    name_vals_expr(par, id);
-                }
-            }
-            //disimplicate the call sites variables
-            while (size(fc->params) < size(def->params)) {
-                expr new_name = make_var_e(unique_name_incr(id));
-                push_back(fc->params, &new_name);
-            }
-        } else {
-            printf("Error. Unknown function %s, with arity %i\n", fc->name, size(fc->params));
-        }
-    }
-}
-
-void name_vals_func(function* f) {
-    //printf("Naming vals for %s.\n", f->name);
-    int unique = 0;
-    name_vals_expr(&f->e, &unique);
-    decompose_fcalls(f);
-    bind_func_returns(f);
-    f->fully_defined = true;
-}
-
-//skipping the equ's so only hitting the unbound values
-void name_vals_and(and* nd, int* id) {
-    name_vals_expr(nd->lhs, id);//lhs is always expr
-    name_vals_expr(nd->rhs, id);
-}
-
-void bind_func_returns(function* f) {
     vector* f_singles = get_var_singles(f);
-    //printf("%s singleton varibles :\n", f->name);
     for (int i = 0; i < size(f_singles); i++) {
         char* s = at(f_singles, i);
-        //printf("%s\n", s);
         char* s_new_param = malloc(sizeof(char)*strlen(s)+1);
         strcpy(s_new_param, s);
         atom a_new_param = {a_var, .data.vr.symbol = s_new_param};
@@ -349,12 +306,12 @@ vector* get_var_singles(function* f) {
             push_back(singletons, *(char**)kv->fst);//check this.
         }
     }
-    //free_map(mp)??
+    free_map(mp);
     return singletons;
 }
 
 void rec_get_var_singles(expr* ex, map* mp) {
-    if (is_var_e(*ex)) {
+    if (is_var_e(ex)) {
         char* v_name = ex->e.a.data.vr.symbol;
         if (map_contains_key(mp, &v_name)) {
             (*(int*)snd(mp, &v_name))++;
@@ -362,99 +319,35 @@ void rec_get_var_singles(expr* ex, map* mp) {
             int one = 1;
             map_add(mp, &v_name, &one);
         }
-    } else if (is_and_e(*ex)) {
+    } else if (is_and_e(ex)) {
         rec_get_var_singles(ex->e.n.lhs, mp);
         rec_get_var_singles(ex->e.n.rhs, mp);
-    } else if (is_equ_e(*ex)) {
+    } else if (is_equ_e(ex)) {
         rec_get_var_singles(ex->e.e.lhs, mp);
         rec_get_var_singles(ex->e.e.rhs, mp);
-    } else if (is_fcall_e(*ex)) {
+    } else if (is_fcall_e(ex)) {
         vector* ps = ex->e.f.params;
         for (int i = 0; i < size(ps); i++) {
             expr* psi = at(ps, i);
             rec_get_var_singles(psi, mp);
         }
+    } else if (is_tuple_e(ex)) {
+        expr temp;
+        temp.type = e_and;
+        temp.e.n = ex->e.t.n;
+        rec_get_var_singles(&temp, mp);
     }
 }
 
 void check_var_singles_params(vector* params, map* mp) {
     for (int i = 0; i < size(params); i++) {
         atom* pr = at(params, i);
-        if (is_var_a(*pr)) {
+        if (is_var_a(pr)) {
             char* v_name = pr->data.vr.symbol;
             if (map_contains_key(mp, &v_name)) {
                 (*(int*)snd(mp, &v_name))++;
             }
         }
-    }
-}
-
-//this is horrific and needs to be redone...
-void decompose_fcalls(function* f) {
-    vector* singles = get_var_singles(f);
-    expr* ex = &f->e;
-    vector* moved_fcalls = new_vector(0, sizeof(expr));
-    vector* ret_vars = new_vector(0, sizeof(expr));
-    
-    if (is_fcall_e(*ex)) {//singlular fcall in f's expression
-        rec_decompose_fcalls(&ex->e.f, singles, moved_fcalls, ret_vars, true);
-    } else {
-        while (is_and_e(*ex)) {
-            if (is_fcall_e(*ex->e.n.lhs))
-                rec_decompose_fcalls(&ex->e.n.lhs->e.f, singles, moved_fcalls, ret_vars, true);
-            ex = ex->e.n.rhs;
-        }
-        //final and
-        if (is_fcall_e(*ex))
-            rec_decompose_fcalls(&ex->e.f, singles, moved_fcalls, ret_vars, true);
-    }
-    //printf("These function calls were composed and will be moved:\n");
-    for (int i = 0; i < size(moved_fcalls); i++) {
-        expr* efc = at(moved_fcalls, i);
-        append_expr(ex, efc);
-    }
-    free_vector(moved_fcalls);
-    free_vector(ret_vars);
-    free_vector(singles);
-}
-
-void rec_decompose_fcalls(fcall* fc, vector* singles, vector* outer_exs, vector* ret_vars, bool root_fcall) {
-    for (int i = 0; i < size(fc->params); i++) {
-        expr* par = at(fc->params, i);
-        //printf("checking param %i/%i of func %s..\n", i, size(fc->params)-1, fc->name);
-        if (is_fcall_e(*par)) {
-            rec_decompose_fcalls(&par->e.f, singles, outer_exs, ret_vars, false);
-            //move to outer
-            push_back(outer_exs, par);
-            for (int j = 0; j < size(ret_vars); j++) {//add the return vars in fcalls place
-                expr* ret = at(ret_vars, j);
-                //printf("inserting %s to %s's params\n", ret->e.a.data.vr.symbol, fc->name);
-                insert_at(fc->params, i, ret);
-                i++;
-            }
-            ret_vars->count = 0;//WARN! safe hack for vector.clear
-            remove_at(fc->params, i); i--;
-        } else if (is_var_e(*par)/* && !root_fcall*/) {
-            //if is single, insert to params, move fcall the outer_ex
-            for (int j = 0; j < size(singles); j++) {
-                char* sing = at(singles, j);
-                if (strcmp(par->e.a.data.vr.symbol, sing) == 0) {
-                    //printf("found matching singleton in %s: %s\n", fc->name, sing);
-                    char* temp = malloc(strlen(sing)*sizeof(char));
-                    strcpy(temp, sing);
-                    expr new_par = make_var_e(temp);
-                    push_back(ret_vars, &new_par);
-                    //printf("need to insert to params: %s\n", new_par.e.a.data.vr.symbol);
-                }
-            }
-        } else {
-            //printf("fcall %s has a nonvar/nonfcall param\n", fc->name);
-        }
-    }
-    //a bit of a hack.., needs redoing
-    if (!functor_arity_exists(func_defs, fc)) {
-        printf("Error, function %s with arity %i does not exist.\n", fc->name, size(fc->params));
-        //exit(EXIT_FAILURE);
     }
 }
 
@@ -465,7 +358,7 @@ function* get_fdef(vector* defs, char* name) {
             return f;
         }
     }
-    return NULL;//WARN
+    return NULL;
 }
 
 bool functor_arity_exists(vector* defs, fcall* fc) {
@@ -540,6 +433,9 @@ void dump_expr(expr e, bool indent) {
             printf(",\n");
             dump_expr(e2, indent);
         } break;
+        case e_tuple : {
+            dump_tuple(&e);
+        } break;
         default: return;
     }
 }
@@ -551,6 +447,22 @@ void dump_func_call(fcall func) {
         if (i < size(func.params)-1) printf(", ");
     }
     printf(")");
+}
+
+void dump_tuple(expr* e) {
+    printf("(");
+    rec_dump_tuple(&e->e.t.n);
+    printf(")");
+}
+
+void rec_dump_tuple(and* a) {
+    dump_expr(*a->lhs, false);
+    printf(",");
+    if (is_and_e(a->rhs)) {
+        rec_dump_tuple(&a->rhs->e.n);
+    } else {
+        dump_expr(*a->rhs, false);
+    }
 }
 
 char* expr_to_string(expr e) {

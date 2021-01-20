@@ -10,6 +10,7 @@ typedef struct val val;
 typedef struct var var;
 typedef struct fcall fcall;
 typedef struct and and;
+typedef struct tuple tuple;
 typedef struct equality equality;
 typedef struct expr expr;
 typedef struct function function;
@@ -41,12 +42,16 @@ struct and {
     expr* rhs;
 };
 
+struct tuple {
+    and n;
+};
+
 struct equality {
     expr* lhs;
     expr* rhs;
 };
 
-enum e_type {e_fcall, e_val, e_var, e_atom, e_equ, e_and, e_builtin};
+enum e_type {e_fcall, e_val, e_var, e_atom, e_equ, e_and, e_tuple, e_builtin};
 struct expr {
     enum e_type type;
     union {
@@ -55,6 +60,7 @@ struct expr {
         var vr;//probs take these out
         atom a;
         and n;
+        tuple t;
         equality e;
     } e;
 };
@@ -70,15 +76,17 @@ and append_exprs_and(vector* exprs);
 and append_exprs_and_init(vector* exprs);
 void append_expr(expr* nd, expr* ex);
 expr* last_and(expr* nd);
-bool is_var_a(atom);
-bool is_var_e(expr);
-bool is_val_a(atom);
-bool is_val_e(expr);
-bool is_and_e(expr);
-bool is_fcall_e(expr);
-bool is_equ_e(expr);
+bool is_var_a(atom*);
+bool is_var_e(expr*);
+bool is_val_a(atom*);
+bool is_val_e(expr*);
+bool is_and_e(expr*);
+bool is_tuple_e(expr*);
+bool is_fcall_e(expr*);
+bool is_equ_e(expr*);
+bool is_generated_var(expr*);
 atom make_var_a(char*);
 expr make_var_e(char*);
-bool is_generated_var(expr e);
+expr copy_var_e(expr*);
 
 #endif
