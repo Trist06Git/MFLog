@@ -69,7 +69,7 @@ int main(int argc, char** argv) {
         switch (option) {
             case 'h': print_help(); return EXIT_SUCCESS;       break;
             case 'v': verbose++;                               break;
-            case 'f': filename_path = optarg;                       break;
+            case 'f': filename_path = optarg;                  break;
             case '?': printf("Unknown option : %c\n", optopt); break;
             default :                                          break;
         }
@@ -96,7 +96,7 @@ int main(int argc, char** argv) {
     yyparse();
     //close file here?
 
-    printf("Disimplicating constants/variables.\n");
+    printf("Explicating constants/variables.\n");
     for (int i = 0; i < size(func_defs); i++) {
         function* f = at(func_defs, i);
         disimp_func(f);

@@ -1,0 +1,76 @@
+//lazy builtin sets that allow choice points with numbers
+//less would be a choice point of less(0), less(1), etc..
+
+less(x) = return < x.         => less(x, return) = return < x.
+set = less(5).                => set = [4, 3, 2, 1, 0]
+
+add_more(set) =               => add_more(set, return) =
+  return = 10 :: 9 :: set.         return = 10 :: 9 :: set.
+set = add_more(set).          => set = [10, 9, 4, 3, 2, 1, 0]
+
+//the set variable get shaddowed here
+//in reality it would be a different var with subscript
+//eg set0, set1, set2
+//also consider scope, so set inside add_more body would be set1
+//and would not clash with bound return set1
+
+
+
+//expanded less(x), on lazy <
+less(5, return) = return = 0.
+less(5, return) = return = 1.
+less(5, return) = return = 2.
+less(5, return) = return = 3.
+less(5, return) = return = 4.
+
+//the answer set of the choice point of less/2
+set = less(5).     => set = [4, 3, 2, 1, 0]
+
+//also implied:
+less(5, set0).
+add_more(set0, set1).   => set1 = [10, 9, 4, 3, 2, 1, 0]
+
+//as query:
+should_fail(x) =
+  x = 5,
+  less(5, 10).
+
+thing = should_fail(5).  => []? or bot/fail?... fail/bot I think
+
+////
+//in Davids cryptic style:
+l(x) = r < x.      => l(x, r) = r < x.
+s = l(5).                => s = [4, 3, 2, 1, 0]
+
+m(s) =             => m(s, r) =
+  r = 10::9::s.         r = 10::9::s.
+s = m(s).          => s = [10, 9, 4, 3, 2, 1, 0]
+
+
+
+///scraps:
+f(x) = x + 1.
+res = f(1, 2).     => []? and not fail/bot??... yes I think
+
+///
+bot = ⊥
+top = ⊤    //impossible to reach??
+not_bot = []
+contradiction(x) => 2 < 1.  => res = contradiction(_)   => res = ⊥
+negate(x) = x = bot.        => res = negate(⊥). => res = []
+negate(_) = bot.
+
+should_fail(x) =
+  x = 5,
+  contradiction(x).
+
+x = should_fail().          => should_fail(x). => whole_expr = ⊥/fail
+thing(y) =
+  x = should_fail(),        => this evals as bot/fail, so thing(y) evals as bot/fail
+  y = x + 1.
+
+wont_fail(x) =              => wont_fail(x) =
+  x = 5,                         x = 5,
+  negate(contradicion(x)).       res = contradiction(x),
+                                 negate(res).
+x = wont_fail().            => x = 5.
