@@ -14,6 +14,7 @@ typedef struct tuple tuple;
 typedef struct equality equality;
 typedef struct expr expr;
 typedef struct function function;
+typedef struct choice_point choice_point;
 
 struct val {
     int n;
@@ -72,6 +73,10 @@ struct function {
     bool fully_defined;
 };
 
+struct choice_point {
+    vector* functions;//as functions
+};
+
 and append_exprs_and(vector* exprs);
 and append_exprs_and_init(vector* exprs);
 void append_expr(expr* nd, expr* ex);
@@ -88,6 +93,8 @@ bool is_generated_var(expr*);
 atom make_var_a(char*);
 expr make_var_e(char*);
 expr copy_var_e(expr*);
+
+bool compare_atoms_a(atom*, atom*);
 
 function copy_fdef(function*);
 expr copy_expr(expr*);

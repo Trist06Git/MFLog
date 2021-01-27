@@ -7,9 +7,123 @@
 
 extern int errno;
 
+choice_point* get_cpoint(vector* cps, function* f) {
+    for (int i = 0; i < size(cps); i++) {
+        choice_point* cp = at(cps, i);
+        //get first
+        function* this_f = at(cp->functions, 0);
+        if (compare_func_arity(this_f, f)) {
+        //if (compare_func_vals(this_f, f)) {
+            return cp;
+        }
+    }
+    return NULL;
+}
+
+bool func_point_exists(vector* cps, function* f) {
+    for (int i = 0; i < size(cps); i++) {
+        if (func_def_exists(at(cps, i), f)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool func_def_exists(vector* defs, function* f) {
+    //vectors need comparators..
+    for (int i = 0; i < size(defs); i++) {
+        function* this_f = at(defs, i);
+        if (size(f->params) != size(this_f->params)) return false;
+        //if (compare_func_heads(f, this_f)) {
+        if (compare_func_vals(f, this_f)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool func_arity_exists(vector* defs, fcall* fc) {
+    for (int i = 0; i < size(defs); i++) {
+        function* def = at(defs, i);
+        if (strcmp(fc->name, def->name) == 0
+            &&
+            size(def->params) == size(fc->params)
+           ) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool compare_func_heads(function* f1, function* f2) {
+    if (size(f1->params) != size(f2->params))
+        return false;
+    for (int i = 0; i < size(f1->params); i++) {
+        if(!compare_atoms_a(at(f1->params, i), at(f2->params, i))) {
+            return false;
+        }//else continue
+    }
+    return true;
+}
+
+bool compare_func_arity(function* f1, function* f2) {
+    return size(f1->params) == size(f2->params)
+           &&
+           strcmp(f1->name, f2->name) == 0
+           ;
+}
+
+bool same(atom* a, atom* b) {
+    if (a->type == a_var && b->type == a_var) {
+        return true;
+    } else if (a->type == a_val
+               &&
+               b->type == a_val
+               &&
+               a->data.vl.n == b->data.vl.n)
+    {
+        return true;
+    }
+    return false;
+}
+
+bool compare_func_vals(function* f1, function* f2) {
+    if (strcmp(f1->name, f2->name) != 0)
+        return false;
+    if (size(f1->params) != size(f2->params))
+        return false;
+    for (int i = 0; i < size(f1->params); i++) {
+        if (!same(at(f1->params, i), at(f2->params, i))) {
+            return false;
+        }
+    }
+    return true;
+}
+
 function* get_fdef(vector* defs, char* name) {
     for (int i = 0; i < size(defs); i++) {
         function* f = at(defs, i);
+        if (strcmp(name, f->name) == 0) {
+            return f;
+        }
+    }
+    return NULL;
+}
+
+function* get_fdef_defined(vector* defs, char* name) {
+    for (int i = 0; i < size(defs); i++) {
+        function* f = at(defs, i);
+        if (f->fully_defined && strcmp(name, f->name) == 0) {
+            return f;
+        }
+    }
+    return NULL;
+}
+
+function* get_fdef_arity(vector* defs, char* name, int arity) {
+    for (int i = 0; i < size(defs); i++) {
+        function* f = at(defs, i);
+        if (size(f->params) != arity) return NULL;
         if (strcmp(name, f->name) == 0) {
             return f;
         }

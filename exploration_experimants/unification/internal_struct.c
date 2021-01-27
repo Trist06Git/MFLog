@@ -92,6 +92,17 @@ expr copy_var_e(expr* e) {
     return make_var_e(ret_name);
 }
 
+bool compare_atoms_a(atom* a1, atom* a2) {
+    if (a1->type != a2->type) {
+        return false;
+    } else if (a1->type == a_val) {
+        return a1->data.vl.n == a2->data.vl.n;
+    } else if (a1->type == a_var) {
+        return strcmp(a1->data.vr.symbol, a2->data.vr.symbol) == 0;
+    }
+    return false;
+}
+
 function copy_fdef(function* f) {
     function ret;
     ret.name = malloc(sizeof(char)*(strlen(f->name)+1));

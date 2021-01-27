@@ -5,6 +5,8 @@
 #include "generic_vector.h"
 #include "generic_map.h"
 
+extern vector* func_defs_cp;
+
 void explic_func(function*, vector* func_defs);
 void explic_func_expr(function*, vector* func_defs);
 void explic_func_head(function*);

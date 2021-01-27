@@ -76,7 +76,8 @@ Program : Func_def
 Func_def : Func_head Exprs END {
     function f = $1;
     f.e = $2;
-    insert_at(func_defs, 0, &f);
+    //insert_at(func_defs, 0, &f);
+    push_back(func_defs, &f);
 };
 
 Func_head 

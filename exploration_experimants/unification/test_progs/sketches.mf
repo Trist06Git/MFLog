@@ -74,3 +74,21 @@ wont_fail(x) =              => wont_fail(x) =
   negate(contradicion(x)).       res = contradiction(x),
                                  negate(res).
 x = wont_fail().            => x = 5.
+
+
+//avoiding infinite recursion on explication
+menu(quit, state) =
+  quit = input(),
+  state = do_stuff(state),
+  render(state),
+  check_quit(quit),
+  menu(quit, state).
+//above will inf during pre-proc, maybe count fcalls in explic algo
+//and quit and tell user to add signature definition?
+//eg:
+
+menu/2.
+menu(quit, state) =
+  quit = input(),
+  check_quit(quit),
+  menu(quit, state).

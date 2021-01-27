@@ -12,6 +12,19 @@ void explic_func(function* f, vector* func_defs) {
     explic_func_expr(f, func_defs);
     explic_func_head(f);
     f->fully_defined = true;
+    //add to choice points
+    choice_point* cp = get_cpoint(func_defs_cp, f);
+    if (cp == NULL) {
+        cp = malloc(sizeof(choice_point));
+        cp->functions = new_vector(1, sizeof(function));
+        push_back(cp->functions, f);
+        push_back(func_defs_cp, cp);
+        free(cp);
+    } else if (func_def_exists(cp->functions, f)) {
+        printf("Error, function %s with arity %i and given vars/vals already exists, skipping.\n", f->name, size(f->params));
+    } else {
+        push_back(cp->functions, f);
+    }
 }
 
 void explic_func_expr(function* f, vector* func_defs) {
@@ -40,16 +53,20 @@ void rec_explic_func_expr(expr* e, int* unique, vector* fc_to_move, vector* sing
         rec_explic_func_expr(e->e.n.lhs, unique, fc_to_move, singletons, func_defs);
         rec_explic_func_expr(e->e.n.rhs, unique, fc_to_move, singletons, func_defs);
     } else if (is_fcall_e(e)) {
-        function* def = get_fdef(func_defs, e->e.f.name);
+        //function* def = get_fdef_arity(func_defs, e->e.f.name, size(e->e.f.params));
+        //first attempt to fine a fully defined version
+        function* def = get_fdef_defined(func_defs, e->e.f.name);
+        if (def == NULL) {//then resort to non-fully defined
+            def = get_fdef(func_defs, e->e.f.name);
+        }
         if (def == NULL) {
-            printf("Error, unknown function %s with arity %i.", e->e.f.name, size(e->e.f.params));
+            printf("Error, unknown function %s with arity %i.\n", e->e.f.name, size(e->e.f.params));
             return;
         }
-        explic_func(def, func_defs);
+        explic_func(def, func_defs);//DANGER, if no base case is defined, then infinit loop
         explic_func_params(&e->e.f, unique, fc_to_move, singletons, func_defs);
         explic_callsite(&e->e.f, unique, NULL, func_defs);
     } else if (is_equ_e(e)) {
-        //printf("dis-imp of fcalls in equations not done yet..\n");
         rec_explic_func_equ(e, unique, fc_to_move, singletons, func_defs);
     }
 }
@@ -75,9 +92,11 @@ void explic_func_params(fcall* fc, int* unique, vector* fc_to_move, vector* sing
         expr* e = at(fc->params, i);
         expr param = *e;
         if (is_fcall_e(&param)) {
+            //WARN, this will just return the first found match reguardless of arity
+            //maybe get the fdef with the smallest matching arity?
             function* def = get_fdef(func_defs, param.e.f.name);
             if (def == NULL) {
-                printf("Error, unknown function %s with arity %i.", e->e.f.name, size(e->e.f.params));
+                printf("Error, unknown function %s with arity %i.\n", e->e.f.name, size(e->e.f.params));
                 return;
             }
             explic_func(def, func_defs);
@@ -114,9 +133,11 @@ void explic_func_params(fcall* fc, int* unique, vector* fc_to_move, vector* sing
 //newly_generated is optional, if not null, it will contain the newly
 //generated variables
 void explic_callsite(fcall* fc, int* unique, vector* newly_generated, vector* func_defs) {
+    //WARN, this will just return the first found match reguardless of arity
+    //maybe get the fdef with the smallest matching arity?
     function* def = get_fdef(func_defs, fc->name);
     if (def == NULL) {
-        printf("Error, unknown function %s with arity %i.", fc->name, size(fc->params));
+        printf("Error, unknown function %s with arity %i.\n", fc->name, size(fc->params));
         return;
     }
     while (size(fc->params) < size(def->params)) {

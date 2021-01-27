@@ -22,6 +22,7 @@ int flag;
 int verbose = 0;
 
 vector* func_defs;
+vector* func_defs_cp;
 
 //builtins
 fcall fc_div;
@@ -35,9 +36,10 @@ function f_minus;
 
 void init(void);
 
-bool functor_arity_exists(vector* defs, fcall*);
+
 
 void dump_func(function);
+void dump_cp(choice_point*);
 void dump_expr(expr, bool);
 void dump_func_call(fcall);
 void dump_tuple(expr* t);
@@ -86,11 +88,17 @@ int main(int argc, char** argv) {
         function* f = at(func_defs, i);
         explic_func(f, func_defs);
     }
+    free_vector(func_defs);
 
-    printf("Dumping internal representaiton.\n");
+    /*printf("Dumping internal representaiton.\n");
     for (int i = 0; i < size(func_defs); i++) {
         dump_func(*(function*)(at(func_defs, i)));
         nl;
+    }*/
+
+    printf("Dumping choice points.\n");
+    for (int i = 0; i < size(func_defs_cp); i++) {
+        dump_cp(at(func_defs_cp, i));
     }
     
     printf("Done.\n");
@@ -99,7 +107,8 @@ int main(int argc, char** argv) {
 
 //pretty bad, but oh well.
 void init(void) {
-    func_defs = new_vector(1, sizeof(function));
+    func_defs = new_vector(4, sizeof(function));
+    func_defs_cp = new_vector(4, sizeof(choice_point));
     fc_div.name   = "div";
     fc_mul.name   = "mul";
     fc_plus.name  = "plus";
@@ -142,19 +151,26 @@ void init(void) {
     push_back(func_defs, &f_mul);
     push_back(func_defs, &f_plus);
     push_back(func_defs, &f_minus);
-}
 
-bool functor_arity_exists(vector* defs, fcall* fc) {
-    for (int i = 0; i < size(defs); i++) {
-        function* def = at(defs, i);
-        if (strcmp(fc->name, def->name) == 0
-            &&
-            size(def->params) == size(fc->params)
-           ) {
-            return true;
-        }
-    }
-    return false;
+    choice_point c_div;
+    c_div.functions = new_vector(1, sizeof(function));
+    push_back(c_div.functions, &f_div);
+    push_back(func_defs_cp, &c_div);
+    
+    choice_point c_mul;
+    c_mul.functions = new_vector(1, sizeof(function));
+    push_back(c_mul.functions, &f_mul);
+    push_back(func_defs_cp, &c_mul);
+    
+    choice_point c_plus;
+    c_plus.functions = new_vector(1, sizeof(function));
+    push_back(c_plus.functions, &f_plus);
+    push_back(func_defs_cp, &c_plus);
+    
+    choice_point c_minus;
+    c_minus.functions = new_vector(1, sizeof(function));
+    push_back(c_minus.functions, &f_minus);
+    push_back(func_defs_cp, &c_minus);
 }
 
 void print_help(void) {
@@ -182,7 +198,14 @@ void dump_func(function f) {
     } else {
         printf("...\n");
     }
-     
+}
+
+void dump_cp(choice_point* fs) {
+    for (int i = 0; i < size(fs->functions); i++) {
+        function* f = at(fs->functions, i);
+        dump_func(*f);
+    }
+    nl;
 }
 
 void dump_expr(expr e, bool indent) {
