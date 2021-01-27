@@ -103,6 +103,17 @@ void append_vector(vector* vec1, vector* vec2) {
     }
 }
 
+//copies orig_vec into a newly allocated vector
+vector* duplicate_vector(const vector* orig_vec) {
+    vector* new_vec = malloc(sizeof(vector));
+    new_vec->count     = orig_vec->count;
+    new_vec->allocated = orig_vec->allocated;
+    new_vec->el_size   = orig_vec->el_size;
+    new_vec->store = malloc(orig_vec->el_size*orig_vec->allocated);
+    memcpy(new_vec->store, orig_vec->store, orig_vec->el_size*orig_vec->count);
+    return new_vec;
+}
+
 vector* new_vector(int init_size, int el_size) {
     vector* res = malloc(sizeof(vector));
     res->el_size = el_size;

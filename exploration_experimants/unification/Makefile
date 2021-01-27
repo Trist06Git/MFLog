@@ -2,7 +2,7 @@
 CC = gcc
 LL = lex
 YY = yacc
-C_LIBS = y.tab.c lex.yy.c internal_struct.c generic_vector.c generic_map.c utils.c
+C_LIBS = y.tab.c lex.yy.c internal_struct.c generic_vector.c generic_map.c utils.c explication.c
 
 .PHONY: run clean
 

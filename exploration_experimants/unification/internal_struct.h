@@ -51,13 +51,13 @@ struct equality {
     expr* rhs;
 };
 
-enum e_type {e_fcall, e_val, e_var, e_atom, e_equ, e_and, e_tuple, e_builtin};
+enum e_type {e_fcall, /*e_val, e_var,*/ e_atom, e_equ, e_and, e_tuple, e_builtin};
 struct expr {
     enum e_type type;
     union {
         fcall f;
-        val vl;//probs take these out
-        var vr;//probs take these out
+        //val vl;//probs take these out
+        //var vr;//probs take these out
         atom a;
         and n;
         tuple t;
@@ -88,5 +88,27 @@ bool is_generated_var(expr*);
 atom make_var_a(char*);
 expr make_var_e(char*);
 expr copy_var_e(expr*);
+
+function copy_fdef(function*);
+expr copy_expr(expr*);
+fcall copy_fcall(fcall*);
+atom copy_atom(atom*);
+and copy_and(and*);
+equality copy_equ(equality*);
+val copy_val(val*);
+var copy_var(var*);
+vector* duplicate_params_a(vector* params);
+vector* duplicate_params_e(vector* params);
+
+void free_fdef(function*);
+void free_expr(expr*);
+void free_fcall(fcall*);
+void free_atom(atom*);
+void free_and(and*);
+void free_equ(equality*);
+void free_val(val*);
+void free_var(var*);
+void free_params_a(vector* params);
+void free_params_e(vector* params);
 
 #endif

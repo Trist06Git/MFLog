@@ -1,10 +1,21 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "utils.h"
 
 extern int errno;
+
+function* get_fdef(vector* defs, char* name) {
+    for (int i = 0; i < size(defs); i++) {
+        function* f = at(defs, i);
+        if (strcmp(name, f->name) == 0) {
+            return f;
+        }
+    }
+    return NULL;
+}
 
 int digits(int num) {
     int res = 0;

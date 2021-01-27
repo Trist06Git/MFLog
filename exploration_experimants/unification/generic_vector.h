@@ -19,6 +19,7 @@ int size(vector*);
 bool contains(vector*, void*);//should probably make some of these const
 bool contains_string(vector*, const char*);
 void append_vector(vector*, vector*);
+vector* duplicate_vector(const vector*);
 vector* new_vector(int, int);
 void free_vector(vector*);
 char* type(vector*);//old

@@ -35,6 +35,8 @@ test_results contains_int(void);
 test_results contains_struct(void);
 test_results vec_contains_string(void);
 test_results append_vectors(void);
+test_results copy_dupe_vector(void);
+test_results modify_duplicated(void);
 
 void dump_int_vector(vector*);
 
@@ -62,6 +64,8 @@ int main(int argc, char** argv) {
     print_results(contains_struct());
     print_results(vec_contains_string());
     print_results(append_vectors());
+    print_results(copy_dupe_vector());
+    print_results(modify_duplicated());
 
     printf(":: Done ::\n");
 }
@@ -462,6 +466,73 @@ test_results append_vectors(void) {
         res.result &= *e == j;
     }
 
+    free_vector(vec1);
+    free_vector(vec2);
+    return res;
+}
+
+test_results copy_dupe_vector(void) {
+    test_results res;
+    res.name = "duplicating vector";
+    res.result = true;
+
+    vector* vec1 = new_vector(0, sizeof(int));
+
+    for (int i = 0; i < 100; i++) {
+        push_back(vec1, &i);
+    }
+    int vec1_size = size(vec1);
+
+    vector* vec2 = duplicate_vector(vec1);
+    int vec2_size = size(vec2);
+    res.result &= vec1_size == vec2_size;
+
+    for (int i = 0; i < 100; i++) {
+        int res1 = *(int*)at(vec1, i);
+        int res2 = *(int*)at(vec2, i);
+        res.result &= (res1 == res2) && (res2 == i);
+    }
+    
+
+    free_vector(vec1);
+    free_vector(vec2);
+    return res;
+}
+
+test_results modify_duplicated(void) {
+    test_results res;
+    res.name = "modifying duplicated vector";
+    res.result = true;
+
+    vector* vec1 = new_vector(0, sizeof(int));
+
+    for (int i = 0; i < 10; i++) {
+        push_back(vec1, &i);
+    }
+    
+    vector* vec2 = duplicate_vector(vec1);
+    
+    for (int i = 0; i < 10; i++) {
+        (*(int*)at(vec2, i))++;
+    }
+    for (int i = 0; i < 10; i++) {
+        int res1 = *(int*)at(vec1, i);
+        int res2 = *(int*)at(vec2, i);
+        res.result &= res1 != res2;
+    }
+    int val = -7;
+    push_back(vec2, &val);
+
+    //check original is still okay
+    for (int i = 0; i < 10; i++) {
+        int res1 = *(int*)at(vec1, i);
+        res.result &= res1 == i;
+    }
+
+    int vec1_size = size(vec1);
+    int vec2_size = size(vec2);
+    res.result &= vec1_size != vec2_size;
+    
     free_vector(vec1);
     free_vector(vec2);
     return res;
