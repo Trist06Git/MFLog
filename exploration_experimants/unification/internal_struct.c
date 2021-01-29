@@ -66,13 +66,14 @@ expr* last_and(expr* nd) {
 }
 
 bool is_var_a(atom* a)   { return a->type == a_var; }
-bool is_var_e(expr* e)   { return e->type == e_atom && is_var_a(&e->e.a); }
 bool is_val_a(atom* a)   { return a->type == a_val; }
-bool is_val_e(expr* e)   { return e->type == e_atom && is_val_a(&e->e.a); }
-bool is_and_e(expr* e)   { return e->type == e_and; }
+bool is_var_e(expr* e)   { return is_atom_e(e) && is_var_a(&e->e.a); }
+bool is_val_e(expr* e)   { return is_atom_e(e) && is_val_a(&e->e.a); }
+bool is_atom_e(expr* e)  { return e->type == e_atom;  }
+bool is_and_e(expr* e)   { return e->type == e_and;   }
 bool is_tuple_e(expr* e) { return e->type == e_tuple; }
 bool is_fcall_e(expr* e) { return e->type == e_fcall; }
-bool is_equ_e(expr* e)   { return e->type == e_equ; }
+bool is_equ_e(expr* e)   { return e->type == e_equ;   }
 bool is_generated_var(expr* e) {
     if (e->type != e_atom || e->e.a.type != a_var) return false;
     return strstr(e->e.a.data.vr.symbol, "U_") != NULL;
@@ -86,6 +87,18 @@ expr make_var_e(char* name) {
     expr new_var = {e_atom, .e.a = make_var_a(name)};
     return new_var;
 }
+expr make_query(atom* at) {
+    expr qr;
+    qr.type = e_query;
+    qr.e.q = copy_atom(at);
+    return qr;
+}
+expr wrap_atom(atom at) {
+    expr ex;
+    ex.type = e_atom;
+    ex.e.a = at;
+    return ex;
+}
 expr copy_var_e(expr* e) {
     char* ret_name = malloc(sizeof(char)*(strlen(e->e.a.data.vr.symbol)+1));
     strcpy(ret_name, e->e.a.data.vr.symbol);
@@ -96,11 +109,20 @@ bool compare_atoms_a(atom* a1, atom* a2) {
     if (a1->type != a2->type) {
         return false;
     } else if (a1->type == a_val) {
-        return a1->data.vl.n == a2->data.vl.n;
+        if (a1->data.vl.type == a2->data.vl.type) {
+            if (a1->data.vl.type == v_int) {
+                return a1->data.vl.n == a2->data.vl.n;
+            }//else other types
+        }
     } else if (a1->type == a_var) {
         return strcmp(a1->data.vr.symbol, a2->data.vr.symbol) == 0;
     }
     return false;
+}
+
+bool compare_atoms_e(expr* a1, expr* a2) {
+    if (a1->type != e_atom || a2->type != e_atom) return false;
+    return compare_atoms_a(&a1->e.a, &a2->e.a);
 }
 
 function copy_fdef(function* f) {

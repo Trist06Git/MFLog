@@ -1,4 +1,7 @@
 
+main(r) =
+  r = f(1).
+
 f(x) =
   x + 1.
 g(x) =
@@ -64,6 +67,16 @@ o(x) =
 
 p(x) =
   f(x) = f(f(x)) = 1.
+
+q(x) = x.
+r(x) = x = q(x).
+t(x) = z = q(x).
+//currently, x is the return, so it is bound to z
+//change it to: all params of q are bount, so bind
+//the bot or top outcome to z instead
+
+u(x) =
+  f(f(x)).
 
 //no root constants yet
 //π = 3.141.

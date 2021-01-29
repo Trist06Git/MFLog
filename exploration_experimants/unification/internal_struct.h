@@ -16,7 +16,9 @@ typedef struct expr expr;
 typedef struct function function;
 typedef struct choice_point choice_point;
 
+enum v_type {v_int};
 struct val {
+    enum v_type type;
     int n;
 };
 
@@ -52,17 +54,16 @@ struct equality {
     expr* rhs;
 };
 
-enum e_type {e_fcall, /*e_val, e_var,*/ e_atom, e_equ, e_and, e_tuple, e_builtin};
+enum e_type {e_fcall, e_atom, e_equ, e_and, e_tuple, e_builtin, e_query};
 struct expr {
     enum e_type type;
     union {
         fcall f;
-        //val vl;//probs take these out
-        //var vr;//probs take these out
         atom a;
         and n;
         tuple t;
         equality e;
+        atom q;//only used internally at unification stage for now..
     } e;
 };
 
@@ -77,6 +78,9 @@ struct choice_point {
     vector* functions;//as functions
 };
 
+//nasty
+static expr debug_dummy_var = {.type = e_atom, .e.a = {.type = a_var, .data.vr = {.symbol = "DEBUG_DUMMY"}}};
+
 and append_exprs_and(vector* exprs);
 and append_exprs_and_init(vector* exprs);
 void append_expr(expr* nd, expr* ex);
@@ -85,6 +89,7 @@ bool is_var_a(atom*);
 bool is_var_e(expr*);
 bool is_val_a(atom*);
 bool is_val_e(expr*);
+bool is_atom_e(expr*);
 bool is_and_e(expr*);
 bool is_tuple_e(expr*);
 bool is_fcall_e(expr*);
@@ -92,9 +97,12 @@ bool is_equ_e(expr*);
 bool is_generated_var(expr*);
 atom make_var_a(char*);
 expr make_var_e(char*);
+expr make_query(atom*);
+expr wrap_atom(atom);//in an expr
 expr copy_var_e(expr*);
 
 bool compare_atoms_a(atom*, atom*);
+bool compare_atoms_e(expr*, expr*);
 
 function copy_fdef(function*);
 expr copy_expr(expr*);
@@ -104,6 +112,7 @@ and copy_and(and*);
 equality copy_equ(equality*);
 val copy_val(val*);
 var copy_var(var*);
+
 vector* duplicate_params_a(vector* params);
 vector* duplicate_params_e(vector* params);
 

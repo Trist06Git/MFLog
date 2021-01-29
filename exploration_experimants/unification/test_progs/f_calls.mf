@@ -1,0 +1,12 @@
+
+main(result) =
+  result = f(1).
+
+f(x) =
+  x = 1,
+  return = 1.
+
+failure(a) =
+  a = 2,
+  b = 1,
+  a = b.

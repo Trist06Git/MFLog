@@ -13,11 +13,21 @@ choice_point* get_cpoint(vector* cps, function* f) {
         //get first
         function* this_f = at(cp->functions, 0);
         if (compare_func_arity(this_f, f)) {
-        //if (compare_func_vals(this_f, f)) {
             return cp;
         }
     }
-    return NULL;
+    return NULL;//not found
+}
+
+choice_point* get_cpoint_na(vector* cps, const char* name, int arity) {
+    for (int i = 0; i < size(cps); i++) {
+        choice_point* cp = at(cps, i);
+        function* first = at(cp->functions, 0);
+        if (strcmp(first->name, name) == 0 && size(first->params) == arity) {
+            return cp;
+        }
+    }
+    return NULL;//not found
 }
 
 bool func_point_exists(vector* cps, function* f) {
@@ -143,17 +153,49 @@ int digits_neg(int num) {
     return res;    
 }
 
+//these need to be changed to unnamed symbol numbers
+//avoiding expensive string comparison
 char* unique_name_incr(int* n) {
     char* new_name = malloc(sizeof(char)*digits(*n)+1);
     sprintf(new_name, "%s%i", unique_prefix, *n);
     (*n)++;
     return new_name;
 }
-
 char* unique_name(int* n) {
     char* new_name = malloc(sizeof(char)*digits(*n)+1);
     sprintf(new_name, "%s%i", unique_prefix, *n);
     return new_name;
+}
+////should probably change this around to be D_func_arity
+//like in the prolog api, eg incr/2
+char* decomp_name_incr(int* arity, int* func) {
+    char* new_name = malloc(sizeof(char)*digits(*arity)+1);
+    sprintf(new_name, "%s%i_%i", decompose_prefix, *arity, *func);
+    (*arity)++;
+    return new_name;
+}
+char* decomp_name(int* arity, int* func) {
+    char* new_name = malloc(sizeof(char)*digits(*arity)+1);
+    sprintf(new_name, "%s%i_%i", decompose_prefix, *arity, *func);
+    return new_name;
+}
+
+//promise that vr is a variable
+bool compare_decomp_sequ(expr* vr, int sequ) {
+    //itoa() is not a part of the c standard
+    int ds = digits(sequ);
+    char* s_sequ = malloc(ds+1);
+    sprintf(s_sequ, "%i", sequ);
+    
+    char* subject = vr->e.a.data.vr.symbol;
+    if (strlen(subject) < 2+ds || subject[0] != 'D') return false;
+    subject += 2;//move past the "D_"
+    for (int i = 0; i < strlen(s_sequ) && *subject != '0'; i++, subject++) {
+        if (subject[0] != s_sequ[0]) return false;
+    }
+    
+    free(s_sequ);
+    return true;
 }
 
 //Unfinished, not needed for now.

@@ -161,6 +161,7 @@ Fcall : WORD LP_ROUND Expr_params RP_ROUND {
 
 Val : NUMBER {
     val v;
+    v.type = v_int;
     v.n = $1;
     $$ = v;
 };

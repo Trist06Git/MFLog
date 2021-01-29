@@ -81,6 +81,9 @@ void rec_explic_func_equ(expr* e, int* unique, vector* fc_to_move, vector* singl
         //for now this only substitues the last parameter of the fcall
         //it should be changed to substitute all unbound variables anded
         //togeather, resembling a tuple
+        //To add, this seems to be preventing single parameter functions.. but only in some cases...
+        //also, if all params are already bound, then bind the outcome of func
+        //to lhs instead, ie bot/top
         push_back(fc_to_move, e);
         expr* last_var = at(e->e.f.params, size(e->e.f.params)-1);
         *e = copy_var_e(last_var);
