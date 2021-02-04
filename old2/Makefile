@@ -1,6 +1,6 @@
 
 CC = gcc
-C_LIBS = mlog_alloc.c
+C_LIBS = mafialog_alloc.c
 
 all: objs
 	$(CC) *.o main.c -o build.bin
@@ -18,7 +18,6 @@ tests: objs
 clean:
 	-rm *.o
 	-rm build.bin
-	#-rm var_*
-	-rm -rf vars
+	-rm var_*
 	-rm tests/tests.bin
 	-rm tests/var_*

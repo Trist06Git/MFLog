@@ -31,16 +31,6 @@ void entry(vector* func_defs_cp) {
             }
         }
     }
-    /*
-    for (int g = 0; g < size(first_frame->G); g++) {
-        substitution* s = at(first_frame->G, g);
-        if ((is_var_e(s->lhs) && compare_decomp_sequ(s->lhs, 0))
-                ||
-            (is_var_e(s->rhs) && compare_decomp_sequ(s->rhs, 0)))
-        {
-            dump_expr(*s->lhs, true); printf(" = "); dump_expr(*s->rhs, false); nl;
-        }
-    }*/
     
     free_frame(first_frame);
 }
@@ -68,11 +58,11 @@ outcome call(frame_call* fr_c, frame* prev_frm, vector* func_defs_cp, int* call_
 }
 
 outcome unify(frame* frm, vector* func_defs_cp, int* call_sequ) {
-    //first call funcs
+    //first call funcs. g, f, etc
     for (int i = 0; i < size(frm->next_calls); i++) {//change this to remove at back. latter
         frame_call* frc = at(frm->next_calls, i);
         if (call(frc, frm, func_defs_cp, call_sequ) == o_fail) {
-            return o_fail;//should be retry
+            return o_fail;
         }
     }
     //then swap
@@ -153,7 +143,7 @@ void rec_add_expr(frame* frm, expr* ex, int* call_sequ) {
         f.call_sequence = *call_sequ;
         f.fc = ex->e.f;
         push_back(frm->next_calls, &f);
-        *call_sequ++;
+       *call_sequ++;
     } else if (is_and_e(ex)) {
         rec_add_expr(frm, ex->e.n.lhs, call_sequ);
         rec_add_expr(frm, ex->e.n.rhs, call_sequ);
@@ -259,6 +249,7 @@ char* outcome_to_string(const outcome* o) {
     }
 }
 
+////old, may not need
 void instantiate_a(atom* vr, atom* vl) {
     if (vr->type != a_var || vl->type != a_val) {
         printf("Error, instatiation failed. In instantiate_a\n");
@@ -292,6 +283,7 @@ void rec_instantiate_e(expr* in, expr* vr, expr* vl) {
         }
     }// else val, skip
 }
+////end
 
 void dump_frame(frame* frm) {
     printf("Frame has %i substitutions:\n", size(frm->G));
@@ -299,7 +291,7 @@ void dump_frame(frame* frm) {
         substitution* s = at(frm->G, g);
         dump_expr(*s->lhs, true); printf(" = "); dump_expr(*s->rhs, false); nl;
     }
-    printf("Still to call:\n");
+    printf("Sub calls:\n");
     for (int i = 0; i < size(frm->next_calls); i++) {
         fcall* f = at(frm->next_calls, i);
         printf("  "); dump_func_call(*f); nl;
