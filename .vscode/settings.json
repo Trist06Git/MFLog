@@ -1,0 +1,5 @@
+{
+    "files.associations": {
+        "mlog_alloc_benchmark.h": "c"
+    }
+}
