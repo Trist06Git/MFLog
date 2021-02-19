@@ -7,7 +7,7 @@
 #ifndef MREMAP_EXPANSION
 #ifndef REALLOC_EXPANSION
 #ifndef PRE_EXPANDED
-#error "No #define for benchmake type. See mloc_alloc*.c for details"
+#error "No #define for benchmake type. See mlog_alloc*.c for details"
 #endif
 #endif
 #endif

@@ -1,8 +1,11 @@
 
+//main(result) =
+//  result = f(1),
+//  result = g(1),
+//  result = h(1).
+
 main(result) =
-  result = f(1),
-  result = g(1),
-  result = h(1).
+  result = f(1) = g(1) = h(1).
 
 f(x) =
   x = 1,
