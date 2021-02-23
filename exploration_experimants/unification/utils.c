@@ -7,32 +7,34 @@
 
 extern int errno;
 
+//returns NULL if not found
 choice_point* get_cpoint(vector* cps, function* f) {
-    for (int i = 0; i < size(cps); i++) {
-        choice_point* cp = at(cps, i);
+    for (int i = 0; i < vec_size(cps); i++) {
+        choice_point* cp = vec_at(cps, i);
         //get first
-        function* this_f = at(cp->functions, 0);
+        function* this_f = vec_at(cp->functions, 0);
         if (compare_func_arity(this_f, f)) {
             return cp;
         }
     }
-    return NULL;//not found
+    return NULL;
 }
 
+//returns NULL if not found
 choice_point* get_cpoint_na(vector* cps, const char* name, int arity) {
-    for (int i = 0; i < size(cps); i++) {
-        choice_point* cp = at(cps, i);
-        function* first = at(cp->functions, 0);
-        if (strcmp(first->name, name) == 0 && size(first->params) == arity) {
+    for (int i = 0; i < vec_size(cps); i++) {
+        choice_point* cp = vec_at(cps, i);
+        function* first = vec_at(cp->functions, 0);
+        if (strcmp(first->name, name) == 0 && vec_size(first->params) == arity) {
             return cp;
         }
     }
-    return NULL;//not found
+    return NULL;
 }
 
 bool func_point_exists(vector* cps, function* f) {
-    for (int i = 0; i < size(cps); i++) {
-        if (func_def_exists(at(cps, i), f)) {
+    for (int i = 0; i < vec_size(cps); i++) {
+        if (func_def_exists(vec_at(cps, i), f)) {
             return true;
         }
     }
@@ -41,9 +43,9 @@ bool func_point_exists(vector* cps, function* f) {
 
 bool func_def_exists(vector* defs, function* f) {
     //vectors need comparators..
-    for (int i = 0; i < size(defs); i++) {
-        function* this_f = at(defs, i);
-        if (size(f->params) != size(this_f->params)) return false;
+    for (int i = 0; i < vec_size(defs); i++) {
+        function* this_f = vec_at(defs, i);
+        if (vec_size(f->params) != vec_size(this_f->params)) return false;
         //if (compare_func_heads(f, this_f)) {
         if (compare_func_vals(f, this_f)) {
             return true;
@@ -53,11 +55,11 @@ bool func_def_exists(vector* defs, function* f) {
 }
 
 bool func_arity_exists(vector* defs, fcall* fc) {
-    for (int i = 0; i < size(defs); i++) {
-        function* def = at(defs, i);
+    for (int i = 0; i < vec_size(defs); i++) {
+        function* def = vec_at(defs, i);
         if (strcmp(fc->name, def->name) == 0
             &&
-            size(def->params) == size(fc->params)
+            vec_size(def->params) == vec_size(fc->params)
            ) {
             return true;
         }
@@ -66,10 +68,10 @@ bool func_arity_exists(vector* defs, fcall* fc) {
 }
 
 bool compare_func_heads(function* f1, function* f2) {
-    if (size(f1->params) != size(f2->params))
+    if (vec_size(f1->params) != vec_size(f2->params))
         return false;
-    for (int i = 0; i < size(f1->params); i++) {
-        if(!compare_atoms_a(at(f1->params, i), at(f2->params, i))) {
+    for (int i = 0; i < vec_size(f1->params); i++) {
+        if(!compare_atoms_a(vec_at(f1->params, i), vec_at(f2->params, i))) {
             return false;
         }//else continue
     }
@@ -77,7 +79,7 @@ bool compare_func_heads(function* f1, function* f2) {
 }
 
 bool compare_func_arity(function* f1, function* f2) {
-    return size(f1->params) == size(f2->params)
+    return vec_size(f1->params) == vec_size(f2->params)
            &&
            strcmp(f1->name, f2->name) == 0
            ;
@@ -100,10 +102,10 @@ bool same(atom* a, atom* b) {
 bool compare_func_vals(function* f1, function* f2) {
     if (strcmp(f1->name, f2->name) != 0)
         return false;
-    if (size(f1->params) != size(f2->params))
+    if (vec_size(f1->params) != vec_size(f2->params))
         return false;
-    for (int i = 0; i < size(f1->params); i++) {
-        if (!same(at(f1->params, i), at(f2->params, i))) {
+    for (int i = 0; i < vec_size(f1->params); i++) {
+        if (!same(vec_at(f1->params, i), vec_at(f2->params, i))) {
             return false;
         }
     }
@@ -111,8 +113,8 @@ bool compare_func_vals(function* f1, function* f2) {
 }
 
 function* get_fdef(vector* defs, char* name) {
-    for (int i = 0; i < size(defs); i++) {
-        function* f = at(defs, i);
+    for (int i = 0; i < vec_size(defs); i++) {
+        function* f = vec_at(defs, i);
         if (strcmp(name, f->name) == 0) {
             return f;
         }
@@ -121,8 +123,8 @@ function* get_fdef(vector* defs, char* name) {
 }
 
 function* get_fdef_defined(vector* defs, char* name) {
-    for (int i = 0; i < size(defs); i++) {
-        function* f = at(defs, i);
+    for (int i = 0; i < vec_size(defs); i++) {
+        function* f = vec_at(defs, i);
         if (f->fully_defined && strcmp(name, f->name) == 0) {
             return f;
         }
@@ -131,9 +133,9 @@ function* get_fdef_defined(vector* defs, char* name) {
 }
 
 function* get_fdef_arity(vector* defs, char* name, int arity) {
-    for (int i = 0; i < size(defs); i++) {
-        function* f = at(defs, i);
-        if (size(f->params) != arity) return NULL;
+    for (int i = 0; i < vec_size(defs); i++) {
+        function* f = vec_at(defs, i);
+        if (vec_size(f->params) != arity) return NULL;
         if (strcmp(name, f->name) == 0) {
             return f;
         }
@@ -166,18 +168,22 @@ char* unique_name(int* n) {
     sprintf(new_name, "%s%i", unique_prefix, *n);
     return new_name;
 }
+
+char* anon_name(const char* prefix, int a, int b) {
+    char* new_name = malloc(sizeof(char)*(2+digits(a)+1+digits(b))+1);//T_+a+_+b+\0 = "T_1_2"
+    sprintf(new_name, "%s%i_%i", prefix, a, b);
+    return new_name;
+}
+
 ////should probably change this around to be D_func_arity
 //like in the prolog api, eg incr/2
 char* decomp_name_incr(int* arity, int* func) {
-    char* new_name = malloc(sizeof(char)*digits(*arity)+1);
-    sprintf(new_name, "%s%i_%i", decompose_prefix, *arity, *func);
+    char* new_name = anon_name(decompose_prefix, *arity, *func);
     (*arity)++;
     return new_name;
 }
 char* decomp_name(int* arity, int* func) {
-    char* new_name = malloc(sizeof(char)*digits(*arity)+1);
-    sprintf(new_name, "%s%i_%i", decompose_prefix, *arity, *func);
-    return new_name;
+    return anon_name(decompose_prefix, *arity, *func);
 }
 
 //promise that vr is a variable

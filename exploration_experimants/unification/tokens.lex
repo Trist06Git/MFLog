@@ -5,10 +5,12 @@
 
     extern void yyerror(char*);
     int line_number = 1;
+    extern int verbose;
 
     //Notes
     //I cant seem to work out comments in lex so theyre all going up here...
-    //nested pattern substitution doesnt seem to work... :-/
+    //Nested pattern substitution doesnt seem to work... :-/
+    //see greek letters for details.
 %}
 
 %x MULTI_COMMENT
@@ -20,6 +22,11 @@ digits         [0-9]
 english        [A-Za-z_]
 
 %%
+
+"print" return PRINT;
+"first" return FST_ANS;
+"one" return ONE_ANS;
+"all" return ALL_ANS;
 
 {digits}+ {
     yylval.number = atoi(yytext);
@@ -33,6 +40,12 @@ english        [A-Za-z_]
 
 [(] return LP_ROUND;
 [)] return RP_ROUND;
+[[] return LP_LIST;
+[]] return RP_LIST;
+
+"::" return CONS_LIST;
+"++" return APP_LIST;
+[;] return AND_LIST;
 
 [,] return AND;
 [=] return EQUAL;
@@ -58,10 +71,11 @@ english        [A-Za-z_]
 <SINGLE_COMMENT>\n  { BEGIN(INITIAL); line_number++; }
 
 <<EOF>> { 
-    printf("End Of File.\n");
+    if (verbose > 0) printf("End Of File.\n");
     yyterminate();
 };
 . return yytext[0];
+
 
 %%
 

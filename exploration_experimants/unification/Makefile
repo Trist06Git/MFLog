@@ -19,9 +19,9 @@ debug_run: debug
 
 debug: yaccify lexify $(C_LIBS)
 	#$(YY) --debug --verbose -d parse.yacc
-	$(YY) --debug -d parse.yacc
-	$(CC) $(WARNS) -g -O0 -c $(C_LIBS)
-	$(CC) $(WARNS) -g -O0 *.o main.c -o debug.bin
+	$(YY) -d parse.yacc
+	$(CC) $(WARNS) -g -O0 -DUNIFY_DEBUG -c $(C_LIBS)
+	$(CC) $(WARNS) -g -O0 -DUNIFY_DEBUG *.o main.c -o debug.bin
 
 objs: yaccify lexify $(C_LIBS)
 	$(CC) $(WARNS) -c $(C_LIBS)

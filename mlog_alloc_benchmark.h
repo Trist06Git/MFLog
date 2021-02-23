@@ -10,8 +10,8 @@ static size_t page_size;
 static size_t aligned_array_size;
 static bool inited = false;
 
-int file_ids;
-int max_files;
+//int file_ids;
+//int max_files;
 
 typedef struct mf_array mf_array;
 

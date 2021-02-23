@@ -7,15 +7,21 @@
 #include "internal_struct.h"
 #include "generic_vector.h"
 
+//WARNING, these are old and probably should not be used...
+//this collection of exprs_and functions transforms a vector
+//of exprs into a right skewed tree/list of anded exprs.
+//the values are removed from the vector after being added to
+//the tree, so no freeing is needed, BUT the vector becomes invalidated
+//please free the vector after use.
 and append_exprs_and(vector* exprs) {
     and this;
     this.lhs = malloc(sizeof(expr));
     this.rhs = malloc(sizeof(expr));
     
-    memcpy(this.lhs, at(exprs, 0), sizeof(expr));
-    remove_at(exprs, 0);
-    if (size(exprs) == 1) {
-        memcpy(this.rhs, at(exprs, 0), sizeof(expr));
+    memcpy(this.lhs, vec_at(exprs, 0), sizeof(expr));
+    vec_remove_at(exprs, 0);
+    if (vec_size(exprs) == 1) {
+        memcpy(this.rhs, vec_at(exprs, 0), sizeof(expr));
     } else {
         expr next;
         next.type = e_and;
@@ -25,8 +31,23 @@ and append_exprs_and(vector* exprs) {
     return this;
 }
 
+//if the returned expr type is e_builtin, then an error occured
+expr append_exprs_and_init_e(vector* exprs) {
+    expr res;
+    if (vec_size(exprs) < 1) {
+        res.type = e_builtin;
+    } else if (vec_size(exprs) < 2) {
+        expr* ex = vec_at(exprs, 0);
+        res = *ex;
+    } else {
+        res.type = e_and;
+        res.e.n = append_exprs_and_init(exprs);
+    }
+    return res;
+}
+
 and append_exprs_and_init(vector* exprs) {
-    if (size(exprs) < 2) {
+    if (vec_size(exprs) < 1) {
         and res = {NULL, NULL};//really not good.. oh well.
         return res;
     } else {
@@ -34,6 +55,7 @@ and append_exprs_and_init(vector* exprs) {
     }
 }
 
+//Note. this is newer and better than the above.
 //no memcpy
 void append_expr(expr* nd, expr* ex) {
     expr* last = last_and(nd);
@@ -41,9 +63,9 @@ void append_expr(expr* nd, expr* ex) {
 
     last->type = e_and;
     last->e.n.lhs = malloc(sizeof(expr));
-    *last->e.n.lhs = new_left;
+   *last->e.n.lhs = new_left;
     last->e.n.rhs = malloc(sizeof(expr));
-    *last->e.n.rhs = *ex;
+   *last->e.n.rhs = *ex;
 }
 /*//really not sure why it wouldnt work with memcpy...??
 void append_expr(expr* nd, expr* ex) {
@@ -65,18 +87,28 @@ expr* last_and(expr* nd) {
     return nd;
 }
 
-bool is_var_a(atom* a)   { return a->type == a_var; }
-bool is_val_a(atom* a)   { return a->type == a_val; }
-bool is_var_e(expr* e)   { return is_atom_e(e) && is_var_a(&e->e.a); }
-bool is_val_e(expr* e)   { return is_atom_e(e) && is_val_a(&e->e.a); }
-bool is_atom_e(expr* e)  { return e->type == e_atom;  }
-bool is_and_e(expr* e)   { return e->type == e_and;   }
-bool is_tuple_e(expr* e) { return e->type == e_tuple; }
-bool is_fcall_e(expr* e) { return e->type == e_fcall; }
-bool is_equ_e(expr* e)   { return e->type == e_equ;   }
-bool is_generated_var(expr* e) {
+bool is_var_a(const atom* a)   { return a->type == a_var; }
+bool is_val_a(const atom* a)   { return a->type == a_val; }
+bool is_var_e(const expr* e)   { return is_atom_e(e) && is_var_a(&e->e.a); }
+bool is_val_e(const expr* e)   { return is_atom_e(e) && is_val_a(&e->e.a); }
+bool is_atom_e(const expr* e)  { return e->type == e_atom;  }
+bool is_and_e(const expr* e)   { return e->type == e_and;   }
+bool is_tuple_e(const expr* e) { return e->type == e_tuple; }
+bool is_fcall_e(const expr* e) { return e->type == e_fcall; }
+bool is_equ_e(const expr* e)   { return e->type == e_equ;   }
+bool is_generated_var(const expr* e) {
     if (e->type != e_atom || e->e.a.type != a_var) return false;
     return strstr(e->e.a.data.vr.symbol, "U_") != NULL;
+}
+
+int tuple_size_e(const expr* e) {
+    expr* node = e->e.t.n.rhs;
+    int count = 1;
+    while (is_and_e(node)) {
+        count++;
+        node = node->e.n.rhs;
+    }
+    return count;
 }
 
 atom make_var_a(char* name) {
@@ -94,18 +126,19 @@ expr make_query(atom* at) {
     return qr;
 }
 expr wrap_atom(atom at) {
-    expr ex;
-    ex.type = e_atom;
-    ex.e.a = at;
+    expr ex = {e_atom, .e.a = at};
     return ex;
 }
-expr copy_var_e(expr* e) {
-    char* ret_name = malloc(sizeof(char)*(strlen(e->e.a.data.vr.symbol)+1));
-    strcpy(ret_name, e->e.a.data.vr.symbol);
-    return make_var_e(ret_name);
+expr wrap_and_e(and nd) {
+    expr ex = {e_and, .e.n = nd};
+    return ex;
+}
+expr wrap_and_t(and nd) {
+    expr ex = {e_tuple, .e.t.n = nd};
+    return ex;
 }
 
-bool compare_atoms_a(atom* a1, atom* a2) {
+bool compare_atoms_a(const atom* a1, const atom* a2) {
     if (a1->type != a2->type) {
         return false;
     } else if (a1->type == a_val) {
@@ -120,12 +153,18 @@ bool compare_atoms_a(atom* a1, atom* a2) {
     return false;
 }
 
-bool compare_atoms_e(expr* a1, expr* a2) {
+bool compare_atoms_e(const expr* a1, const expr* a2) {
     if (a1->type != e_atom || a2->type != e_atom) return false;
     return compare_atoms_a(&a1->e.a, &a2->e.a);
 }
 
-function copy_fdef(function* f) {
+expr copy_var_e(const expr* e) {
+    char* ret_name = malloc(sizeof(char)*(strlen(e->e.a.data.vr.symbol)+1));
+    strcpy(ret_name, e->e.a.data.vr.symbol);
+    return make_var_e(ret_name);
+}
+
+function copy_fdef(const function* f) {
     function ret;
     ret.name = malloc(sizeof(char)*(strlen(f->name)+1));
     strcpy(ret.name, f->name);
@@ -135,7 +174,7 @@ function copy_fdef(function* f) {
     return ret;
 }
 
-expr copy_expr(expr* ex) {
+expr copy_expr(const expr* ex) {
     expr ret;
     ret.type = ex->type;
     if (ex->type == e_fcall) {
@@ -146,11 +185,15 @@ expr copy_expr(expr* ex) {
         ret.e.n = copy_and(&ex->e.n);
     } else if (ex->type == e_equ) {
         ret.e.e = copy_equ(&ex->e.e);
-    }//add tuples
+    } else if (ex->type == e_tuple) {
+        ret.e.t = copy_tuple(&ex->e.t);
+    } else {
+        printf("Error. In copy_expr(). Unknown type.\n");
+    }
     return ret;
 }
 
-fcall copy_fcall(fcall* fc) {
+fcall copy_fcall(const fcall* fc) {
     fcall ret;
     ret.name = malloc(sizeof(char)*(strlen(fc->name)+1));
     strcpy(ret.name, fc->name);
@@ -158,18 +201,18 @@ fcall copy_fcall(fcall* fc) {
     return ret;
 }
 
-val copy_val(val* vl) {//a little superfluous
+val copy_val(const val* vl) {//a little superfluous
     return *vl;
 }
 
-var copy_var(var* vr) {
+var copy_var(const var* vr) {
     var ret;
     ret.symbol = malloc(sizeof(char)*(strlen(vr->symbol)+1));
     strcpy(ret.symbol, vr->symbol);
     return ret;
 }
 
-atom copy_atom(atom* at) {
+atom copy_atom(const atom* at) {
     atom ret;
     ret.type = at->type;
     if (at->type == a_var) {
@@ -180,7 +223,7 @@ atom copy_atom(atom* at) {
     return ret;
 }
 
-and copy_and(and* nd) {
+and copy_and(const and* nd) {
     and ret;
     ret.lhs = malloc(sizeof(expr));
    *ret.lhs = copy_expr(nd->lhs);
@@ -189,7 +232,13 @@ and copy_and(and* nd) {
     return ret;
 }
 
-equality copy_equ(equality* equ) {
+tuple copy_tuple(const tuple* tu) {
+    tuple ret;
+    ret.n = copy_and(&tu->n);
+    return ret;
+}
+
+equality copy_equ(const equality* equ) {
     equality ret;
     ret.lhs = malloc(sizeof(expr));
    *ret.lhs = copy_expr(equ->lhs);
@@ -200,20 +249,20 @@ equality copy_equ(equality* equ) {
 
 //do you promise that params is a vector of expr's?
 vector* duplicate_params_e(vector* params) {
-    vector* ret = new_vector(size(params), sizeof(expr));
-    for (int i = 0; i < size(params); i++) {
-        expr new_e = copy_expr(at(params, i));
-        push_back(ret, &new_e);
+    vector* ret = new_vector(vec_size(params), sizeof(expr));
+    for (int i = 0; i < vec_size(params); i++) {
+        expr new_e = copy_expr(vec_at(params, i));
+        vec_push_back(ret, &new_e);
     }
     return ret;
 }
 
 //do you promise that params is a vector of atoms's?
 vector* duplicate_params_a(vector* params) {
-    vector* ret = new_vector(size(params), sizeof(atom));
-    for (int i = 0; i < size(params); i++) {
-        atom new_a = copy_atom(at(params, i));
-        push_back(ret, &new_a);
+    vector* ret = new_vector(vec_size(params), sizeof(atom));
+    for (int i = 0; i < vec_size(params); i++) {
+        atom new_a = copy_atom(vec_at(params, i));
+        vec_push_back(ret, &new_a);
     }
     return ret;
 }
@@ -224,6 +273,7 @@ void free_fdef(function* f) {
     free(f->name);
     free_params_a(f->params);
     free_expr(&f->e);
+    //free(e)??
 }
 
 void free_expr(expr* ex) {
@@ -235,10 +285,15 @@ void free_expr(expr* ex) {
         free_and(&ex->e.n);
     } else if (ex->type == e_equ) {
         free_equ(&ex->e.e);
-    }//add tuples
+    } else if (ex->type == e_tuple) {
+        //add tuples
+    } else if (ex->type == e_builtin) {
+        return;
+    }
 }
 
 void free_fcall(fcall* fc) {
+    if (fc->type == f_builtin) return;
     free(fc->name);
     free_params_e(fc->params);
 }
@@ -265,7 +320,7 @@ void free_equ(equality* equ) {
     free(equ->rhs);
 }
 
-//val is not malloced so no need to free
+//val is not malloced so no need to free.. yet.
 void free_val(val* vl) {
     return;
 }
@@ -276,16 +331,16 @@ void free_var(var* vr) {
 
 //promise that params is atom.
 void free_params_a(vector* params) {
-    for (int i = 0; i < size(params); i++) {
-        free_atom(at(params, i));
+    for (int i = 0; i < vec_size(params); i++) {
+        free_atom(vec_at(params, i));
     }
     free_vector(params);
 }
 
 //promise that params is expr.
 void free_params_e(vector* params) {
-    for (int i = 0; i < size(params); i++) {
-        free_expr(at(params, i));
+    for (int i = 0; i < vec_size(params); i++) {
+        free_expr(vec_at(params, i));
     }
     free_vector(params);
 }

@@ -14,10 +14,12 @@
 
     extern int flag;
     extern vector* func_defs;
+    extern vector* global_defs;
     extern fcall fc_div;
     extern fcall fc_mul;
     extern fcall fc_plus;
     extern fcall fc_minus;
+    extern fcall fc_print;
     vector* ps = NULL;
 
     int yylex(void);
@@ -39,6 +41,7 @@
     equality u_eq;
     expr u_ex;
     function u_fn;
+    enum rs_type u_rs;
 }
 
 %token <number> NUMBER
@@ -54,9 +57,14 @@
 %type <u_ex> Exprs
 %type <u_ex> Expr_eq
 %type <u_fc> Fcall
+%type <u_fc> Fcall_ans
+%type <u_fc> Fbuiltin
+%type <u_fc> Builtin_func
+%type <u_rs> Answer_count
 %type <u_fc> Ocall
 %type <u_fc> Operator
 %type <u_eq> Equation
+%type <u_eq> Atom_left_equ
 
 %left MINUS
 %left PLUS
@@ -66,21 +74,35 @@
 %token END
 %left EQUAL
 %left AND
+%token PRINT
+%token FST_ANS
+%token ONE_ANS
+%token ALL_ANS
+%token LP_LIST RP_LIST
+%token CONS_LIST
+%token APP_LIST
+%token AND_LIST
 
 %%
 
 Program : Func_def
         | Func_def Program
+        | Global   Program
         ;
+
+Global : Atom_left_equ END {
+    expr ex = {.type = e_equ, .e.e = $1};
+    vec_push_back(global_defs, &ex);
+};
 
 Func_def : Func_head Exprs END {
     function f = $1;
     f.e = $2;
-    //insert_at(func_defs, 0, &f);
-    push_back(func_defs, &f);
+    //vec_insert_at(func_defs, 0, &f);
+    vec_push_back(func_defs, &f);
 };
 
-Func_head 
+Func_head
     : WORD LP_ROUND Atom_params RP_ROUND EQUAL {
         function f;
         f.name = $1;
@@ -98,14 +120,14 @@ Func_head
 Atom_params
     : Atom {
         ps = new_vector(1, sizeof(atom));
-        insert_at(ps, 0, &$1);
+        vec_insert_at(ps, 0, &$1);
         $$ = ps;
         ps = NULL;
     }
     | Atom AND Atom_params {
         if (ps == NULL) ps = new_vector(1, sizeof(atom));
         ps =  $3;
-        insert_at(ps, 0, &$1);
+        vec_insert_at(ps, 0, &$1);
         $$ = ps;
         ps = NULL;
     }
@@ -114,14 +136,14 @@ Atom_params
 Expr_params
     : Expr {
         ps = new_vector(1, sizeof(expr));
-        insert_at(ps, 0, &$1);
+        vec_insert_at(ps, 0, &$1);
         $$ = ps;
         ps = NULL;
     }
     | Expr AND Expr_params {
         if (ps == NULL) ps = new_vector(1, sizeof(expr));
         ps =  $3;
-        insert_at(ps, 0, &$1);
+        vec_insert_at(ps, 0, &$1);
         $$ = ps;
         ps = NULL;
     }
@@ -144,20 +166,35 @@ Exprs
     }
     ;
 
-Expr : Fcall    { expr ex; ex.type = e_fcall; ex.e.f  = $1; $$ = ex; }
-     | Atom     { expr ex; ex.type = e_atom;  ex.e.a  = $1; $$ = ex; }
-     | Ocall    { expr ex; ex.type = e_fcall; ex.e.f  = $1; $$ = ex; }
+Expr : Fcall_ans { expr ex; ex.type = e_fcall; ex.e.f  = $1; $$ = ex; }
+     | Fbuiltin  { expr ex; ex.type = e_fcall; ex.e.f  = $1; $$ = ex; }
+     | Fcall     { expr ex; ex.type = e_fcall; ex.e.f  = $1; $$ = ex; }
+     | Atom      { expr ex; ex.type = e_atom;  ex.e.a  = $1; $$ = ex; }
+     | Ocall     { expr ex; ex.type = e_fcall; ex.e.f  = $1; $$ = ex; }
      ;
 
 Expr_eq : Expr     { $$ = $1; }
         | Equation { expr ex; ex.type = e_equ;   ex.e.e  = $1; $$ = ex; }
 
+Fbuiltin : Builtin_func LP_ROUND Expr_params RP_ROUND {
+    fcall fc = $1;
+    fc.params = $3;
+    $$ = fc;
+};
+
 Fcall : WORD LP_ROUND Expr_params RP_ROUND {
     fcall fc;
+    fc.res_set = rs_first;
     fc.name = $1;
     fc.params = $3;
     $$ = fc;
 };
+
+Fcall_ans : Answer_count Fcall {
+    fcall fc = $2;
+    fc.res_set = $1;
+    $$ = fc;
+}
 
 Val : NUMBER {
     val v;
@@ -200,11 +237,22 @@ Equation : Expr EQUAL Expr_eq {
     $$ = eq;
 };
 
+Atom_left_equ : Atom EQUAL Expr_eq {
+    expr lhs = wrap_atom($1);
+    expr rhs = $3;
+    equality eq;
+    eq.lhs = malloc(sizeof(expr));
+    eq.rhs = malloc(sizeof(expr));
+    memcpy(eq.lhs, &lhs, sizeof(lhs));
+    memcpy(eq.rhs, &rhs, sizeof(rhs));
+    $$ = eq;
+};
+
 Ocall : Expr Operator Expr {
     fcall op = $2;
     op.params = new_vector(2, sizeof(expr));
-    push_back(op.params, &$1);
-    push_back(op.params, &$3);
+    vec_push_back(op.params, &$1);
+    vec_push_back(op.params, &$3);
     $$ = op;
 };
 
@@ -213,6 +261,12 @@ Operator : PLUS  { $$ = fc_plus;  }
          | DIV   { $$ = fc_div;   }
          | MUL   { $$ = fc_mul;   }
          ;
+
+Builtin_func : PRINT { $$ = fc_print; }
+
+Answer_count : FST_ANS { $$ = rs_first; }
+             | ONE_ANS { $$ = rs_one;   }
+             | ALL_ANS { $$ = rs_all;   }
 
 %%
 

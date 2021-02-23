@@ -20,7 +20,7 @@ typedef struct map {
 
 void map_push_back(map*, void*, void*);
 void map_add(map*, void*, void*);//alias
-void* map_at(map*, void*);//alias to snd
+void* map_at(map*, void*);//alias
 void* map_at_index(map*, int);
 void* fst(map*, void*);
 void* snd(map*, void*);

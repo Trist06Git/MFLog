@@ -2,7 +2,7 @@
 //set these with -D for gcc
 //#define MREMAP_EXPANSION
 //#define REALLOC_EXPANSION
-//#define PRE_EXPANDED
+#define PRE_EXPANDED
 
 #ifndef MREMAP_EXPANSION
 #ifndef REALLOC_EXPANSION

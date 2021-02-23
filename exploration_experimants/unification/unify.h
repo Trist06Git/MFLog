@@ -25,17 +25,21 @@ struct frame_call {
     int call_sequence;//so that return vars dont clash
 };
 
-void entry(vector* func_defs_cp);
-outcome unify(frame*, vector* func_defs_cp, int* call_sequ);
-frame* init_frame(function*, int* call_sequ);
+void entry(vector* func_defs_cp, vector* globals);
+outcome call(frame_call*, frame* prev, vector* func_defs_cp, vector* globals, int* call_sequ);
+outcome unify(frame*, vector* func_defs_cp, vector* globals, int* call_sequ);
+frame* init_frame(function*, vector* globals, int* call_sequ);
 void free_frame(frame*);
 void rec_add_expr(frame*, expr*, int* call_sequ);
+void decompose(frame*);
 void swap_substitution(substitution*);
 void delete_g(frame*);
-void decompose(frame*);
 outcome conflict(frame*);
 void eliminate(frame*);
+void tuple_eliminate(tuple*, const expr* var, const expr* val);
+void rec_tuple_eliminate(and*, const expr* var, const expr* val);
 outcome query(expr*);
+vector* head_results(frame*, function*);
 
 char* outcome_to_string(const outcome*);
 

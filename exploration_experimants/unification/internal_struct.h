@@ -4,10 +4,12 @@
 #include <stdbool.h>
 
 #include "generic_vector.h"
+#include "mlog_array.h"
 
 typedef struct atom atom;
 typedef struct val val;
 typedef struct var var;
+typedef struct list list;
 typedef struct fcall fcall;
 typedef struct and and;
 typedef struct tuple tuple;
@@ -16,7 +18,7 @@ typedef struct expr expr;
 typedef struct function function;
 typedef struct choice_point choice_point;
 
-enum v_type {v_int};
+enum v_type {v_int, v_list};
 struct val {
     enum v_type type;
     int n;
@@ -24,6 +26,11 @@ struct val {
 
 struct var {
     char* symbol;
+};
+
+struct list {
+    enum v_type type;
+    int array_herere;;;
 };
 
 enum a_type {a_val, a_var};
@@ -35,9 +42,14 @@ struct atom {
     } data;
 };
 
+enum f_type {f_builtin, f_user};
+enum rs_type {rs_all, rs_one, rs_first, rs_n};
 struct fcall {
+    enum f_type type;
     char* name;
     vector* params;//as expressions
+    enum rs_type res_set;
+    int rs_index;
 };
 
 struct and {
@@ -85,33 +97,38 @@ and append_exprs_and(vector* exprs);
 and append_exprs_and_init(vector* exprs);
 void append_expr(expr* nd, expr* ex);
 expr* last_and(expr* nd);
-bool is_var_a(atom*);
-bool is_var_e(expr*);
-bool is_val_a(atom*);
-bool is_val_e(expr*);
-bool is_atom_e(expr*);
-bool is_and_e(expr*);
-bool is_tuple_e(expr*);
-bool is_fcall_e(expr*);
-bool is_equ_e(expr*);
-bool is_generated_var(expr*);
+bool is_var_a(const atom*);
+bool is_var_e(const expr*);
+bool is_val_a(const atom*);
+bool is_val_e(const expr*);
+bool is_atom_e(const expr*);
+bool is_and_e(const expr*);
+bool is_tuple_e(const expr*);
+bool is_fcall_e(const expr*);
+bool is_equ_e(const expr*);
+bool is_generated_var(const expr*);
+int tuple_size_e(const expr*);
 atom make_var_a(char*);
 expr make_var_e(char*);
 expr make_query(atom*);
 expr wrap_atom(atom);//in an expr
-expr copy_var_e(expr*);
+expr wrap_and_e(and);//in an expr
+expr wrap_and_t(and);//in a tuple
 
-bool compare_atoms_a(atom*, atom*);
-bool compare_atoms_e(expr*, expr*);
 
-function copy_fdef(function*);
-expr copy_expr(expr*);
-fcall copy_fcall(fcall*);
-atom copy_atom(atom*);
-and copy_and(and*);
-equality copy_equ(equality*);
-val copy_val(val*);
-var copy_var(var*);
+bool compare_atoms_a(const atom*, const atom*);
+bool compare_atoms_e(const expr*, const expr*);
+
+expr copy_var_e(const expr*);
+function copy_fdef(const function*);
+expr copy_expr(const expr*);
+fcall copy_fcall(const fcall*);
+atom copy_atom(const atom*);
+and copy_and(const and*);
+tuple copy_tuple(const tuple*);
+equality copy_equ(const equality*);
+val copy_val(const val*);
+var copy_var(const var*);
 
 vector* duplicate_params_a(vector* params);
 vector* duplicate_params_e(vector* params);

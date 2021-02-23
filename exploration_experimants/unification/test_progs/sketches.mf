@@ -92,3 +92,70 @@ menu(quit, state) =
   quit = input(),
   check_quit(quit),
   menu(quit, state).
+
+/////all answers vs 1
+f(x) = x = 1.
+f(x) = x = 2.
+f(x) = x = 3.
+
+main(res) =
+  res = all f(x).
+
+main(res) =
+  res = one f(x).
+
+main(res) =
+  res = all f(x)[2].
+
+//the third answer is returned, who is a list, then its "one" first answer
+main(res) =
+  res = one f(x)[2].
+
+////tuples?
+f(x) =
+  x = 1,
+  return = (1, 2).
+
+g(x) =          => g(x, res) =
+  res = f(x).   =>   f(x, r1),
+                =>   res = r1,
+                =>   res = (a, b),
+                =>   a = 1,
+                =>   b = 2.
+
+g(x) =          => g(x, r1, r2) =
+  res = f(x),   =>   f(x, r0),
+  res = (i, j), =>   res = r0,
+  h(i, r1),     =>   res = (i, j),
+  h(j, r2).     =>   h(i, r1),
+                =>   h(j, r2),
+
+simple(x) =     => simple(x),
+  x = (1,2).    =>   x = (a,b),
+                =>   a = 1,
+                =>   b = 2.
+////binding the vars of a tuple should be
+//the other way around, that way a sane
+//fully bound tuple is returned, without
+//anonymous vars
+simple(x) =     => simple(x),
+  x = (1,2).    =>   x = (1,2),
+                =>   t_0_0 = 1,
+                =>   t_0_1 = 2.
+
+////list syntax
+app(x, l) =        => app(1, 2::3::[], return) =
+  return = x::l.   =>   return = 1::2::3::[].
+ 
+app(x, l) =        => app(1, 2;;3;;[], return) =
+  return = x;;l.   =>   return = 1;;2;;3;;[].
+
+cat(l1, l2) =      => cat(1;;2, 3;;4, return) =
+  return = l1::l2. =>   return = 1;;2::3;;4.
+                     => return = [1,2]::[3,4].
+
+app(x, l) =
+  return = x :: l.
+cat(l1, l2) =
+  return = l1++l2.
+cat([1;2], [3;4], [1;2;3;4]).

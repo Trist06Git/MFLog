@@ -18,7 +18,7 @@ void map_add(map* mp, void* element1, void* element2) {
     els.snd = malloc(mp->el2_size);
     memcpy(els.fst, element1, mp->el1_size);
     memcpy(els.snd, element2, mp->el2_size);
-    push_back(mp->store, &els);
+    vec_push_back(mp->store, &els);
 }
 
 //returns second of pair
@@ -28,12 +28,12 @@ void* map_at(map* mp, void* key) {
 
 //returns pair
 void* map_at_index(map* mp, int i) {
-    return at(mp->store, i);
+    return vec_at(mp->store, i);
 }
 
 void* snd(map* mp, void* key) {
-    for (int i = 0; i < size(mp->store); i++) {
-        pair* kv = at(mp->store, i);
+    for (int i = 0; i < vec_size(mp->store); i++) {
+        pair* kv = vec_at(mp->store, i);
         if (mp->el1_comparator(key, kv->fst, mp->el1_size)) {
             return kv->snd;
         }
@@ -42,8 +42,8 @@ void* snd(map* mp, void* key) {
 }
 
 void* fst(map* mp, void* val) {//could be merged with snd
-    for (int i = 0; i < size(mp->store); i++) {
-        pair* kv = at(mp->store, i);
+    for (int i = 0; i < vec_size(mp->store); i++) {
+        pair* kv = vec_at(mp->store, i);
         if (mp->el2_comparator(val, kv->snd, mp->el2_size)) {
             return kv->fst;
         }
@@ -52,12 +52,12 @@ void* fst(map* mp, void* val) {//could be merged with snd
 }
 
 int map_remove(map* mp, void* key) {
-    for (int i = 0; i < size(mp->store); i++) {
-        pair* kv = at(mp->store, i);
+    for (int i = 0; i < vec_size(mp->store); i++) {
+        pair* kv = vec_at(mp->store, i);
         if (mp->el1_comparator(key, kv->fst, mp->el1_size)) {
             free(kv->fst);
             free(kv->snd);
-            remove_at(mp->store, i);
+            vec_remove_at(mp->store, i);
             return 0;
         }
     }
@@ -65,8 +65,8 @@ int map_remove(map* mp, void* key) {
 }
 
 bool map_contains_key(map* mp, void* key) {
-    for (int i = 0; i < size(mp->store); i++) {
-        pair* kv = at(mp->store, i);
+    for (int i = 0; i < vec_size(mp->store); i++) {
+        pair* kv = vec_at(mp->store, i);
         if (mp->el1_comparator(key, kv->fst, mp->el1_size)) {
             return true;
         }
@@ -74,8 +74,8 @@ bool map_contains_key(map* mp, void* key) {
     return false;
 }///////reaaaaly needs merging
 bool map_contains_val(map* mp, void* val) {
-    for (int i = 0; i < size(mp->store); i++) {
-        pair* kv = at(mp->store, i);
+    for (int i = 0; i < vec_size(mp->store); i++) {
+        pair* kv = vec_at(mp->store, i);
         if (mp->el2_comparator(val, kv->snd, mp->el2_size)) {
             return true;
         }
@@ -84,7 +84,7 @@ bool map_contains_val(map* mp, void* val) {
 }
 
 int map_size(map* mp) {
-    return size(mp->store);
+    return vec_size(mp->store);
 }
 
 bool byte_compare(void* e1, void* e2, int bytes) {
@@ -126,8 +126,8 @@ map* new_map(int el1_size, int el2_size) {
 void free_map(map* mp) {
     if (mp == NULL) return;
     if (mp->store != NULL) {
-        for (int i = 0; i < size(mp->store); i++) {
-            pair* els = at(mp->store, i);
+        for (int i = 0; i < vec_size(mp->store); i++) {
+            pair* els = vec_at(mp->store, i);
             free(els->fst);
             free(els->snd);
         }

@@ -12,9 +12,9 @@
 void dump_func(function f) {
     //print function head
     printf("%s(", f.name);
-    int ps = size(f.params);
+    int ps = vec_size(f.params);
     for (int i = 0; i < ps; i++) {
-        printf("%s", atom_to_string(*(atom*)at(f.params, i)));
+        printf("%s", atom_to_string(*(atom*)vec_at(f.params, i)));
         if(i != ps-1) printf(", ");
     }
     printf(") = ");
@@ -29,8 +29,8 @@ void dump_func(function f) {
 }
 
 void dump_cp(choice_point* fs) {
-    for (int i = 0; i < size(fs->functions); i++) {
-        function* f = at(fs->functions, i);
+    for (int i = 0; i < vec_size(fs->functions); i++) {
+        function* f = vec_at(fs->functions, i);
         dump_func(*f);
     }
     nl;
@@ -79,9 +79,9 @@ void dump_expr(expr e, bool indent) {
 
 void dump_func_call(fcall func) {
     printf("%s(", func.name);
-    for (int i = 0; i < size(func.params); i++) {
-        dump_expr(*(expr*)at(func.params, i), false);
-        if (i < size(func.params)-1) printf(", ");
+    for (int i = 0; i < vec_size(func.params); i++) {
+        dump_expr(*(expr*)vec_at(func.params, i), false);
+        if (i < vec_size(func.params)-1) printf(", ");
     }
     printf(")");
 }
@@ -108,8 +108,8 @@ char* expr_to_string(expr e) {
         case e_fcall : {////needs cleaning up, please remove...
             fcall f = e.e.f;
             int ssize = 0;
-            for (int i = 0; i < size(f.params); i++) {
-                expr p_i = *(expr*)at(f.params, i);
+            for (int i = 0; i < vec_size(f.params); i++) {
+                expr p_i = *(expr*)vec_at(f.params, i);
                 if (p_i.type == e_atom) {
                     if (p_i.e.a.type == a_val)
                         ssize += digits_neg(p_i.e.a.data.vl.n);
@@ -122,15 +122,15 @@ char* expr_to_string(expr e) {
             
             res = malloc(sizeof(char)*ssize+1);
             sprintf(res, "%s(", f.name);
-            for (int i = 0; i < size(f.params); i++) {
-                expr p_i = *(expr*)at(f.params, i);
+            for (int i = 0; i < vec_size(f.params); i++) {
+                expr p_i = *(expr*)vec_at(f.params, i);
                 if (p_i.type == e_atom) {
-                    sprintf(res, "%s%s", res, atom_to_string((*(expr*)at(f.params, i)).e.a));
+                    sprintf(res, "%s%s", res, atom_to_string((*(expr*)vec_at(f.params, i)).e.a));
                 } else {
                     sprintf(res, "%sex_$old$", res);
                 }
                 
-                if (i != size(f.params)-1) sprintf(res, "%s, ", res);
+                if (i != vec_size(f.params)-1) sprintf(res, "%s, ", res);
             }
             sprintf(res, "%s)", res);
         } return res;
@@ -167,8 +167,8 @@ char* atom_to_string(atom a) {
 }
 
 void dump_expr_vec(vector* vec) {
-    for (int i = 0; i < size(vec); i++) {
-        expr* ex = at(vec, i);
+    for (int i = 0; i < vec_size(vec); i++) {
+        expr* ex = vec_at(vec, i);
         dump_expr(*ex, false); nl;
     }
 }
