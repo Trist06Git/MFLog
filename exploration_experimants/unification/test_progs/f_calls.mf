@@ -1,8 +1,8 @@
 
-main(result) =
-  result = f(1),
-  result = g(1),
-  result = h(1).
+//main(result) =
+//  result = f(1),
+//  result = g(1),
+//  result = h(1).
 
 //main(result) =
 //  result = f(1) = g(1) = h(1).
@@ -16,10 +16,15 @@ main(result) =
 //main() =
 //  res = all n(1).
 
-//main(r) =
-//  r = x = y,
-//  x = 1,
-//  y = 2.
+main(r) =
+  x = 2 = 3 = 4,
+  r = x.
+
+main(r) =
+  r = 1,
+  x = y,
+  y = x = 1,
+  y = 2.
 
 n(a, b) = b = 1.
 n(a, b) = b = 3.

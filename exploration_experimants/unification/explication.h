@@ -16,8 +16,7 @@ void rec_explic_func_equ(expr*, int* unique, vector* fc_to_move, vector* singles
 expr tuplise_params(vector* params, vector* singles);
 void explic_func_params(fcall*, int* unique, vector* fcs_to_move, vector* singletons, vector* func_defs, function* root);
 void explic_callsite(fcall*, int* unique, vector* newly_generated, vector* func_defs);
-//I think disimplicate actually means to nolonger imply any connection at all
-//explicate should probably be used instead
+void decompose_equs(function*);
 
 vector* get_var_singles(function*);///maybe move this to utils or internal_struct
 void rec_get_var_singles(expr*, map*);

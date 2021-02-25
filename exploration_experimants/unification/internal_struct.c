@@ -119,6 +119,14 @@ expr make_var_e(char* name) {
     expr new_var = {e_atom, .e.a = make_var_a(name)};
     return new_var;
 }
+atom make_int_a(int n) {
+    atom new_int = {a_val, .data.vl = {.n = n, .type = a_val}};
+    return new_int;
+}
+expr make_int_e(int n) {
+    expr new_int = {e_atom, .e.a = make_int_a(n)};
+    return new_int;
+}
 expr make_query(atom* at) {
     expr qr;
     qr.type = e_query;

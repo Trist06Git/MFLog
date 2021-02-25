@@ -110,6 +110,8 @@ bool is_generated_var(const expr*);
 int tuple_size_e(const expr*);
 atom make_var_a(char*);
 expr make_var_e(char*);
+atom make_int_a(int);
+expr make_int_e(int);
 expr make_query(atom*);
 expr wrap_atom(atom);//in an expr
 expr wrap_and_e(and);//in an expr

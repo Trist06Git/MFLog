@@ -7,10 +7,13 @@
 #include "explication.h"
 #include "utils.h"
 
+#include "debug_stuff.h"
+
 void explic_func(function* f, vector* func_defs) {
     if (f->fully_defined) return;
     explic_func_expr(f, func_defs);
     explic_func_head(f);
+    decompose_equs(f);
     f->fully_defined = true;
     //add to choice points
     choice_point* cp = get_cpoint(func_defs_cp, f);
@@ -200,6 +203,58 @@ void explic_func_head(function* f) {
     }
 
     free_vector(f_singles);
+}
+
+void rec_decompose_equs_chain(expr* ex, expr equ_root, expr* func_root) {
+    if (is_equ_e(ex)) {
+        //lhs
+        expr new_equ;
+        new_equ.type = e_equ;
+        expr new_lhs = copy_expr(&equ_root);
+        new_equ.e.e.lhs = malloc(sizeof(expr));
+       *new_equ.e.e.lhs = new_lhs;
+        expr new_rhs = copy_expr(ex->e.e.lhs);
+        new_equ.e.e.rhs = malloc(sizeof(expr));
+       *new_equ.e.e.rhs = new_rhs;
+        append_expr(func_root, &new_equ);
+        //rhs
+        rec_decompose_equs_chain(ex->e.e.rhs, equ_root, func_root);
+    } else {
+        expr new_eq;
+        new_eq.type = e_equ;
+        expr new_lhs = copy_expr(&equ_root);
+        new_eq.e.e.lhs = malloc(sizeof(expr));
+       *new_eq.e.e.lhs = new_lhs;
+        expr new_rhs = copy_expr(ex);
+        new_eq.e.e.rhs = malloc(sizeof(expr));
+       *new_eq.e.e.rhs = new_rhs;
+        append_expr(func_root, &new_eq);
+    }
+}
+
+//horrific, please make better
+void rec_decompose_equs(expr* ex, expr* func_root) {
+    if (is_and_e(ex)) {
+        printf("current expression is an and\n");
+        rec_decompose_equs(ex->e.n.lhs, func_root);
+        //replace with dummy
+        //if (is_equ_e(ex->e.n.lhs) && is_equ_e(ex->e.n.lhs->e.e.rhs)) {
+        //    *ex->e.n.lhs = make_int_e(1);
+        //}
+        rec_decompose_equs(ex->e.n.rhs, func_root);
+        
+    } else if (is_equ_e(ex)) {//root
+        printf("found a root equ\n");
+        expr orig_lhs = copy_expr(ex->e.e.lhs);
+        if (is_equ_e(ex->e.e.rhs)) {//rhs
+            printf("processing tail\n");
+            rec_decompose_equs_chain(ex->e.e.rhs, orig_lhs, func_root);
+           *ex->e.e.lhs->e.e.rhs = orig_lhs;
+        }
+    }
+}
+void decompose_equs(function* f) {
+    rec_decompose_equs(&f->e, &f->e);
 }
 
 //probably dont need

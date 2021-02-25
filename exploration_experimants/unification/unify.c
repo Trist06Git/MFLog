@@ -203,7 +203,7 @@ void decompose(frame* frm) {
                 //go down the list and pair the nodes up
                 expr* node_a = sub->lhs->e.t.n.rhs;
                 expr* node_b = sub->rhs->e.t.n.rhs;
-                while (is_and_e(node_a) && is_and_e(node_b)) {
+                while (is_and_e(node_a) && is_and_e(node_b)) {///NOTE, needs testing with 3n tuples
                    substitution pair;
                    pair.lhs = node_a->e.n.lhs;
                    pair.rhs = node_b->e.n.rhs;
@@ -223,12 +223,29 @@ void decompose(frame* frm) {
     }
 }
 
+void swap_equs(substitution* sub, expr* root) {
+    while (!is_var_e(sub->lhs) && is_equ_e(sub->rhs)) {
+        sub = &sub->rhs->e.e;
+    }
+    if (is_var_e(sub->lhs)) {
+        expr temp = *root;
+       *root = *sub->lhs;
+       *sub->lhs = temp;
+    } else if (is_var_e(sub->rhs)) {
+        expr temp = *root;
+       *root = *sub->rhs;
+       *sub->rhs = temp;
+    }
+}
+
 //only swap if var is on rhs, skip otherwise
 void swap_substitution(substitution* sub) {
     if (!is_var_e(sub->lhs) && is_var_e(sub->rhs)) {
         expr* temp = sub->lhs;
         sub->lhs = sub->rhs;
         sub->rhs = temp;
+    } else if (!is_var_e(sub->lhs) && is_equ_e(sub->rhs)) {
+        swap_equs(&sub->rhs->e.e, sub->lhs);
     }
 }
 
@@ -262,6 +279,10 @@ void old_decompose(frame* frm) {
     }
 }
 
+outcome rec_conflict_equ(expr* val) {
+    return o_pass;
+}
+
 outcome conflict(frame* frm) {
     for (int g = 0; g < vec_size(frm->G); g++) {
         substitution* sub = vec_at(frm->G, g);
@@ -275,9 +296,27 @@ outcome conflict(frame* frm) {
                    tuple_size_e(sub->lhs) != tuple_size_e(sub->rhs)
                   ) {
                       return o_fail;
-        }
+        } //else if (is_equ_e(sub->rhs)) {
+            
+        //}
     }
     return o_pass;
+}
+
+void equ_eliminate(expr* equ, const expr* var, const expr* val) {
+    while (is_equ_e(equ)) {
+        if (is_var_e(equ->e.e.lhs) && compare_atoms_e(equ->e.e.lhs, var)) {
+            //match
+            free_expr(equ->e.e.lhs);
+           *equ->e.e.lhs = copy_expr(val);
+        }
+        equ = equ->e.e.rhs;
+    }
+    //last leaf
+    if (is_var_e(equ) && compare_atoms_e(equ, var)) {
+        free_expr(equ);
+       *equ = copy_expr(val);
+    }
 }
 
 //maybe add an early conflict check for a small speed boost??
@@ -297,9 +336,10 @@ void eliminate(frame* frm) {
                    *g2_sub->lhs = copy_expr(sub_val);
                 } else if (is_tuple_e(g2_sub->lhs)) {
                     tuple_eliminate(&g2_sub->lhs->e.t, sub_var, sub_val);
-                } else if (is_equ_e(g2_sub->lhs)) {
-                    //do equals..
-                }
+                }/* else if (is_equ_e(g2_sub->lhs)) {
+                    //shouldnt get here, at this point.
+                    //equ is always a right skewed/link-list of exprs.
+                }*/
                 if (is_var_e(g2_sub->rhs) && compare_atoms_e(g2_sub->rhs, sub_var)) {
                     //same, so sub
                     free_expr(g2_sub->rhs);
@@ -307,9 +347,8 @@ void eliminate(frame* frm) {
                 } else if (is_tuple_e(g2_sub->rhs)) {
                     tuple_eliminate(&g2_sub->rhs->e.t, sub_var, sub_val);
                 } else if (is_equ_e(g2_sub->rhs)) {
-                    //do equals..
-                    //a = b = c
-                    //a = b, a = c
+                    //go down list in g2->rhs and elinate using sub_var, sub_val
+                    equ_eliminate(g2_sub->rhs, sub_var, sub_val);
                 }
             }
         }
@@ -320,7 +359,6 @@ void eliminate(frame* frm) {
 void tuple_eliminate(tuple* tu, const expr* var, const expr* val) {
     rec_tuple_eliminate(&tu->n, var, val);
 }
-
 void rec_tuple_eliminate(and* nd, const expr* var, const expr* val) {
     if (is_var_e(nd->lhs) && compare_atoms_e(nd->lhs, var)) {
         free_expr(nd->lhs);
