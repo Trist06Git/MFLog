@@ -6,6 +6,8 @@
     #include "generic_vector.h"
     #include "utils.h"
 
+    #include "debug_stuff.h"
+
     int yydebug = 1;
     extern int line_number;
 
@@ -54,8 +56,8 @@
 %type <vec> Atom_params
 %type <vec> Expr_params
 %type <u_ex> Expr
-%type <u_ex> Exprs
-%type <u_ex> Expr_eq
+%type <vec> Exprs
+//%type <u_ex> Expr_eq
 %type <u_fc> Fcall
 %type <u_fc> Fcall_ans
 %type <u_fc> Fbuiltin
@@ -63,8 +65,11 @@
 %type <u_rs> Answer_count
 %type <u_fc> Ocall
 %type <u_fc> Operator
-%type <u_eq> Equation
-%type <u_eq> Atom_left_equ
+//%type <u_eq> Equation
+%type <u_ex> Atom_left_equ
+
+%type <vec> Equ_chain
+%type <u_ex> Expr_eq_ch
 
 %left MINUS
 %left PLUS
@@ -91,13 +96,15 @@ Program : Func_def
         ;
 
 Global : Atom_left_equ END {
-    expr ex = {.type = e_equ, .e.e = $1};
-    vec_push_back(global_defs, &ex);
+    //expr ex = {.type = e_equ, .e.e = $1};
+    vec_push_back(global_defs, &$1);
 };
 
 Func_def : Func_head Exprs END {
     function f = $1;
-    f.e = $2;
+    f.e.type = e_and;
+    f.e.e.n.ands = $2;
+    //f.e = $2;
     //vec_insert_at(func_defs, 0, &f);
     vec_push_back(func_defs, &f);
 };
@@ -149,12 +156,37 @@ Expr_params
     }
     ;
 
-Exprs
-    : Expr_eq {
-        $$ = $1;
+Equ_chain
+    : Expr {
+        ps = new_vector(1, sizeof(expr));
+        vec_insert_at(ps, 0, &$1);
+        $$ = ps;
+        ps = NULL;
     }
-    | Exprs AND Expr_eq {
-        expr lhs = $1;
+    | Expr EQUAL Equ_chain {
+        if (ps == NULL) ps = new_vector(1, sizeof(expr));
+        ps =  $3;
+        vec_insert_at(ps, 0, &$1);
+        $$ = ps;
+        ps = NULL;
+    }
+    ;
+
+Exprs
+    : Expr_eq_ch {
+        ps = new_vector(1, sizeof(expr));
+        vec_insert_at(ps, 0, &$1);
+        $$ = ps;
+        ps = NULL;
+    }
+    | Expr_eq_ch AND Exprs {
+        if (ps == NULL) ps = new_vector(1, sizeof(expr));
+        ps = $3;
+        vec_insert_at(ps, 0, &$1);
+        $$ = ps;
+        ps = NULL;
+        
+        /*expr lhs = $1;
         expr rhs = $3;
         expr ex;
         ex.type = e_and;
@@ -162,7 +194,7 @@ Exprs
         ex.e.n.rhs = malloc(sizeof(expr));
         memcpy(ex.e.n.lhs, &lhs, sizeof(lhs));
         memcpy(ex.e.n.rhs, &rhs, sizeof(rhs));
-        $$ = ex;
+        $$ = ex;*/
     }
     ;
 
@@ -173,8 +205,27 @@ Expr : Fcall_ans { expr ex; ex.type = e_fcall; ex.e.f  = $1; $$ = ex; }
      | Ocall     { expr ex; ex.type = e_fcall; ex.e.f  = $1; $$ = ex; }
      ;
 
-Expr_eq : Expr     { $$ = $1; }
-        | Equation { expr ex; ex.type = e_equ;   ex.e.e  = $1; $$ = ex; }
+Expr_eq_ch : Equ_chain {
+    expr ex;
+    if (vec_size($1) == 1) {
+        expr* ex1 = vec_at($1, 0);
+        ex = *ex1;
+        free_vector($1);
+    } else if (vec_size($1) == 2) {
+        expr* ex1 = vec_at($1, 0);
+        expr* ex2 = vec_at($1, 1);
+        ex.type = e_equ;
+        ex.e.e.lhs = malloc(sizeof(expr));
+       *ex.e.e.lhs = *ex1;
+        ex.e.e.rhs = malloc(sizeof(expr));
+       *ex.e.e.rhs = *ex2;
+        free_vector($1);
+    } else {
+        ex.type = e_equ_chain;
+        ex.e.ec.equs = $1;
+    }
+    $$ = ex;
+}
 
 Fbuiltin : Builtin_func LP_ROUND Expr_params RP_ROUND {
     fcall fc = $1;
@@ -226,18 +277,19 @@ Atom
     }
     ;
 
-Equation : Expr EQUAL Expr_eq {
-    expr lhs = $1;
-    expr rhs = $3;
-    equality eq;
-    eq.lhs = malloc(sizeof(expr));
-    eq.rhs = malloc(sizeof(expr));
-    memcpy(eq.lhs, &lhs, sizeof(lhs));
-    memcpy(eq.rhs, &rhs, sizeof(rhs));
-    $$ = eq;
-};
-
-Atom_left_equ : Atom EQUAL Expr_eq {
+Atom_left_equ : Atom EQUAL Equ_chain {
+    if (ps == NULL) ps = new_vector(1, sizeof(expr));
+    ps =  $3;
+    expr at = wrap_atom($1);
+    vec_insert_at(ps, 0, &at);
+    expr res;
+    res.type = e_equ_chain;
+    res.e.ec.equs = ps;
+    
+    $$ = res;
+    ps = NULL;
+    
+    /*
     expr lhs = wrap_atom($1);
     expr rhs = $3;
     equality eq;
@@ -245,7 +297,7 @@ Atom_left_equ : Atom EQUAL Expr_eq {
     eq.rhs = malloc(sizeof(expr));
     memcpy(eq.lhs, &lhs, sizeof(lhs));
     memcpy(eq.rhs, &rhs, sizeof(rhs));
-    $$ = eq;
+    $$ = eq;*/
 };
 
 Ocall : Expr Operator Expr {

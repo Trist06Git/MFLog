@@ -7,8 +7,17 @@
 //main(result) =
 //  result = f(1) = g(1) = h(1).
 
+//main(res) =
+//  h(1) = res.
+
+//main(res) =
+//  f(1) = 1,
+//  g(2) = 2,
+//  h(1) = res.
+
+//y = 1.
 //main(x) =
-//  x = l(1).
+//  x = l(y).
 
 //main() =
 //  1 + 2.
@@ -16,18 +25,18 @@
 //main() =
 //  res = all n(1).
 
-main(r) =
-  x = 2 = 3 = 4,
-  r = x.
+//main(r) =
+//  x = 2 = 3 = 4,
+//  r = x.
 
-main(r) =
-  r = 1,
-  x = y,
-  y = x = 1,
-  y = 2.
+//main(r) =
+//  r = 1,
+//  x = y,
+//  y = x = 1,
+//  y = 2.
 
 n(a, b) = b = 1.
-n(a, b) = b = 3.
+//n(a, b) = b = 3.
 
 l(a, b, c) =
   a = 1,
@@ -42,12 +51,12 @@ f(x) =
   returninglongname = 1.
 
 g(x) =
-  return = x.
+  return_g = x.
 
 h(x) =
   y = x,
   y = 1,
-  y = return.
+  y = return_h.
 
 //main(result) =
 //  result = s(1).

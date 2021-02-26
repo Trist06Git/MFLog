@@ -36,6 +36,8 @@ function f_mul;
 function f_plus;
 function f_minus;
 function f_print;
+//slight hack for calling main
+fcall fc_main;
 
 void init(void);
 
@@ -73,6 +75,15 @@ int main(int argc, char** argv) {
     if (verbose > 0) printf("Parsing/Lexing.\n");
     yyparse();
     //close file here?
+
+    //decomposing equs in globals
+    //pretty bad, needs rewrite
+    function f;
+    expr gands;
+    gands.type = e_and;
+    gands.e.n.ands = global_defs;
+    f.e = gands;
+    decompose_equs(&f);
 
     if (verbose > 0) printf("Explicating constants/variables.\n");
     for (int i = 0; i < vec_size(func_defs); i++) {
@@ -114,6 +125,10 @@ void init(void) {
     fc_div.res_set   = fc_mul.res_set  = fc_plus.res_set =
     fc_minus.res_set = fc_plus.res_set = rs_first;
 
+    fc_main.name = "main";
+    fc_main.params = new_vector(1, sizeof(expr));
+    fc_main.type = e_fcall;
+
     f_div.name = malloc(sizeof(char)*3+1); sprintf(f_div.name, "div");
     f_div.params = new_vector(3, sizeof(atom));
     f_div.fully_defined = true;
@@ -146,6 +161,9 @@ void init(void) {
     vec_push_back(f_mul.params, &v);
     vec_push_back(f_plus.params, &v);
     vec_push_back(f_minus.params, &v);
+
+    //NOTE
+    vec_push_back(fc_main.params, &v);
 
     vec_push_back(func_defs, &f_div);
     vec_push_back(func_defs, &f_mul);

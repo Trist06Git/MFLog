@@ -18,8 +18,10 @@ void explic_func_params(fcall*, int* unique, vector* fcs_to_move, vector* single
 void explic_callsite(fcall*, int* unique, vector* newly_generated, vector* func_defs);
 void decompose_equs(function*);
 
-vector* get_var_singles(function*);///maybe move this to utils or internal_struct
-void rec_get_var_singles(expr*, map*);
+vector* get_var_singles(function*, bool globals);///maybe move this to utils or internal_struct
+vector* get_var_singles_e(expr*);
+vector* extract_singles_map(map*);
+void rec_get_var_singles_e(expr*, map*);
 void check_var_singles_params(vector*, map*);
 
 #endif

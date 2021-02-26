@@ -11,9 +11,9 @@
 
 void explic_func(function* f, vector* func_defs) {
     if (f->fully_defined) return;
+    decompose_equs(f);//doing decomp equs first, not sure what the implications are yet.
     explic_func_expr(f, func_defs);
     explic_func_head(f);
-    decompose_equs(f);
     f->fully_defined = true;
     //add to choice points
     choice_point* cp = get_cpoint(func_defs_cp, f);
@@ -23,8 +23,6 @@ void explic_func(function* f, vector* func_defs) {
         vec_push_back(cp->functions, f);
         vec_push_back(func_defs_cp, cp);
         free(cp);
-    } else if (func_def_exists(cp->functions, f)) {
-        printf("Error, function %s with arity %i and given vars/vals already exists, skipping.\n", f->name, vec_size(f->params));
     } else {
         vec_push_back(cp->functions, f);
     }
@@ -33,7 +31,7 @@ void explic_func(function* f, vector* func_defs) {
 void explic_func_expr(function* f, vector* func_defs) {
     int unique = 0;
     vector* moved_fcalls = new_vector(10, sizeof(expr));
-    vector* singletons = get_var_singles(f);
+    vector* singletons = get_var_singles(f, true);
     rec_explic_func_expr(&f->e, &unique, moved_fcalls, singletons, func_defs, f);
     //and append moved fcalls
     for (int i = 0; i < vec_size(moved_fcalls); i++) {
@@ -53,8 +51,10 @@ void rec_explic_func_expr(expr* e, int* unique, vector* fc_to_move, vector* sing
        *e->e.e.lhs = new_left;
        *e->e.e.rhs = new_right;
     } else if (is_and_e(e)) {
-        rec_explic_func_expr(e->e.n.lhs, unique, fc_to_move, singletons, func_defs, root);
-        rec_explic_func_expr(e->e.n.rhs, unique, fc_to_move, singletons, func_defs, root);
+        vector* ands = e->e.n.ands;
+        for (int i = 0; i < vec_size(ands); i++) {
+            rec_explic_func_expr(vec_at(ands, i), unique, fc_to_move, singletons, func_defs, root);
+        }
     } else if (is_fcall_e(e)) {
         //function* def = get_fdef_arity(func_defs, e->e.f.name, size(e->e.f.params));
         //first attempt to fine a fully defined version
@@ -71,29 +71,36 @@ void rec_explic_func_expr(expr* e, int* unique, vector* fc_to_move, vector* sing
         explic_callsite(&e->e.f, unique, NULL, func_defs);
     } else if (is_equ_e(e)) {
         rec_explic_func_equ(e, unique, fc_to_move, singletons, func_defs, root);
+    } else if (is_equ_chain_e(e)) {
+        vector* equs = e->e.ec.equs;
+        for (int i = 0; i < vec_size(equs); i++) {
+            rec_explic_func_expr(vec_at(equs, i), unique, fc_to_move, singletons, func_defs, root);
+        }
     }
 }
 
-//this is truly horrific and need to be redone, badly..
+//this is truly horrific and needs to be redone, badly..
 void rec_explic_func_equ(expr* e, int* unique, vector* fc_to_move, vector* singles, vector* func_defs, function* root) {
     if (is_equ_e(e)) {
-        rec_explic_func_equ(e->e.n.lhs, unique, fc_to_move, singles, func_defs, root);
-        rec_explic_func_equ(e->e.n.rhs, unique, fc_to_move, singles, func_defs, root);
+        rec_explic_func_equ(e->e.e.lhs, unique, fc_to_move, singles, func_defs, root);//note, this was e->e.n.lhs
+        rec_explic_func_equ(e->e.e.rhs, unique, fc_to_move, singles, func_defs, root);
+    } else if (is_equ_chain_e(e)) {
+        vector* equs = e->e.ec.equs;
+        for (int i = 0; i < vec_size(equs); i++) {
+            rec_explic_func_equ(vec_at(equs, i), unique, fc_to_move, singles, func_defs, root);
+        }
     } else if (is_fcall_e(e)) {
         rec_explic_func_expr(e, unique, fc_to_move, singles, func_defs, root);
         //ToDo, if all params are already bound, then bind the outcome of func
         //to lhs instead, ie bot/top
+
         //move fcall out
         vec_push_back(fc_to_move, e);
-
         //get new singles from root def
-        vector* new_singles = get_var_singles(root);
+        vector* new_singles = get_var_singles(root, true);
 
-        //printf("about to tupilise based on singles:\n");
-        //dump_vector_str(singles);
-        //printf("for func %s with arity %i\n", e->e.f.name, size(e->e.f.params));
         expr unbounds = tuplise_params(e->e.f.params, new_singles);
-        *e = copy_expr(&unbounds);
+       *e = copy_expr(&unbounds);
         free_vector(new_singles);
     }
 }
@@ -106,12 +113,12 @@ void dump_vector_str(vector* vec) {
     }
 }
 
+//this is somehow broken
 expr tuplise_params(vector* params, vector* singles) {
     expr ex;
-    ex.type = e_builtin;
+    ex.type = e_builtin;//not the best
     for (int i = 0; i < vec_size(params); i++) {
         expr* pr = vec_at(params, i);
-        
         if (is_var_e(pr) && vec_contains_string(singles, pr->e.a.data.vr.symbol)) {
             if (ex.type == e_builtin) {
                 ex = copy_expr(pr);
@@ -193,9 +200,10 @@ void explic_callsite(fcall* fc, int* unique, vector* newly_generated, vector* fu
 }
 
 void explic_func_head(function* f) {
-    vector* f_singles = get_var_singles(f);
+    vector* f_singles = get_var_singles(f, false);
     for (int i = 0; i < vec_size(f_singles); i++) {
         char** s = vec_at(f_singles, i);
+        //*s = regular char*
         char*  s_new_param = malloc(sizeof(char)*strlen(*s)+1);
         strcpy(s_new_param, *s);
         atom a_new_param = {a_var, .data.vr.symbol = s_new_param};
@@ -205,6 +213,29 @@ void explic_func_head(function* f) {
     free_vector(f_singles);
 }
 
+void decompose_equs(function* f) {
+    vector* exs = f->e.e.n.ands;
+    for (int i = 0; i < vec_size(exs); i++) {
+        expr* ei = vec_at(exs, i);
+        if (is_equ_chain_e(ei)) {
+            vector* ech = ei->e.ec.equs;
+            expr* first = vec_at(ech, 0);
+            for (int j = 1; j < vec_size(ech); j++) {
+                expr* next = vec_at(ech, j);
+                equality eq;
+                eq.lhs = malloc(sizeof(expr));
+               *eq.lhs = copy_expr(first);
+                eq.rhs = malloc(sizeof(expr));
+               *eq.rhs = copy_expr(next);
+                expr eq_e = {.type = e_equ, .e.e = eq};
+                vec_push_back(exs, &eq_e);
+            }
+            vec_remove_at(exs, i); i--;
+        }
+    }
+}
+
+/*
 void rec_decompose_equs_chain(expr* ex, expr equ_root, expr* func_root) {
     if (is_equ_e(ex)) {
         //lhs
@@ -255,7 +286,7 @@ void rec_decompose_equs(expr* ex, expr* func_root) {
 }
 void decompose_equs(function* f) {
     rec_decompose_equs(&f->e, &f->e);
-}
+}*/
 
 //probably dont need
 void free_var_singles(vector* vec) {
@@ -267,18 +298,46 @@ void free_var_singles(vector* vec) {
     free_vector(vec);
 }
 
-vector* get_var_singles(function* f) {
+vector* get_var_singles(function* f, bool globals) {
     //varname, count
     map* mp = new_map(sizeof(char*), sizeof(int));
     mp->el1_comparator = string_compare;
-    rec_get_var_singles(&f->e, mp);
+    rec_get_var_singles_e(&f->e, mp);
     ////cheating by using global externs...
-    for (int i = 0; i < vec_size(global_defs); i++) {
-        expr* ex = vec_at(global_defs, i);
-        rec_get_var_singles(ex, mp);
+    if (globals) for (int i = 0; i < vec_size(global_defs); i++) {
+        rec_get_var_singles_e(vec_at(global_defs, i), mp);
     }
-    ////badly needs refactor ^^^
+    ////end cheat
+
     check_var_singles_params(f->params, mp);
+    vector* singles = extract_singles_map(mp);
+    
+    //add the intersect of the globals, as the expr may refer to them,
+    //nolonger making them single
+    expr g_temp = {.type = e_and, .e.n.ands = global_defs};
+    vector* global_sings = get_var_singles_e(&g_temp);
+    for (int i = 0; i < vec_size(singles); i++) {
+        char** sing = vec_at(singles, i);
+        if (vec_contains_string(global_sings, *sing)) {
+            //remove
+            vec_remove_at(singles, i); i--;
+        }
+    }
+    
+    return singles;
+}
+
+//root expr, can be and of exprs
+//eg globals/f.expr
+vector* get_var_singles_e(expr* ex) {
+    //varname, count
+    map* mp = new_map(sizeof(char*), sizeof(int));
+    mp->el1_comparator = string_compare;
+    rec_get_var_singles_e(ex, mp);
+    return extract_singles_map(mp);
+}
+
+vector* extract_singles_map(map* mp) {
     vector* singletons = new_vector(0, sizeof(char*));
     for (int i = 0; i < map_size(mp); i++) {
         pair* kv = map_at_index(mp, i);
@@ -291,32 +350,38 @@ vector* get_var_singles(function* f) {
     return singletons;
 }
 
-void rec_get_var_singles(expr* ex, map* mp) {
-    if (is_var_e(ex)) {
-        char* v_name = ex->e.a.data.vr.symbol;
+void rec_get_var_singles_e(expr* e, map* mp) {
+    if (is_var_e(e)) {
+        char* v_name = e->e.a.data.vr.symbol;
         if (map_contains_key(mp, &v_name)) {
             (*(int*)snd(mp, &v_name))++;
         } else {
             int one = 1;
             map_add(mp, &v_name, &one);
         }
-    } else if (is_and_e(ex)) {
-        rec_get_var_singles(ex->e.n.lhs, mp);
-        rec_get_var_singles(ex->e.n.rhs, mp);
-    } else if (is_equ_e(ex)) {
-        rec_get_var_singles(ex->e.e.lhs, mp);
-        rec_get_var_singles(ex->e.e.rhs, mp);
-    } else if (is_fcall_e(ex)) {
-        vector* ps = ex->e.f.params;
-        for (int i = 0; i < vec_size(ps); i++) {
-            expr* psi = vec_at(ps, i);
-            rec_get_var_singles(psi, mp);
+    } else if (is_and_e(e)) {
+        vector* ands = e->e.n.ands;
+        for (int i = 0; i < vec_size(ands); i++) {
+            rec_get_var_singles_e(vec_at(ands, i), mp);
         }
-    } else if (is_tuple_e(ex)) {
-        expr temp;
-        temp.type = e_and;
-        temp.e.n = ex->e.t.n;
-        rec_get_var_singles(&temp, mp);
+    } else if (is_equ_e(e)) {
+        rec_get_var_singles_e(e->e.e.lhs, mp);
+        rec_get_var_singles_e(e->e.e.rhs, mp);
+    } else if (is_equ_chain_e(e)) {
+        vector* equs = e->e.ec.equs;
+        for (int i = 0; i < vec_size(equs); i++) {
+            rec_get_var_singles_e(vec_at(equs, i), mp);
+        }
+    } else if (is_fcall_e(e)) {
+        vector* ps = e->e.f.params;
+        for (int i = 0; i < vec_size(ps); i++) {
+            rec_get_var_singles_e(vec_at(ps, i), mp);
+        }
+    } else if (is_tuple_e(e)) {
+        vector* tps = e->e.t.n.ands;
+        for (int i = 0; i < vec_size(tps); i++) {
+            rec_get_var_singles_e(vec_at(tps, i), mp);
+        }
     }
 }
 

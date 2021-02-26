@@ -42,7 +42,7 @@ void dump_expr(expr e, bool indent) {
         case e_fcall : {
             //printf("%s%s", in, expr_to_string(e));
             printf("%s", in);
-            dump_func_call(e.e.f);
+            dump_func_call(e.e.f, false);
         } break;
 /*        case e_val   : {
             printf("%s%s", in, expr_to_string(e));
@@ -60,12 +60,22 @@ void dump_expr(expr e, bool indent) {
             printf(" = ");
             dump_expr(e2, indent);
         } break;
+        case e_equ_chain : {
+            vector* equs = e.e.ec.equs;
+            for (int i = 0; i < vec_size(equs); i++) {
+                expr* ei = vec_at(equs, i);
+                dump_expr(*ei, i == 0 ? indent : false);
+                if (i != vec_size(equs)-1) printf(" = ");
+            }
+            printf(" <-- chain");
+        } break;
         case e_and   : {
-            expr e1 = *e.e.n.lhs;
-            expr e2 = *e.e.n.rhs;
-            dump_expr(e1, indent);
-            printf(",\n");
-            dump_expr(e2, indent);
+            vector* ands = e.e.n.ands;
+            for (int i = 0; i < vec_size(ands); i++) {
+                expr* ai = vec_at(ands, i);
+                dump_expr(*ai, indent);
+                if (i != vec_size(ands)-1) printf(",\n");
+            }
         } break;
         case e_tuple : {
             dump_tuple(&e);
@@ -77,21 +87,44 @@ void dump_expr(expr e, bool indent) {
     }
 }
 
-void dump_func_call(fcall func) {
+void dump_func_call(fcall func, bool extended) {
     printf("%s(", func.name);
     for (int i = 0; i < vec_size(func.params); i++) {
         dump_expr(*(expr*)vec_at(func.params, i), false);
         if (i < vec_size(func.params)-1) printf(", ");
     }
     printf(")");
+    if (1) {
+        printf(" : ");
+        switch (func.type) {
+            case f_builtin : printf("builtin : "); break;
+            case f_user    : printf("user : ");    break;
+            default        :                       break;
+        }
+        switch (func.res_set) {
+            case rs_first : printf("first answer");            break;
+            case rs_one   : printf("single answer");           break;
+            case rs_all   : printf("all answers");              break;
+            case rs_n     : printf("answer %i", func.rs_index); break;
+            default       :                                     break;
+        }
+    }
+    
 }
 
 void dump_tuple(expr* e) {
     printf("(");
-    rec_dump_tuple(&e->e.t.n);
+    //rec_dump_tuple(&e->e.t.n);
+    vector* ands = e->e.t.n.ands;
+    for (int i = 0; i < vec_size(ands); i++) {
+        expr* a = vec_at(ands, i);
+        dump_expr(*a, false);
+        if (i < vec_size(ands)-1) printf(", ");
+    }
     printf(")");
 }
 
+/*
 void rec_dump_tuple(and* a) {
     dump_expr(*a->lhs, false);
     printf(",");
@@ -100,7 +133,7 @@ void rec_dump_tuple(and* a) {
     } else {
         dump_expr(*a->rhs, false);
     }
-}
+}*/
 
 char* expr_to_string(expr e) {
     char* res;

@@ -14,6 +14,7 @@ typedef struct fcall fcall;
 typedef struct and and;
 typedef struct tuple tuple;
 typedef struct equality equality;
+typedef struct equality_chain equality_chain;
 typedef struct expr expr;
 typedef struct function function;
 typedef struct choice_point choice_point;
@@ -53,8 +54,7 @@ struct fcall {
 };
 
 struct and {
-    expr* lhs;
-    expr* rhs;
+    vector* ands;//of exprs
 };
 
 struct tuple {
@@ -66,7 +66,11 @@ struct equality {
     expr* rhs;
 };
 
-enum e_type {e_fcall, e_atom, e_equ, e_and, e_tuple, e_builtin, e_query};
+struct equality_chain {
+    vector* equs;//as exprs
+};
+
+enum e_type {e_fcall, e_atom, e_equ, e_equ_chain, e_and, e_tuple, e_builtin, e_query};
 struct expr {
     enum e_type type;
     union {
@@ -75,6 +79,7 @@ struct expr {
         and n;
         tuple t;
         equality e;
+        equality_chain ec;
         atom q;//only used internally at unification stage for now..
     } e;
 };
@@ -93,10 +98,7 @@ struct choice_point {
 //nasty
 static expr debug_dummy_var = {.type = e_atom, .e.a = {.type = a_var, .data.vr = {.symbol = "DEBUG_DUMMY"}}};
 
-and append_exprs_and(vector* exprs);
-and append_exprs_and_init(vector* exprs);
-void append_expr(expr* nd, expr* ex);
-expr* last_and(expr* nd);
+void append_expr(expr* nd, const expr* ex);
 bool is_var_a(const atom*);
 bool is_var_e(const expr*);
 bool is_val_a(const atom*);
@@ -106,6 +108,7 @@ bool is_and_e(const expr*);
 bool is_tuple_e(const expr*);
 bool is_fcall_e(const expr*);
 bool is_equ_e(const expr*);
+bool is_equ_chain_e(const expr*);
 bool is_generated_var(const expr*);
 int tuple_size_e(const expr*);
 atom make_var_a(char*);
@@ -129,6 +132,7 @@ atom copy_atom(const atom*);
 and copy_and(const and*);
 tuple copy_tuple(const tuple*);
 equality copy_equ(const equality*);
+equality_chain copy_equ_chain(const equality_chain*);
 val copy_val(const val*);
 var copy_var(const var*);
 
@@ -141,6 +145,7 @@ void free_fcall(fcall*);
 void free_atom(atom*);
 void free_and(and*);
 void free_equ(equality*);
+void free_equ_chain(equality_chain*);
 void free_val(val*);
 void free_var(var*);
 void free_params_a(vector* params);

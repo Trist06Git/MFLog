@@ -7,54 +7,20 @@
 #include "internal_struct.h"
 #include "generic_vector.h"
 
-//WARNING, these are old and probably should not be used...
-//this collection of exprs_and functions transforms a vector
-//of exprs into a right skewed tree/list of anded exprs.
-//the values are removed from the vector after being added to
-//the tree, so no freeing is needed, BUT the vector becomes invalidated
-//please free the vector after use.
-and append_exprs_and(vector* exprs) {
-    and this;
-    this.lhs = malloc(sizeof(expr));
-    this.rhs = malloc(sizeof(expr));
-    
-    memcpy(this.lhs, vec_at(exprs, 0), sizeof(expr));
-    vec_remove_at(exprs, 0);
-    if (vec_size(exprs) == 1) {
-        memcpy(this.rhs, vec_at(exprs, 0), sizeof(expr));
+void append_expr(expr* nd, const expr* ex)  {
+    expr new_ex = copy_expr(ex);
+    if (is_and_e(nd)) {
+        vec_push_back(nd->e.n.ands, &new_ex);
     } else {
-        expr next;
-        next.type = e_and;
-        next.e.n = append_exprs_and(exprs);
-        memcpy(this.rhs, &next, sizeof(expr));
-    }
-    return this;
-}
-
-//if the returned expr type is e_builtin, then an error occured
-expr append_exprs_and_init_e(vector* exprs) {
-    expr res;
-    if (vec_size(exprs) < 1) {
-        res.type = e_builtin;
-    } else if (vec_size(exprs) < 2) {
-        expr* ex = vec_at(exprs, 0);
-        res = *ex;
-    } else {
-        res.type = e_and;
-        res.e.n = append_exprs_and_init(exprs);
-    }
-    return res;
-}
-
-and append_exprs_and_init(vector* exprs) {
-    if (vec_size(exprs) < 1) {
-        and res = {NULL, NULL};//really not good.. oh well.
-        return res;
-    } else {
-        return append_exprs_and(exprs);
+        expr old_ex = *nd;
+        nd->type = e_and;
+        nd->e.n.ands = new_vector(2, sizeof(expr));
+        vec_push_back(nd->e.n.ands, &old_ex);
+        vec_push_back(nd->e.n.ands, &new_ex);
     }
 }
 
+/*
 //Note. this is newer and better than the above.
 //no memcpy
 void append_expr(expr* nd, expr* ex) {
@@ -66,7 +32,7 @@ void append_expr(expr* nd, expr* ex) {
    *last->e.n.lhs = new_left;
     last->e.n.rhs = malloc(sizeof(expr));
    *last->e.n.rhs = *ex;
-}
+}*/
 /*//really not sure why it wouldnt work with memcpy...??
 void append_expr(expr* nd, expr* ex) {
     expr* last = last_and(nd);
@@ -79,6 +45,7 @@ void append_expr(expr* nd, expr* ex) {
     memcpy(last->e.n.rhs, ex, sizeof(expr));
 }*/
 
+/*
 //progress down the tree untill the last and operand
 expr* last_and(expr* nd) {
     while (is_and_e(nd)) {
@@ -86,29 +53,25 @@ expr* last_and(expr* nd) {
     }
     return nd;
 }
+*/
 
-bool is_var_a(const atom* a)   { return a->type == a_var; }
-bool is_val_a(const atom* a)   { return a->type == a_val; }
-bool is_var_e(const expr* e)   { return is_atom_e(e) && is_var_a(&e->e.a); }
-bool is_val_e(const expr* e)   { return is_atom_e(e) && is_val_a(&e->e.a); }
-bool is_atom_e(const expr* e)  { return e->type == e_atom;  }
-bool is_and_e(const expr* e)   { return e->type == e_and;   }
-bool is_tuple_e(const expr* e) { return e->type == e_tuple; }
-bool is_fcall_e(const expr* e) { return e->type == e_fcall; }
-bool is_equ_e(const expr* e)   { return e->type == e_equ;   }
+bool is_var_a(const atom* a)       { return a->type == a_var; }
+bool is_val_a(const atom* a)       { return a->type == a_val; }
+bool is_var_e(const expr* e)       { return is_atom_e(e) && is_var_a(&e->e.a); }
+bool is_val_e(const expr* e)       { return is_atom_e(e) && is_val_a(&e->e.a); }
+bool is_atom_e(const expr* e)      { return e->type == e_atom;  }
+bool is_and_e(const expr* e)       { return e->type == e_and;   }
+bool is_tuple_e(const expr* e)     { return e->type == e_tuple; }
+bool is_fcall_e(const expr* e)     { return e->type == e_fcall; }
+bool is_equ_e(const expr* e)       { return e->type == e_equ;   }
+bool is_equ_chain_e(const expr* e) { return e->type == e_equ_chain; }
 bool is_generated_var(const expr* e) {
     if (e->type != e_atom || e->e.a.type != a_var) return false;
     return strstr(e->e.a.data.vr.symbol, "U_") != NULL;
 }
 
 int tuple_size_e(const expr* e) {
-    expr* node = e->e.t.n.rhs;
-    int count = 1;
-    while (is_and_e(node)) {
-        count++;
-        node = node->e.n.rhs;
-    }
-    return count;
+    return vec_size(e->e.t.n.ands);
 }
 
 atom make_var_a(char* name) {
@@ -193,6 +156,8 @@ expr copy_expr(const expr* ex) {
         ret.e.n = copy_and(&ex->e.n);
     } else if (ex->type == e_equ) {
         ret.e.e = copy_equ(&ex->e.e);
+    } else if (ex->type == e_equ_chain) {
+        ret.e.ec = copy_equ_chain(&ex->e.ec);
     } else if (ex->type == e_tuple) {
         ret.e.t = copy_tuple(&ex->e.t);
     } else {
@@ -202,7 +167,7 @@ expr copy_expr(const expr* ex) {
 }
 
 fcall copy_fcall(const fcall* fc) {
-    fcall ret;
+    fcall ret = *fc;
     ret.name = malloc(sizeof(char)*(strlen(fc->name)+1));
     strcpy(ret.name, fc->name);
     ret.params = duplicate_params_e(fc->params);
@@ -210,7 +175,10 @@ fcall copy_fcall(const fcall* fc) {
 }
 
 val copy_val(const val* vl) {//a little superfluous
-    return *vl;
+    val ret = *vl;
+    ret.n = vl->n;
+    ret.type = vl->type;
+    return ret;
 }
 
 var copy_var(const var* vr) {
@@ -232,11 +200,7 @@ atom copy_atom(const atom* at) {
 }
 
 and copy_and(const and* nd) {
-    and ret;
-    ret.lhs = malloc(sizeof(expr));
-   *ret.lhs = copy_expr(nd->lhs);
-    ret.rhs = malloc(sizeof(expr));
-   *ret.rhs = copy_expr(nd->rhs);
+    and ret = {.ands = duplicate_vector(nd->ands)};
     return ret;
 }
 
@@ -252,6 +216,11 @@ equality copy_equ(const equality* equ) {
    *ret.lhs = copy_expr(equ->lhs);
     ret.rhs = malloc(sizeof(expr));
    *ret.rhs = copy_expr(equ->rhs);
+    return ret;
+}
+
+equality_chain copy_equ_chain(const equality_chain* equ) {
+    equality_chain ret = {.equs = duplicate_vector(equ->equs)};
     return ret;
 }
 
@@ -293,6 +262,8 @@ void free_expr(expr* ex) {
         free_and(&ex->e.n);
     } else if (ex->type == e_equ) {
         free_equ(&ex->e.e);
+    } else if (ex->type == e_equ_chain) {
+        free_equ_chain(&ex->e.ec);
     } else if (ex->type == e_tuple) {
         //add tuples
     } else if (ex->type == e_builtin) {
@@ -315,10 +286,7 @@ void free_atom(atom* at) {
 }
 
 void free_and(and* nd) {
-    free_expr(nd->lhs);
-    free_expr(nd->rhs);
-    free(nd->lhs);
-    free(nd->rhs);
+    free_vector(nd->ands);
 }
 
 void free_equ(equality* equ) {
@@ -326,6 +294,10 @@ void free_equ(equality* equ) {
     free_expr(equ->rhs);
     free(equ->lhs);
     free(equ->rhs);
+}
+
+void free_equ_chain(equality_chain* equ) {
+    free_vector(equ->equs);
 }
 
 //val is not malloced so no need to free.. yet.

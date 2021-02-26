@@ -6,6 +6,8 @@
 #include "utils.h"
 #include "debug_stuff.h"
 
+extern fcall fc_main;
+
 #define UNIFY_DEBUG
 
 void entry(vector* func_defs_cp, vector* globals) {
@@ -16,7 +18,8 @@ void entry(vector* func_defs_cp, vector* globals) {
     }
     int call_sequ = 0;
     function* main_f = vec_at(main_cp->functions, 0);
-    frame* first_frame = init_frame(main_f, globals, &call_sequ);
+    
+    frame* first_frame = init_frame(main_f, &fc_main, globals, &call_sequ);
 
     outcome entry_res = unify(first_frame, func_defs_cp, globals, &call_sequ);
     //only unifying, not binding return vals
@@ -51,12 +54,13 @@ outcome call(frame_call* fr_c, frame* prev_frm, vector* func_defs_cp, vector* gl
 
     //only get the first answer
     if (fc.res_set == rs_first) {
-    function* first_cp = vec_at(f_cp->functions, 0);
+        function* first_cp = vec_at(f_cp->functions, 0);
         if (first_cp->e.type == e_builtin) {
             printf("Info. Builtin functions are not yet implemented\n");
             return o_pass;
         }
-        frame* next_frm = init_frame(first_cp, globals, call_sequ);
+        int fs_sequ = fr_c->call_sequence;
+        frame* next_frm = init_frame(first_cp, &fc, globals, &fs_sequ);
         outcome res = unify(next_frm, func_defs_cp, globals, call_sequ);
         if (res == o_fail) return o_fail;
         //consolidate previous frame with next frame
@@ -74,6 +78,7 @@ outcome call(frame_call* fr_c, frame* prev_frm, vector* func_defs_cp, vector* gl
         free_frame(next_frm);
     } else {
         printf("Info. Only the first choice point answer is currently implemented\n");
+        printf("for function: %s/%i\n", fc.name, vec_size(fc.params));
         return o_pass;
     }
 
@@ -92,10 +97,8 @@ outcome unify(frame* frm, vector* func_defs_cp, vector* globals, int* call_sequ)
             return o_fail;
         }
     }
-    //then swap
-    for (int g = 0; g < vec_size(frm->G); g++) {
-        swap_substitution(vec_at(frm->G, g));
-    }
+    //Note, swap has been moved into eliminate
+    //done before each source substitution
     //then eliminate
     eliminate(frm);
     //decompose tuples
@@ -111,7 +114,7 @@ outcome unify(frame* frm, vector* func_defs_cp, vector* globals, int* call_sequ)
     return res;
 }
 
-frame* init_frame(function* f, vector* globals, int* call_sequ) {
+frame* init_frame(function* f, fcall* fc, vector* globals, int* call_sequ) {
     frame* frm = malloc(sizeof(frame));
     frm->G = new_vector(0, sizeof(substitution));
     frm->last_result = o_pass;
@@ -128,15 +131,33 @@ frame* init_frame(function* f, vector* globals, int* call_sequ) {
        *call_binds.rhs = wrap_atom(param);
         vec_push_back(frm->G, &call_binds);
     }
+    //add passed params
+    for (int p = 0; p < vec_size(fc->params); p++) {
+        expr* p_ex = vec_at(fc->params, p);
+        if (is_val_e(p_ex)) {
+            expr passed = copy_expr(p_ex);
+            substitution call_bind;
+            call_bind.lhs = malloc(sizeof(expr));
+            call_bind.rhs = malloc(sizeof(expr));
+           *call_bind.lhs = make_var_e(decomp_name(call_sequ, &p));
+           *call_bind.rhs = passed;
+            vec_push_back(frm->G, &call_bind);
+        }
+    }
     (*call_sequ)++;
     //when calling sub functions, they must have different vars
     //from this functions return vars
 
     //add all of f's equations
-    rec_add_expr(frm, &f->e, call_sequ);
+    //rec_add_expr(frm, &f->e, call_sequ);
+    add_frame_exprs(frm, &f->e, call_sequ);
     //add global scope equations
     for (int i = 0; i < vec_size(globals); i++) {
-        rec_add_expr(frm, vec_at(globals, i), call_sequ);
+        //rec_add_expr(frm, vec_at(globals, i), call_sequ);
+        expr gls;
+        gls.type = e_and;
+        gls.e.n.ands = globals;
+        add_frame_exprs(frm, &gls, call_sequ);
     }
 
     return frm;
@@ -155,6 +176,87 @@ void free_frame(frame* frm) {
     free(frm);
 }
 
+void add_frame_exprs(frame* frm, expr* e, int* call_sequ) {
+    if (is_and_e(e)) {//may conflict latter when adding real ands
+        vector* ands = e->e.n.ands;
+        for (int i = 0; i < vec_size(ands); i++) {
+            add_frame_exprs(frm, vec_at(ands, i), call_sequ);
+        }
+    } else if (is_equ_e(e)) {//by now all equ chains should have decomposed
+        substitution s = copy_equ(&e->e.e);
+        vec_push_back(frm->G, &s);
+
+    } else if (is_atom_e(e)) {//dead code
+        substitution s;
+        s.lhs = malloc(sizeof(expr));
+        s.rhs = malloc(sizeof(expr));
+       *s.lhs = make_query(&e->e.a);
+       *s.rhs = copy_expr(&debug_dummy_var);
+        //dead code
+    } else if (is_fcall_e(e)) {
+        vector* params = e->e.f.params;
+        for (int i = 0; i < vec_size(params); i++) {
+            substitution s;
+            s.lhs = malloc(sizeof(expr));
+            s.rhs = malloc(sizeof(expr));
+           *s.lhs = make_var_e(decomp_name(call_sequ, &i));
+           *s.rhs = copy_expr(vec_at(params, i));
+            vec_push_back(frm->G, &s);
+        }
+        frame_call f;
+        f.call_sequence = *call_sequ;
+        f.fc = e->e.f;
+        vec_push_back(frm->next_calls, &f);
+        (*call_sequ)++;
+    }
+}
+
+/*
+//does copying... because we need to modify the substitutions.
+void add_frame_exprs(frame* frm, expr* e, int* call_sequ) {
+    vector* exs = e->e.n.ands;
+    for (int i = 0; i < vec_size(exs); i++) {
+        expr* ei = vec_at(exs, i);
+        
+        if (is_equ_e(ei)) {//by now all equ chains should have decomposed
+            substitution s = copy_equ(&ei->e.e);
+            printf("about to add to frame:\n");
+            expr temp = {.type = e_equ, .e.e = s};
+            dump_expr(temp, true); nl;
+            vec_push_back(frm->G, &s);
+
+        } else if (is_atom_e(ei)) {//dead code
+            substitution s;
+            s.lhs = malloc(sizeof(expr));
+            s.rhs = malloc(sizeof(expr));
+           *s.lhs = make_query(&ei->e.a);
+           *s.rhs = copy_expr(&debug_dummy_var);
+            //dead code
+        } else if (is_fcall_e(ei)) {
+            vector* params = ei->e.f.params;
+            for (int i = 0; i < vec_size(params); i++) {
+                substitution s;
+                s.lhs = malloc(sizeof(expr));
+                s.rhs = malloc(sizeof(expr));
+               *s.lhs = make_var_e(decomp_name(call_sequ, &i));
+               *s.rhs = copy_expr(vec_at(params, i));
+                vec_push_back(frm->G, &s);
+            }
+            frame_call f;
+            f.call_sequence = *call_sequ;
+            f.fc = ei->e.f;
+            vec_push_back(frm->next_calls, &f);
+           *call_sequ++;
+
+        } else if (is_and_e(ei)) {
+            //rec_add_expr(frm, ei->e.n.lhs, call_sequ);
+            //rec_add_expr(frm, ei->e.n.rhs, call_sequ);
+            //not done yet
+        }
+    }
+}*/
+
+/*
 //does copying... because we need to modify the substitutions.
 void rec_add_expr(frame* frm, expr* ex, int* call_sequ) {
     if (is_equ_e(ex)) {//only supports x = y for now, no x = z = y...
@@ -185,7 +287,7 @@ void rec_add_expr(frame* frm, expr* ex, int* call_sequ) {
         rec_add_expr(frm, ex->e.n.lhs, call_sequ);
         rec_add_expr(frm, ex->e.n.rhs, call_sequ);
     }
-}
+}*/
 
 //decompose tuples
 void decompose(frame* frm) {
@@ -195,46 +297,20 @@ void decompose(frame* frm) {
             is_tuple_e(sub->rhs) &&
             tuple_size_e(sub->lhs) == tuple_size_e(sub->rhs)
            ) {
-                //first leaf
-                substitution first;
-                first.lhs = sub->lhs->e.t.n.lhs;
-                first.rhs = sub->rhs->e.t.n.rhs;
-                vec_push_back(frm->G, &first);
-                //go down the list and pair the nodes up
-                expr* node_a = sub->lhs->e.t.n.rhs;
-                expr* node_b = sub->rhs->e.t.n.rhs;
-                while (is_and_e(node_a) && is_and_e(node_b)) {///NOTE, needs testing with 3n tuples
-                   substitution pair;
-                   pair.lhs = node_a->e.n.lhs;
-                   pair.rhs = node_b->e.n.rhs;
-                   vec_push_back(frm->G, &pair);
-                   expr* temp_a = node_a; node_a = node_a->e.n.rhs; free(temp_a);
-                   expr* temp_b = node_b; node_b = node_b->e.n.rhs; free(temp_b);
-                }
-                //last leaf
-                substitution last;
-                last.lhs = node_a;
-                last.rhs = node_b;
-                swap_substitution(&last);//Carefull...
-                vec_push_back(frm->G, &last);
-                //remove the tuple
-                vec_remove_at(frm->G, g); g--;
-        }
-    }
-}
-
-void swap_equs(substitution* sub, expr* root) {
-    while (!is_var_e(sub->lhs) && is_equ_e(sub->rhs)) {
-        sub = &sub->rhs->e.e;
-    }
-    if (is_var_e(sub->lhs)) {
-        expr temp = *root;
-       *root = *sub->lhs;
-       *sub->lhs = temp;
-    } else if (is_var_e(sub->rhs)) {
-        expr temp = *root;
-       *root = *sub->rhs;
-       *sub->rhs = temp;
+               vector* tupe_lhs = sub->lhs->e.t.n.ands;
+               vector* tupe_rhs = sub->rhs->e.t.n.ands;
+               for (int i = 0; vec_size(tupe_lhs); i++) {
+                   expr* el_lhs = vec_at(tupe_lhs, i);
+                   expr* el_rhs = vec_at(tupe_rhs, i);
+                   substitution new_sub;
+                  *new_sub.lhs = copy_expr(el_lhs);
+                  *new_sub.rhs = copy_expr(el_rhs);
+                   swap_substitution(&new_sub);
+                   vec_push_back(frm->G, &new_sub);
+               }
+               //keeping the old tuple, because the structure
+               //is semantically important
+           }
     }
 }
 
@@ -244,9 +320,9 @@ void swap_substitution(substitution* sub) {
         expr* temp = sub->lhs;
         sub->lhs = sub->rhs;
         sub->rhs = temp;
-    } else if (!is_var_e(sub->lhs) && is_equ_e(sub->rhs)) {
+    }/* else if (!is_var_e(sub->lhs) && is_equ_e(sub->rhs)) {
         swap_equs(&sub->rhs->e.e, sub->lhs);
-    }
+    }*///see above func
 }
 
 //this would be cheaper if done from end to start with remove_back,
@@ -259,28 +335,6 @@ void delete_g(frame* frm) {
             vec_remove_at(frm->G, g); g--;
         }
     }
-}
-
-void old_decompose(frame* frm) {
-    for (int g = 0; g < vec_size(frm->G); g++) {
-        substitution* sub = vec_at(frm->G, g);
-        if (is_fcall_e(sub->lhs) && is_fcall_e(sub->rhs)) {
-            fcall* lhs_f = &sub->lhs->e.f;
-            fcall* rhs_f = &sub->rhs->e.f;
-            for (int i = 0; i < vec_size(lhs_f->params); i++) {
-                substitution new_sub;
-                *new_sub.lhs = copy_expr(vec_at(lhs_f->params, i));
-                *new_sub.rhs = copy_expr(vec_at(rhs_f->params, i));
-                vec_push_back(frm->G, &new_sub);
-            }
-            vec_push_back(frm->next_calls, rhs_f);
-            vec_remove_at(frm->G, g); g--;
-        }
-    }
-}
-
-outcome rec_conflict_equ(expr* val) {
-    return o_pass;
 }
 
 outcome conflict(frame* frm) {
@@ -296,26 +350,21 @@ outcome conflict(frame* frm) {
                    tuple_size_e(sub->lhs) != tuple_size_e(sub->rhs)
                   ) {
                       return o_fail;
-        } //else if (is_equ_e(sub->rhs)) {
-            
-        //}
+        }
+        //also check the contents of the tuples...
     }
     return o_pass;
 }
 
-void equ_eliminate(expr* equ, const expr* var, const expr* val) {
-    while (is_equ_e(equ)) {
-        if (is_var_e(equ->e.e.lhs) && compare_atoms_e(equ->e.e.lhs, var)) {
-            //match
-            free_expr(equ->e.e.lhs);
-           *equ->e.e.lhs = copy_expr(val);
+//old
+void equ_eliminate(expr* equ_ch, const expr* var, const expr* val) {
+    vector* equs = equ_ch->e.ec.equs;
+    for (int i = 0; i < vec_size(equs); i++) {
+        expr* ei = vec_at(equs, i);
+        if (is_var_e(ei) && compare_atoms_e(ei, var)) {
+            free_expr(ei);
+           *ei = copy_expr(val);
         }
-        equ = equ->e.e.rhs;
-    }
-    //last leaf
-    if (is_var_e(equ) && compare_atoms_e(equ, var)) {
-        free_expr(equ);
-       *equ = copy_expr(val);
     }
 }
 
@@ -323,6 +372,7 @@ void equ_eliminate(expr* equ, const expr* var, const expr* val) {
 void eliminate(frame* frm) {
     for (int g = 0; g < vec_size(frm->G); g++) {
         substitution* sub = vec_at(frm->G, g);
+        swap_substitution(sub);
         expr* sub_var = sub->lhs;
         expr* sub_val = sub->rhs;
         if (is_var_e(sub_var)) {
@@ -336,10 +386,7 @@ void eliminate(frame* frm) {
                    *g2_sub->lhs = copy_expr(sub_val);
                 } else if (is_tuple_e(g2_sub->lhs)) {
                     tuple_eliminate(&g2_sub->lhs->e.t, sub_var, sub_val);
-                }/* else if (is_equ_e(g2_sub->lhs)) {
-                    //shouldnt get here, at this point.
-                    //equ is always a right skewed/link-list of exprs.
-                }*/
+                }
                 if (is_var_e(g2_sub->rhs) && compare_atoms_e(g2_sub->rhs, sub_var)) {
                     //same, so sub
                     free_expr(g2_sub->rhs);
@@ -348,27 +395,29 @@ void eliminate(frame* frm) {
                     tuple_eliminate(&g2_sub->rhs->e.t, sub_var, sub_val);
                 } else if (is_equ_e(g2_sub->rhs)) {
                     //go down list in g2->rhs and elinate using sub_var, sub_val
-                    equ_eliminate(g2_sub->rhs, sub_var, sub_val);
+                    //equ_eliminate(g2_sub->rhs, sub_var, sub_val);
+                    //NOTE. this should now be dead code, as nested equs are
+                    //treated as equ_chains
+                    printf("BAD in eliminate() .. is_equ_e()");
+                } else if (is_equ_chain_e(g2_sub->rhs)) {
+                    //equ_eliminate(g2_sub->rhs, sub_var, sub_val);
+                    //NOTE. this is also dead code, as equ chains are decomposed
+                    //at explicate phase
+                    printf("BAD in eliminate() .. is_equ_chain_e()");
                 }
             }
         }
     }
 }
 
-//wrapper to enforce tuple type
 void tuple_eliminate(tuple* tu, const expr* var, const expr* val) {
-    rec_tuple_eliminate(&tu->n, var, val);
-}
-void rec_tuple_eliminate(and* nd, const expr* var, const expr* val) {
-    if (is_var_e(nd->lhs) && compare_atoms_e(nd->lhs, var)) {
-        free_expr(nd->lhs);
-       *nd->lhs = copy_expr(val);
-    }
-    if (is_var_e(nd->rhs) && compare_atoms_e(nd->rhs, var)) {
-        free_expr(nd->rhs);
-       *nd->rhs = copy_expr(val);
-    } else if (is_and_e(nd->rhs)) {
-        rec_tuple_eliminate(&nd->rhs->e.n, var, val);
+    for (int i = 0; i < vec_size(tu->n.ands); i++) {
+        expr* ti = vec_at(tu->n.ands, i);
+
+        if (is_var_e(ti) && compare_atoms_e(ti, var)) {
+            //free_expr(ti);//this is bad, as the expr lives in the vector and cant be freed, but what about its sub elements?
+           *ti = copy_expr(val);
+        }
     }
 }
 
@@ -403,42 +452,6 @@ char* outcome_to_string(const outcome* o) {
     }
 }
 
-////old, may not need
-void instantiate_a(atom* vr, atom* vl) {
-    if (vr->type != a_var || vl->type != a_val) {
-        printf("Error, instatiation failed. In instantiate_a\n");
-        return;
-    }
-    free(vr->data.vr.symbol);
-    vr->type = vl->type;
-    vr->data = vl->data;
-}
-
-void instantiate_e(expr* vr, expr* vl) {
-    if (vr->type != e_atom || vl->type != e_atom) {
-        printf("Error, instatiation failed. In instantiate_e\n");
-        return;
-    }
-    instantiate_a(&vr->e.a, &vl->e.a);
-}
-
-void rec_instantiate_e(expr* in, expr* vr, expr* vl) {
-    if (is_var_e(in) && compare_atoms_e(in, vr)) {
-        instantiate_e(in, vl);
-    } else if (is_and_e(in)) {
-        rec_instantiate_e(in->e.n.lhs, vr, vl);
-        rec_instantiate_e(in->e.n.rhs, vr, vl);
-    } else if (is_equ_e(in)) {
-        rec_instantiate_e(in->e.e.lhs, vr, vl);
-        rec_instantiate_e(in->e.e.rhs, vr, vl);
-    } else if (is_fcall_e(in)) {
-        for (int i = 0; i < vec_size(in->e.f.params); i++) {
-            rec_instantiate_e(vec_at(in->e.f.params, i), vr, vl);
-        }
-    }// else val, skip
-}
-////end
-
 void dump_frame(frame* frm) {
     printf("Frame has %i substitutions:\n", vec_size(frm->G));
     for (int g = 0; g < vec_size(frm->G); g++) {
@@ -448,7 +461,7 @@ void dump_frame(frame* frm) {
     printf("Sub calls:\n");
     for (int i = 0; i < vec_size(frm->next_calls); i++) {
         fcall* f = vec_at(frm->next_calls, i);
-        printf("  "); dump_func_call(*f); nl;
+        printf("  "); dump_func_call(*f, true); nl;
     }
     printf("Result thus far: %s\n", outcome_to_string(&frm->last_result));
 }
