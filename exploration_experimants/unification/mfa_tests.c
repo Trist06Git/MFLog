@@ -30,6 +30,9 @@ test_results remove_back_wrapper(void);
 test_results remove_front_wrapper(void);
 test_results pop_back_wrapper(void);
 test_results pop_front_wrapper(void);
+test_results duplicate_front(void);
+test_results duplicate_front_back(void);
+test_results compare_arrays(void);
 
 //do tests for fail
 
@@ -49,6 +52,9 @@ int main(int argc, char** argv) {
     print_results(remove_front_wrapper());
     print_results(pop_back_wrapper());
     print_results(pop_front_wrapper());
+    print_results(duplicate_front());
+    print_results(duplicate_front_back());
+    print_results(compare_arrays());
 
     printf(":: Done ::\n");
 }
@@ -378,5 +384,80 @@ test_results pop_front_wrapper(void) {
     res.result &= mfa_card(arr) == 9;
 
     free_mfarray(arr);
+    return res;
+}
+
+test_results duplicate_front(void) {
+    test_results res;
+    res.name = "duplicating front";
+    res.result = true;
+    
+    mf_array* arr = new_mfarray(sizeof(int));
+    for (int i = 0; i < 10; i++) {
+        mfa_push_back(arr, &i);
+    }
+    
+    mf_array* arr2 = mfa_duplicate(arr);
+    for (int i = 0; i < mfa_card(arr2); i++) {
+        int* el = mfa_at(arr2, i);
+        res.result &= *el == i;
+    }
+    
+    res.result &= mfa_card(arr) == mfa_card(arr2);
+
+    free_mfarray(arr);
+    free_mfarray(arr2);
+    return res;
+}
+
+test_results duplicate_front_back(void) {
+    test_results res;
+    res.name = "duplicating front and back";
+    res.result = true;
+    
+    mf_array* arr = new_mfarray(sizeof(int));
+    for (int i = 5; i < 10; i++) {
+        mfa_push_back(arr, &i);
+    }
+    for (int i = 4; i >= 0; i--) {
+        mfa_push_front(arr, &i);
+    }
+    
+    mf_array* arr2 = mfa_duplicate(arr);
+    for (int i = 0; i < mfa_card(arr2); i++) {
+        int* el = mfa_at(arr2, i);
+        res.result &= *el == i;
+    }
+    
+    res.result &= mfa_card(arr) == mfa_card(arr2);
+
+    free_mfarray(arr);
+    free_mfarray(arr2);
+    return res;
+}
+
+//this test needs expanding..
+test_results compare_arrays(void) {
+    test_results res;
+    res.name = "byte comparing 2 arrays";
+    res.result = true;
+    
+    mf_array* arr1 = new_mfarray(sizeof(int));
+    for (int i = 1; i < 10; i++) {
+        mfa_push_back(arr1, &i);
+    }
+    mf_array* arr2 = new_mfarray(sizeof(int));
+    for (int i = 0; i < 10; i++) {
+        mfa_push_back(arr2, &i);
+    }
+    res.result &= mfa_compare(arr1, arr2) == false;
+    
+    int zero = 0;
+    mfa_push_front(arr1, &zero);
+    
+    res.result &= mfa_compare(arr1, arr2);
+
+    free_mfarray(arr1);
+    free_mfarray(arr2);
     return res;
 }

@@ -85,6 +85,12 @@ int main(int argc, char** argv) {
     f.e = gands;
     decompose_equs(&f);
 
+    //printf("Post parse, pre-preproc:\n");
+    //for (int i = 0; i < vec_size(func_defs); i++) {
+    //    function* f = vec_at(func_defs, i);
+    //    dump_func(*f); nl;
+    //}
+
     if (verbose > 0) printf("Explicating constants/variables.\n");
     for (int i = 0; i < vec_size(func_defs); i++) {
         function* f = vec_at(func_defs, i);

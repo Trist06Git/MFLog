@@ -9,10 +9,11 @@ void dump_func(function);
 void dump_cp(choice_point*);
 void dump_expr(expr, bool);
 void dump_func_call(fcall, bool);
-void dump_tuple(expr* t);
+void dump_tuple(expr*);
+void dump_list(list*);
+void dump_val(val*);
+void dump_atom(atom*);
 void rec_dump_tuple(and*);
-char* expr_to_string(expr);
-char* atom_to_string(atom);
 void dump_expr_vec(vector*);
 
 #endif

@@ -158,6 +158,52 @@ size_t mfa_card(mf_array* arr) {
     return arr->count_neg + arr->count_pos;
 }
 
+mf_array* mfa_duplicate(mf_array* arr) {
+    mf_array* ret = new_mfarray(arr->el_size);
+    for (int i = 0; i < arr->count_pos; i++) {
+        for (int j = 0; j < arr->el_size; j++) {
+            ret->store_pos[(i*arr->el_size)+j] = arr->store_pos[(i*arr->el_size)+j];
+        }
+    }
+    for (int i = 0; i < arr->count_neg; i++) {
+        for (int j = 0; j < arr->el_size; j++) {
+            ret->store_neg[(i*arr->el_size)+j] = arr->store_neg[(i*arr->el_size)+j];
+        }
+    }
+    ret->alloced_pos = arr->alloced_pos;
+    ret->alloced_neg = arr->alloced_neg;
+    ret->count_pos = arr->count_pos;
+    ret->count_neg = arr->count_neg;
+    ret->precalc_alloced_pos = arr->precalc_alloced_pos;
+    ret->precalc_alloced_neg = arr->precalc_alloced_neg;
+    return ret;
+}
+
+//byte compare, false = different, true = same contents
+bool mfa_compare(mf_array* arr1, mf_array* arr2) {
+    if (arr1->el_size != arr2->el_size
+          ||
+        mfa_card(arr1) != mfa_card(arr2)
+    ) {
+        printf("card or el_size comparrison failed.\n");
+        return false;
+    }
+    
+
+    for (int i = 0; i < mfa_card(arr1); i++) {
+        uint8_t* el1 = mfa_at(arr1, i);
+        uint8_t* el2 = mfa_at(arr2, i);
+        for (int j = 0; j < arr1->el_size; j++) {
+            if (el1[j] != el2[j]) {
+                printf("byte comparrison failed.\n");
+                return false;
+            }
+            
+        }
+    }
+    return true;
+}
+
 //NULL is failure
 mf_array* new_mfarray(size_t el_size) {
     if (!inited) init_mfarrays();
@@ -222,6 +268,8 @@ bool init_mfarrays(void) {
     page_size = getpagesize();
     aligned_array_size = align_to_page(init_array_size, page_size);
     inited = true;
+    //no false outcomes yet..
+    return true;
 }
 
 //only for positives

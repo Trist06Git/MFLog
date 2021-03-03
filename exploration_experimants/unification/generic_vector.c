@@ -67,6 +67,7 @@ int vec_size(vector* vec) {
     return vec->count;
 }
 
+//byte compare the elements
 bool vec_contains(vector* vec, void* item) {
     for (int i = 0; i < vec_size(vec); i++) {
         void* element = vec_at(vec, i);
@@ -79,6 +80,7 @@ bool vec_contains(vector* vec, void* item) {
     return false;
 }
 
+//compare the strings pointed to by the elements
 bool vec_contains_string(vector* vec, const char* str) {
     for (int i = 0; i < vec_size(vec); i++) {
         char** element = vec_at(vec, i);

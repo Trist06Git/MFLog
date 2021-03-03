@@ -156,6 +156,43 @@ cat(l1, l2) =      => cat(1;;2, 3;;4, return) =
 
 app(x, l) =
   return = x :: l.
+app(1, [3;4]) =
+  return = 1 :: [3;4].
+
+res = app(1, [3;4]).
+
 cat(l1, l2) =
   return = l1++l2.
-cat([1;2], [3;4], [1;2;3;4]).
+cat([1;2], [3;4], [1;2;3;4]) =
+  [1;2] ++ [3;4] = [1;2;3;4].
+
+res = cat([1;2], [3;4]).
+
+match(a, b, c, list) =
+  [a,b,c,_] = list.
+
+match(a, b, c, [1;2;3]) =
+  [a,b,c,_] = [1;2;3],
+  a = 1,
+  b = 2,
+  c = 3,
+  _ = [].
+
+match(a, b, c, [1,2]) =
+  [a,b,c,_] = [1,2],
+  a = 1,
+  b = 2,
+  c = [],
+  _ = Fail.
+
+get(i, list) =
+  list[i].
+
+get(5, [1;2;3]) =
+  Fail.
+
+//no leaking vars in lists
+f(x, return) =
+  return = [x;1].
+//ok, iff x is bound to a val,
+//fully instantiating the list

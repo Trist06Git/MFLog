@@ -6,6 +6,7 @@
 
 #include "explication.h"
 #include "utils.h"
+#include "mlog_array.h"
 
 #include "debug_stuff.h"
 
@@ -113,7 +114,6 @@ void dump_vector_str(vector* vec) {
     }
 }
 
-//this is somehow broken
 expr tuplise_params(vector* params, vector* singles) {
     expr ex;
     ex.type = e_builtin;//not the best
@@ -382,6 +382,16 @@ void rec_get_var_singles_e(expr* e, map* mp) {
         for (int i = 0; i < vec_size(tps); i++) {
             rec_get_var_singles_e(vec_at(tps, i), mp);
         }
+    } else if (is_list_e(e)) {
+        mf_array* lst = e->e.a.data.vl.v.l.lst;
+        if (lst == NULL) {
+            printf("An empty list contains no vars...\n");
+            return;
+        }
+        for (int i = 0; i < mfa_card(lst); i++) {
+            rec_get_var_singles_e(mfa_at(lst, i), mp);
+        }
+        //printf("Info. Checking for variable singles in lists is not yet implemented.\n");
     }
 }
 

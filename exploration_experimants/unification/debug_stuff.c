@@ -14,7 +14,8 @@ void dump_func(function f) {
     printf("%s(", f.name);
     int ps = vec_size(f.params);
     for (int i = 0; i < ps; i++) {
-        printf("%s", atom_to_string(*(atom*)vec_at(f.params, i)));
+        atom* ai = vec_at(f.params, i);
+        dump_atom(ai);
         if(i != ps-1) printf(", ");
     }
     printf(") = ");
@@ -40,18 +41,12 @@ void dump_expr(expr e, bool indent) {
     char* in = indent ? "  " : "";
     switch (e.type) {
         case e_fcall : {
-            //printf("%s%s", in, expr_to_string(e));
             printf("%s", in);
             dump_func_call(e.e.f, false);
         } break;
-/*        case e_val   : {
-            printf("%s%s", in, expr_to_string(e));
-        } break;
-        case e_var   : {
-            printf("%s%s", in, expr_to_string(e));
-        } break;*/
         case e_atom  : {
-            printf("%s%s", in, expr_to_string(e));
+            printf("%s", in);
+            dump_atom(&e.e.a);
         } break;
         case e_equ   : {
             expr e1 = *e.e.e.lhs;
@@ -81,7 +76,7 @@ void dump_expr(expr e, bool indent) {
             dump_tuple(&e);
         } break;
         case e_query : {
-            printf("%s%s", in, expr_to_string(e));
+            printf("%s%s", in, "?query?");
         }
         default: return;
     }
@@ -109,12 +104,10 @@ void dump_func_call(fcall func, bool extended) {
             default       :                                     break;
         }
     }
-    
 }
 
 void dump_tuple(expr* e) {
     printf("(");
-    //rec_dump_tuple(&e->e.t.n);
     vector* ands = e->e.t.n.ands;
     for (int i = 0; i < vec_size(ands); i++) {
         expr* a = vec_at(ands, i);
@@ -124,78 +117,31 @@ void dump_tuple(expr* e) {
     printf(")");
 }
 
-/*
-void rec_dump_tuple(and* a) {
-    dump_expr(*a->lhs, false);
-    printf(",");
-    if (is_and_e(a->rhs)) {
-        rec_dump_tuple(&a->rhs->e.n);
-    } else {
-        dump_expr(*a->rhs, false);
+void dump_list(list* l) {
+    printf("[");
+    if (l->lst != NULL) for (int i = 0; i < mfa_card(l->lst); i++) {
+        expr* ei = mfa_at(l->lst, i);
+        dump_expr(*ei, false);
+        if (i < mfa_card(l->lst)-1) printf(";");
     }
-}*/
+    printf("]");
+    if (l->has_vars) printf("v");
+    else             printf("i");
+}
 
-char* expr_to_string(expr e) {
-    char* res;
-    switch (e.type) {
-        case e_fcall : {////needs cleaning up, please remove...
-            fcall f = e.e.f;
-            int ssize = 0;
-            for (int i = 0; i < vec_size(f.params); i++) {
-                expr p_i = *(expr*)vec_at(f.params, i);
-                if (p_i.type == e_atom) {
-                    if (p_i.e.a.type == a_val)
-                        ssize += digits_neg(p_i.e.a.data.vl.n);
-                    else
-                        ssize += strlen(p_i.e.a.data.vr.symbol) + 2;
-                } else {
-                    ssize += 4;
-                }
-            }
-            
-            res = malloc(sizeof(char)*ssize+1);
-            sprintf(res, "%s(", f.name);
-            for (int i = 0; i < vec_size(f.params); i++) {
-                expr p_i = *(expr*)vec_at(f.params, i);
-                if (p_i.type == e_atom) {
-                    sprintf(res, "%s%s", res, atom_to_string((*(expr*)vec_at(f.params, i)).e.a));
-                } else {
-                    sprintf(res, "%sex_$old$", res);
-                }
-                
-                if (i != vec_size(f.params)-1) sprintf(res, "%s, ", res);
-            }
-            sprintf(res, "%s)", res);
-        } return res;
-        /*case e_val : {
-            val v = e.e.vl;
-            res = malloc(sizeof(char)*digits_neg(v.n)+1);
-            sprintf(res, "%i", v.n);
-        } return res;
-        case e_var : {
-            var v = e.e.vr;
-            res = v.symbol;
-        } return res;*/
-        case e_atom : {
-            return atom_to_string(e.e.a);
-        };
-        case e_equ :
-        case e_and : {
-            res = malloc(sizeof(char)*2);
-            sprintf(res, "?");
-        } return res;
-        default: return NULL;
+void dump_val(val* vl) {
+    if (vl->type == v_int) {
+        printf("%i", vl->v.i);
+    } else if (vl->type == v_list) {
+        dump_list(&vl->v.l);
     }
 }
 
-char* atom_to_string(atom a) {
-    if (a.type == a_val) {
-        int num = a.data.vl.n;
-        char* res = malloc(sizeof(char)+1+digits_neg(num));
-        sprintf(res, "%i", num);
-        return res;
-    } else {//a_var
-        return a.data.vr.symbol;
+void dump_atom(atom* a) {
+    if (is_var_a(a)) {
+        printf("%s", a->data.vr.symbol);
+    } else if (is_val_a(a)) {
+        dump_val(&a->data.vl);
     }
 }
 

@@ -9,6 +9,7 @@
 static char* unique_prefix    = "U_";
 static char* decompose_prefix = "D_";
 static char* tuple_prefix     = "T_";
+static char* list_prefix      = "L_";
 
 static char* random_error = "???";
 
@@ -29,9 +30,11 @@ int digits_neg(int);
 char* unique_name(int*);
 char* unique_name_incr(int*);
 char* anon_name(const char* prefix, int, int);
+char* anon_list_name(const char* prefix, int frm, int lst, int arg);
+bool  compare_list_sequ(expr* vr, int sequ);
 char* decomp_name(int* arity, int* func);
 char* decomp_name_incr(int* arity, int* func);
-bool compare_decomp_sequ(expr* vr, int sequ);
+bool  compare_decomp_sequ(expr* vr, int sequ);
 char* file_to_string(const char*);
 
 #endif

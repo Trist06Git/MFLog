@@ -6,6 +6,7 @@
 
 #include "internal_struct.h"
 #include "generic_vector.h"
+#include "debug_stuff.h"
 
 void append_expr(expr* nd, const expr* ex)  {
     expr new_ex = copy_expr(ex);
@@ -20,45 +21,12 @@ void append_expr(expr* nd, const expr* ex)  {
     }
 }
 
-/*
-//Note. this is newer and better than the above.
-//no memcpy
-void append_expr(expr* nd, expr* ex) {
-    expr* last = last_and(nd);
-    expr new_left = *last;
-
-    last->type = e_and;
-    last->e.n.lhs = malloc(sizeof(expr));
-   *last->e.n.lhs = new_left;
-    last->e.n.rhs = malloc(sizeof(expr));
-   *last->e.n.rhs = *ex;
-}*/
-/*//really not sure why it wouldnt work with memcpy...??
-void append_expr(expr* nd, expr* ex) {
-    expr* last = last_and(nd);
-    expr* new_left = malloc(sizeof(expr));
-    //if (is_fcall_e(*last)) printf("moving %s, with %i params\n", last->e.f.name, size(last->e.f.params));
-    memcpy(new_left, last, sizeof(expr));
-    last->type = e_and;
-    last->e.n.lhs = new_left;
-    if (is_fcall_e(*last->e.n.lhs)) printf("moved %s, with %i params\n", last->e.n.lhs->e.f.name, size(last->e.n.lhs->e.f.params));
-    memcpy(last->e.n.rhs, ex, sizeof(expr));
-}*/
-
-/*
-//progress down the tree untill the last and operand
-expr* last_and(expr* nd) {
-    while (is_and_e(nd)) {
-        nd = nd->e.n.rhs;
-    }
-    return nd;
-}
-*/
-
 bool is_var_a(const atom* a)       { return a->type == a_var; }
 bool is_val_a(const atom* a)       { return a->type == a_val; }
 bool is_var_e(const expr* e)       { return is_atom_e(e) && is_var_a(&e->e.a); }
 bool is_val_e(const expr* e)       { return is_atom_e(e) && is_val_a(&e->e.a); }
+bool is_list_e(const expr* e)      { return is_atom_e(e) && is_list_a(&e->e.a); } 
+bool is_list_a(const atom* a)      { return is_val_a(a)  && a->data.vl.type == v_list; }
 bool is_atom_e(const expr* e)      { return e->type == e_atom;  }
 bool is_and_e(const expr* e)       { return e->type == e_and;   }
 bool is_tuple_e(const expr* e)     { return e->type == e_tuple; }
@@ -83,7 +51,7 @@ expr make_var_e(char* name) {
     return new_var;
 }
 atom make_int_a(int n) {
-    atom new_int = {a_val, .data.vl = {.n = n, .type = a_val}};
+    atom new_int = {.type = a_val, .data.vl = {.type = v_int, .v.i = n}};
     return new_int;
 }
 expr make_int_e(int n) {
@@ -109,13 +77,29 @@ expr wrap_and_t(and nd) {
     return ex;
 }
 
+bool compare_lists_l(const list* l1, const list* l2) {
+    if (l1->type != l2->type
+          ||
+        mfa_card(l1->lst) != mfa_card(l2->lst)
+    ) return false;
+    
+    for (int i = 0; i < mfa_card(l1->lst); i++) {
+        expr* el1 = mfa_at(l1->lst, i);
+        expr* el2 = mfa_at(l2->lst, i);
+        if (compare_atoms_e(el1, el2) == false) return false;
+    }
+    return true;
+}
+
 bool compare_atoms_a(const atom* a1, const atom* a2) {
     if (a1->type != a2->type) {
         return false;
     } else if (a1->type == a_val) {
         if (a1->data.vl.type == a2->data.vl.type) {
             if (a1->data.vl.type == v_int) {
-                return a1->data.vl.n == a2->data.vl.n;
+                return a1->data.vl.v.i == a2->data.vl.v.i;
+            } else if (a1->data.vl.type == v_list) {
+                return compare_lists_l(&a1->data.vl.v.l, &a2->data.vl.v.l);
             }//else other types
         }
     } else if (a1->type == a_var) {
@@ -176,8 +160,19 @@ fcall copy_fcall(const fcall* fc) {
 
 val copy_val(const val* vl) {//a little superfluous
     val ret = *vl;
-    ret.n = vl->n;
-    ret.type = vl->type;
+    if (vl->type == v_int) {
+        ret.v.i = vl->v.i;
+        ret.type = vl->type;
+    } else if  (vl->type == v_list) {
+        //for now always copying, need to add referencing for non-mutable stuff
+        if (vl->v.l.lst != NULL) {
+            ret.v.l.lst = mfa_duplicate(vl->v.l.lst);
+        } else {
+            ret.v.l.lst = NULL;
+        }
+        ret.v.l.type = vl->v.l.type;
+        ret.v.l.has_vars = ret.v.l.has_vars;
+    }
     return ret;
 }
 
@@ -300,9 +295,13 @@ void free_equ_chain(equality_chain* equ) {
     free_vector(equ->equs);
 }
 
-//val is not malloced so no need to free.. yet.
 void free_val(val* vl) {
-    return;
+    if (vl->type == v_int) {
+        return;
+    } else if (vl->type == v_list && vl->v.l.lst != NULL) {
+        free_mfarray(vl->v.l.lst);
+        return;
+    }
 }
 
 void free_var(var* vr) {

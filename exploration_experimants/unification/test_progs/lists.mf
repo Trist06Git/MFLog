@@ -1,0 +1,100 @@
+
+//main(r) =
+//  r = tuple2(1,2).
+//
+//tuple2(x,y, r1,r2) =
+//  r1 = x,
+//  r2 = y.
+
+//main(r) =
+//  r = [1;2] = [x;y],
+//  r = [x;y],
+//  x = 1,
+//  y = 2.
+
+//main(r) =
+//  x = [1;2],
+//  r = f(x).
+//
+//f(x, return) =
+//  return = x = [1;2].
+
+//called var names from main are
+//leaking into f's scope via the list
+//Next todo. :done, i think..
+//main(r) =
+//  r = f([x;y]),
+//  x = 1, y = 2.
+//
+//f(a, return) =
+//  a = [1;2],
+//  return = a.
+
+//main(r) =
+//  r = f(1).
+//
+//f(a, return) =
+//  a = 1,
+//  return = a.
+
+//error for uninstantiated vars in list
+//main(r1) =
+//  r2 = f(r1),
+//  g(r2).
+//
+//f(x, return) =
+//  return = [x].
+//
+//g(y) =
+//  y = [1].
+
+//matching fcall with returned list vars
+//main(r) =
+//  f([r;2]),
+//  f([r;2]).
+//
+//f(lst_f) =
+//  g(lst_f).
+//
+//g(lst_g) =
+//  lst_g = [1;2].
+
+//maybe bug, Fixed!
+//main(r) =
+//  f(r),
+//  f(r).
+//
+//f(a) =
+//  g(a).
+//
+//g(b) =
+//  b = 1.
+
+//a more complicated vars in lists
+//main(r) =
+//  x = 3,
+//  f([r;2;x], 2).
+//
+//f(lst, mid) =
+//  lst = [1;mid;3].
+
+//empty list
+//main(r) =
+//  r = [].
+
+//list of list
+//main(r) =
+//  r = tuplise_list([[1;2];[3;4]]).
+//
+//tuplise_list(lst, t1, t2) =
+//  lst = [t1; t2].
+
+//main(r) = //fails
+//  r = tuplise_list([1]).
+
+//fdef pattern match
+main(r) =
+  is_good([r;2], r).
+
+is_good([1;2]) =
+  return = 1.

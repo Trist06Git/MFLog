@@ -15,6 +15,7 @@ typedef struct frame_call frame_call;
 enum outcome {o_fail, o_answers, o_pass};
 
 struct frame {
+    char* fname;//just for info/debug
     vector* G;//of substitutions
     vector* next_calls;//of frame_calls
     outcome last_result;
@@ -37,11 +38,14 @@ void swap_substitution(substitution*);
 void delete_g(frame*);
 outcome conflict(frame*);
 void eliminate(frame*);
+void double_list_eliminate(list* lst1, list* lst2, frame*);
+void list_eliminate(list*, const expr* var, const expr* val);
 void tuple_eliminate(tuple*, const expr* var, const expr* val);
 void rec_tuple_eliminate(and*, const expr* var, const expr* val);
 outcome query(expr*);
 vector* head_results(frame*, function*);
 
+bool is_list_instantiated_e(expr*);
 char* outcome_to_string(const outcome*);
 
 //may not need

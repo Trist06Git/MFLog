@@ -20,18 +20,22 @@ typedef struct function function;
 typedef struct choice_point choice_point;
 
 enum v_type {v_int, v_list};
+struct list {
+    enum v_type type;
+    mf_array* lst;//NULL = empty list, with no type
+    bool has_vars;
+};
+
 struct val {
     enum v_type type;
-    int n;
+    union {
+        int i;
+        list l;
+    } v;
 };
 
 struct var {
     char* symbol;
-};
-
-struct list {
-    enum v_type type;
-    int array_herere;;;
 };
 
 enum a_type {a_val, a_var};
@@ -106,6 +110,8 @@ bool is_val_e(const expr*);
 bool is_atom_e(const expr*);
 bool is_and_e(const expr*);
 bool is_tuple_e(const expr*);
+bool is_list_e(const expr*);
+bool is_list_a(const atom*);
 bool is_fcall_e(const expr*);
 bool is_equ_e(const expr*);
 bool is_equ_chain_e(const expr*);
@@ -120,7 +126,7 @@ expr wrap_atom(atom);//in an expr
 expr wrap_and_e(and);//in an expr
 expr wrap_and_t(and);//in a tuple
 
-
+bool compare_lists_l(const list*, const list*);
 bool compare_atoms_a(const atom*, const atom*);
 bool compare_atoms_e(const expr*, const expr*);
 

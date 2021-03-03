@@ -46,7 +46,6 @@ bool func_def_exists(vector* defs, function* f) {
     for (int i = 0; i < vec_size(defs); i++) {
         function* this_f = vec_at(defs, i);
         if (vec_size(f->params) != vec_size(this_f->params)) return false;
-        //if (compare_func_heads(f, this_f)) {
         if (compare_func_vals(f, this_f)) {
             return true;
         }
@@ -92,7 +91,7 @@ bool same(atom* a, atom* b) {
                &&
                b->type == a_val
                &&
-               a->data.vl.n == b->data.vl.n)
+               compare_atoms_a(a, b))
     {
         return true;
     }
@@ -175,6 +174,38 @@ char* anon_name(const char* prefix, int a, int b) {
     return new_name;
 }
 
+char* anon_list_name(const char* prefix, int frm, int lst, int arg) {
+    char* new_name = malloc(
+        sizeof(char)*(
+            strlen(prefix) +
+            digits(frm) + 1 +
+            digits(lst) + 1 +
+            digits(arg) + 1
+            )
+    );//L_a_b_c\0
+    sprintf(new_name, "%s%i_%i_%i", prefix, frm, lst, arg);
+    return new_name;
+}
+
+//promise that vr is a variable
+//needs overhaul
+bool compare_list_sequ(expr* vr, int sequ) {
+    if (!is_var_e(vr)) return false;
+    int ds = digits(sequ);
+    char* s_sequ = malloc(sizeof(char)*(ds+1));
+    sprintf(s_sequ, "%i", sequ);
+    
+    char* subject = vr->e.a.data.vr.symbol;
+    if (strlen(subject) < 2+ds || subject[0] != 'L') return false;
+    subject += 2;//move past the "L_"
+    for (int i = 0; i < strlen(s_sequ) && *subject != '0'; i++, subject++) {
+        if (subject[0] != s_sequ[0]) return false;
+    }
+
+    free(s_sequ);
+    return true;
+}
+
 ////should probably change this around to be D_func_arity
 //like in the prolog api, eg incr/2
 char* decomp_name_incr(int* arity, int* func) {
@@ -186,11 +217,12 @@ char* decomp_name(int* arity, int* func) {
     return anon_name(decompose_prefix, *arity, *func);
 }
 
-//promise that vr is a variable
+//needs overhaul
 bool compare_decomp_sequ(expr* vr, int sequ) {
+    if (!is_var_e(vr)) return false;
     //itoa() is not a part of the c standard
     int ds = digits(sequ);
-    char* s_sequ = malloc(ds+1);
+    char* s_sequ = malloc(sizeof(char)*(ds+1));
     sprintf(s_sequ, "%i", sequ);
     
     char* subject = vr->e.a.data.vr.symbol;

@@ -4,7 +4,7 @@ LL = lex
 YY = yacc
 WARNS = -Wreturn-type
 C_LIBS = y.tab.c lex.yy.c internal_struct.c generic_vector.c generic_map.c\
-         utils.c explication.c unify.c debug_stuff.c
+         mlog_array.c utils.c explication.c unify.c debug_stuff.c
 
 .PHONY: run clean
 

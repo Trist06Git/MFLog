@@ -42,6 +42,8 @@ bool mfa_set(mf_array*, int i, void* element);
 void* mfa_at(mf_array*, int i);
 bool mfa_remove_at(mf_array*, int i);
 size_t mfa_card(mf_array*);
+mf_array* mfa_duplicate(mf_array*);
+bool mfa_compare(mf_array*, mf_array*);
 
 mf_array* new_mfarray(size_t el_size);
 void free_mfarray(mf_array*);

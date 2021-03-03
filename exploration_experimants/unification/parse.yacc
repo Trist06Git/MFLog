@@ -4,6 +4,7 @@
     #include <stdbool.h>
     #include "internal_struct.h"
     #include "generic_vector.h"
+    #include "mlog_array.h"
     #include "utils.h"
 
     #include "debug_stuff.h"
@@ -13,6 +14,7 @@
 
     int unique = 0;
     bool unique_match = false;
+    bool encountered_var = false;
 
     extern int flag;
     extern vector* func_defs;
@@ -23,6 +25,7 @@
     extern fcall fc_minus;
     extern fcall fc_print;
     vector* ps = NULL;
+    mf_array* ls = NULL;
 
     int yylex(void);
     void yyerror(char*);
@@ -35,6 +38,8 @@
     char* string;
     int number;
     vector* vec;
+    mf_array* arr;
+    list u_lst;
     atom u_at;
     val u_val;
     var u_var;
@@ -58,6 +63,8 @@
 %type <u_ex> Expr
 %type <vec> Exprs
 //%type <u_ex> Expr_eq
+%type <arr> Expr_list
+%type <u_lst> List
 %type <u_fc> Fcall
 %type <u_fc> Fcall_ans
 %type <u_fc> Fbuiltin
@@ -185,16 +192,6 @@ Exprs
         vec_insert_at(ps, 0, &$1);
         $$ = ps;
         ps = NULL;
-        
-        /*expr lhs = $1;
-        expr rhs = $3;
-        expr ex;
-        ex.type = e_and;
-        ex.e.n.lhs = malloc(sizeof(expr));
-        ex.e.n.rhs = malloc(sizeof(expr));
-        memcpy(ex.e.n.lhs, &lhs, sizeof(lhs));
-        memcpy(ex.e.n.rhs, &rhs, sizeof(rhs));
-        $$ = ex;*/
     }
     ;
 
@@ -203,7 +200,42 @@ Expr : Fcall_ans { expr ex; ex.type = e_fcall; ex.e.f  = $1; $$ = ex; }
      | Fcall     { expr ex; ex.type = e_fcall; ex.e.f  = $1; $$ = ex; }
      | Atom      { expr ex; ex.type = e_atom;  ex.e.a  = $1; $$ = ex; }
      | Ocall     { expr ex; ex.type = e_fcall; ex.e.f  = $1; $$ = ex; }
+     
      ;
+
+Expr_list
+    : Expr {
+        encountered_var = false;
+        ls = new_mfarray(sizeof(expr));
+        mfa_push_back(ls, &$1);
+        encountered_var |= is_var_e(&$1);
+        $$ = ls;
+        ls = NULL;
+    }
+    | Expr AND_LIST Expr_list {
+        ls = $3;
+        mfa_push_back(ls, &$1);
+        encountered_var |= is_var_e(&$1);
+        $$ = ls;
+        ls = NULL;
+    }
+    ;
+
+List
+    : LP_LIST Expr_list RP_LIST {
+        list l;
+        l.has_vars = encountered_var;
+        l.type = v_int;
+        l.lst = $2;
+        $$ = l;
+    }
+    | LP_LIST RP_LIST {
+        list l;
+        l.has_vars = false;
+        l.lst = NULL;//empty list
+        $$ = l;
+    }
+    ;
 
 Expr_eq_ch : Equ_chain {
     expr ex;
@@ -225,7 +257,7 @@ Expr_eq_ch : Equ_chain {
         ex.e.ec.equs = $1;
     }
     $$ = ex;
-}
+};
 
 Fbuiltin : Builtin_func LP_ROUND Expr_params RP_ROUND {
     fcall fc = $1;
@@ -247,12 +279,20 @@ Fcall_ans : Answer_count Fcall {
     $$ = fc;
 }
 
-Val : NUMBER {
-    val v;
-    v.type = v_int;
-    v.n = $1;
-    $$ = v;
-};
+Val
+    : NUMBER {
+        val v;
+        v.type = v_int;
+        v.v.i = $1;
+        $$ = v;
+    }
+    | List {
+        val v;
+        v.type = v_list;
+        v.v.l = $1;
+        $$ = v;
+    }
+    ;
 
 Var : WORD {
     var v;

@@ -35,8 +35,14 @@
 //  y = x = 1,
 //  y = 2.
 
+main(r) =
+  one o(3, r).
+
+o(a, b) = a = b = 1.
+o(a, b) = a = b = 3.
+
 n(a, b) = b = 1.
-//n(a, b) = b = 3.
+n(a, b) = b = 3.
 
 l(a, b, c) =
   a = 1,

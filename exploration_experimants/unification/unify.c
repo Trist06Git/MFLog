@@ -1,6 +1,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 #include "unify.h"
 #include "utils.h"
@@ -41,6 +42,45 @@ void entry(vector* func_defs_cp, vector* globals) {
     free_frame(first_frame);
 }
 
+bool is_list_instantiated_e(expr* e) {
+    list* lst = &e->e.a.data.vl.v.l;
+    if (!lst->has_vars) return true;
+    mf_array* arr = lst->lst;
+    for (int i = 0; i < mfa_card(arr); i++) {
+        expr* ei = mfa_at(arr, i);
+        if (is_var_e(ei)) return false;
+    }
+    lst->has_vars = false;
+    return true;
+}
+
+//consolidate previous frame with next frame
+//G1 = G1 + G1 N G2, where N = intersect, G1 = prev_frm, G2 = next_frm
+outcome consolidate_frames(frame* prev_frm, frame* next_frm, int call_sequ) {
+    for (int g2 = 0; g2 < vec_size(next_frm->G); g2++) {
+        substitution* s = vec_at(next_frm->G, g2);
+        //first check for uninstantiated list
+        if (is_list_e(s->lhs) && !is_list_instantiated_e(s->lhs)) {
+            printf("Error. In %s, list is not fully instantiated and contains variables.\n", next_frm->fname);
+            //maybe print var/list name also?
+            return o_fail;
+        }
+        if (is_list_e(s->rhs) && !is_list_instantiated_e(s->rhs)) {
+            printf("Error. In %s, list is not fully instantiated and contains variables.\n", next_frm->fname);
+            return o_fail;
+        }
+        if ((is_var_e(s->lhs) && compare_decomp_sequ(s->lhs, call_sequ))
+                ||
+            (is_var_e(s->rhs) && compare_decomp_sequ(s->rhs, call_sequ)))
+        {
+            substitution ret_s = copy_equ(s);
+            vec_push_back(prev_frm->G, &ret_s);
+            //return o_pass;
+        }
+    }
+    return o_pass;
+}
+
 outcome call(frame_call* fr_c, frame* prev_frm, vector* func_defs_cp, vector* globals, int* call_sequ) {
 #ifdef UNIFY_DEBUG
     printf("DEBUG :: Calling frame for \"%s\"\n", fr_c->fc.name);
@@ -59,35 +99,48 @@ outcome call(frame_call* fr_c, frame* prev_frm, vector* func_defs_cp, vector* gl
             printf("Info. Builtin functions are not yet implemented\n");
             return o_pass;
         }
+
         int fs_sequ = fr_c->call_sequence;
         frame* next_frm = init_frame(first_cp, &fc, globals, &fs_sequ);
         outcome res = unify(next_frm, func_defs_cp, globals, call_sequ);
         if (res == o_fail) return o_fail;
-        //consolidate previous frame with next frame
-        //G1 = G1 + G1 N G2, where N = intersect, G1 = prev_frm, G2 = next_frm
-        for (int g2 = 0; g2 < vec_size(next_frm->G); g2++) {
-            substitution* s = vec_at(next_frm->G, g2);
-            if ((is_var_e(s->lhs) && compare_decomp_sequ(s->lhs, fr_c->call_sequence))
-                ||
-                (is_var_e(s->rhs) && compare_decomp_sequ(s->rhs, fr_c->call_sequence)))
-            {
-                substitution ret_s = copy_equ(s);
-                vec_push_back(prev_frm->G, &ret_s);
+
+        res = consolidate_frames(prev_frm, next_frm, fr_c->call_sequence);
+        free_frame(next_frm);
+        return res;
+
+    } else if (fc.res_set == rs_one) {//retry enabled
+        for (int i = 0; i < vec_size(f_cp->functions); i++) {
+            function* f = vec_at(f_cp->functions, i);
+            if (f->e.type == e_builtin) {
+                printf("Info. Builtin functions are not yet implemented\n");
+                return o_pass;
+            }
+            int fs_sequ = fr_c->call_sequence;
+            frame* next_frm = init_frame(f, &fc, globals, &fs_sequ);
+            outcome res = unify(next_frm, func_defs_cp, globals, call_sequ);
+            if (res == o_pass) {
+                consolidate_frames(prev_frm, next_frm, fr_c->call_sequence);
+                free_frame(next_frm);
+                return o_pass;
+            } else if (res == o_fail) {
+                printf("::::DEBUG: failed, retrying.\n");
+                free_frame(next_frm);
             }
         }
-        free_frame(next_frm);
+        printf("::::DEBUG: no answers.\n");
+        return o_fail;
     } else {
         printf("Info. Only the first choice point answer is currently implemented\n");
         printf("for function: %s/%i\n", fc.name, vec_size(fc.params));
         return o_pass;
     }
-
-    return o_pass;//need a way of returning o_answers..
+    //return o_pass;//need a way of returning o_answers..
 }
 
 outcome unify(frame* frm, vector* func_defs_cp, vector* globals, int* call_sequ) {
 #ifdef UNIFY_DEBUG
-    printf("DEBUG :: Before unify:\n");
+    printf("DEBUG :: %s : Before unify:\n", frm->fname);
     dump_frame(frm);
 #endif
     //first call funcs. g, f, etc
@@ -97,6 +150,10 @@ outcome unify(frame* frm, vector* func_defs_cp, vector* globals, int* call_sequ)
             return o_fail;
         }
     }
+#ifdef UNIFY_DEBUG
+    printf("DEBUG :: %s : After calls:\n", frm->fname);
+    dump_frame(frm);
+#endif
     //Note, swap has been moved into eliminate
     //done before each source substitution
     //then eliminate
@@ -108,7 +165,7 @@ outcome unify(frame* frm, vector* func_defs_cp, vector* globals, int* call_sequ)
     //then conflict
     outcome res = conflict(frm);
 #ifdef UNIFY_DEBUG
-    printf("DEBUG :: After unify:\n");
+    printf("DEBUG :: %s : After unify:\n", frm->fname);
     dump_frame(frm);
 #endif
     return res;
@@ -119,6 +176,7 @@ frame* init_frame(function* f, fcall* fc, vector* globals, int* call_sequ) {
     frm->G = new_vector(0, sizeof(substitution));
     frm->last_result = o_pass;
     frm->next_calls = new_vector(0, sizeof(frame_call));
+    frm->fname = fc->name;
 
     //setup uniquely named parameter variables, so as not to
     //clash with the caller
@@ -131,9 +189,27 @@ frame* init_frame(function* f, fcall* fc, vector* globals, int* call_sequ) {
        *call_binds.rhs = wrap_atom(param);
         vec_push_back(frm->G, &call_binds);
     }
-    //add passed params
+    
+    int list_no = 0;
     for (int p = 0; p < vec_size(fc->params); p++) {
         expr* p_ex = vec_at(fc->params, p);
+        
+        //uniquely name list vars
+        ////////this may need more work
+        if(is_list_e(p_ex) && !is_list_instantiated_e(p_ex)) {
+            int arg_no = 0;
+            list* lst = &p_ex->e.a.data.vl.v.l;
+            for (int i = 0; i < mfa_card(lst->lst); i++) {
+                expr* ei = mfa_at(lst->lst, i);
+                if (is_var_e(ei)) {
+                    //free ei
+                   *ei = make_var_e(anon_list_name(list_prefix, *call_sequ, list_no, arg_no));
+                    arg_no++;
+                }
+            }
+            list_no++;
+        }
+        //add passed params
         if (is_val_e(p_ex)) {
             expr passed = copy_expr(p_ex);
             substitution call_bind;
@@ -143,13 +219,13 @@ frame* init_frame(function* f, fcall* fc, vector* globals, int* call_sequ) {
            *call_bind.rhs = passed;
             vec_push_back(frm->G, &call_bind);
         }
+        
     }
     (*call_sequ)++;
     //when calling sub functions, they must have different vars
     //from this functions return vars
 
     //add all of f's equations
-    //rec_add_expr(frm, &f->e, call_sequ);
     add_frame_exprs(frm, &f->e, call_sequ);
     //add global scope equations
     for (int i = 0; i < vec_size(globals); i++) {
@@ -187,6 +263,7 @@ void add_frame_exprs(frame* frm, expr* e, int* call_sequ) {
         vec_push_back(frm->G, &s);
 
     } else if (is_atom_e(e)) {//dead code
+        //never gets here because of explication
         substitution s;
         s.lhs = malloc(sizeof(expr));
         s.rhs = malloc(sizeof(expr));
@@ -205,91 +282,13 @@ void add_frame_exprs(frame* frm, expr* e, int* call_sequ) {
         }
         frame_call f;
         f.call_sequence = *call_sequ;
-        f.fc = e->e.f;
+        f.fc = copy_fcall(&e->e.f);
         vec_push_back(frm->next_calls, &f);
         (*call_sequ)++;
     }
 }
 
-/*
-//does copying... because we need to modify the substitutions.
-void add_frame_exprs(frame* frm, expr* e, int* call_sequ) {
-    vector* exs = e->e.n.ands;
-    for (int i = 0; i < vec_size(exs); i++) {
-        expr* ei = vec_at(exs, i);
-        
-        if (is_equ_e(ei)) {//by now all equ chains should have decomposed
-            substitution s = copy_equ(&ei->e.e);
-            printf("about to add to frame:\n");
-            expr temp = {.type = e_equ, .e.e = s};
-            dump_expr(temp, true); nl;
-            vec_push_back(frm->G, &s);
-
-        } else if (is_atom_e(ei)) {//dead code
-            substitution s;
-            s.lhs = malloc(sizeof(expr));
-            s.rhs = malloc(sizeof(expr));
-           *s.lhs = make_query(&ei->e.a);
-           *s.rhs = copy_expr(&debug_dummy_var);
-            //dead code
-        } else if (is_fcall_e(ei)) {
-            vector* params = ei->e.f.params;
-            for (int i = 0; i < vec_size(params); i++) {
-                substitution s;
-                s.lhs = malloc(sizeof(expr));
-                s.rhs = malloc(sizeof(expr));
-               *s.lhs = make_var_e(decomp_name(call_sequ, &i));
-               *s.rhs = copy_expr(vec_at(params, i));
-                vec_push_back(frm->G, &s);
-            }
-            frame_call f;
-            f.call_sequence = *call_sequ;
-            f.fc = ei->e.f;
-            vec_push_back(frm->next_calls, &f);
-           *call_sequ++;
-
-        } else if (is_and_e(ei)) {
-            //rec_add_expr(frm, ei->e.n.lhs, call_sequ);
-            //rec_add_expr(frm, ei->e.n.rhs, call_sequ);
-            //not done yet
-        }
-    }
-}*/
-
-/*
-//does copying... because we need to modify the substitutions.
-void rec_add_expr(frame* frm, expr* ex, int* call_sequ) {
-    if (is_equ_e(ex)) {//only supports x = y for now, no x = z = y...
-        substitution s = copy_equ(&ex->e.e);
-        vec_push_back(frm->G, &s);
-    } else if (is_atom_e(ex)) {
-        substitution s;
-        s.lhs = malloc(sizeof(expr));
-        s.rhs = malloc(sizeof(expr));
-       *s.lhs = make_query(&ex->e.a);
-       *s.rhs = copy_expr(&debug_dummy_var);
-    } else if (is_fcall_e(ex)) {
-        vector* params = ex->e.f.params;
-        for (int i = 0; i < vec_size(params); i++) {
-            substitution s;
-            s.lhs = malloc(sizeof(expr));
-            s.rhs = malloc(sizeof(expr));
-           *s.lhs = make_var_e(decomp_name(call_sequ, &i));
-           *s.rhs = copy_expr(vec_at(params, i));
-            vec_push_back(frm->G, &s);
-        }
-        frame_call f;
-        f.call_sequence = *call_sequ;
-        f.fc = ex->e.f;
-        vec_push_back(frm->next_calls, &f);
-       *call_sequ++;
-    } else if (is_and_e(ex)) {
-        rec_add_expr(frm, ex->e.n.lhs, call_sequ);
-        rec_add_expr(frm, ex->e.n.rhs, call_sequ);
-    }
-}*/
-
-//decompose tuples
+//decompose tuples\lists
 void decompose(frame* frm) {
     for (int g = 0; g < vec_size(frm->G); g++) {
         substitution* sub = vec_at(frm->G, g);
@@ -310,7 +309,10 @@ void decompose(frame* frm) {
                }
                //keeping the old tuple, because the structure
                //is semantically important
-           }
+        } else if (is_list_e(sub->lhs) &&
+                   is_list_e(sub->rhs)) {
+
+        }
     }
 }
 
@@ -320,9 +322,13 @@ void swap_substitution(substitution* sub) {
         expr* temp = sub->lhs;
         sub->lhs = sub->rhs;
         sub->rhs = temp;
-    }/* else if (!is_var_e(sub->lhs) && is_equ_e(sub->rhs)) {
-        swap_equs(&sub->rhs->e.e, sub->lhs);
-    }*///see above func
+    } else if (is_list_e(sub->lhs) && is_list_instantiated_e(sub->lhs)
+                  &&
+               is_list_e(sub->rhs) && !is_list_instantiated_e(sub->rhs)) {
+        expr* temp = sub->lhs;
+        sub->lhs = sub->rhs;
+        sub->rhs = temp;
+    }
 }
 
 //this would be cheaper if done from end to start with remove_back,
@@ -386,26 +392,64 @@ void eliminate(frame* frm) {
                    *g2_sub->lhs = copy_expr(sub_val);
                 } else if (is_tuple_e(g2_sub->lhs)) {
                     tuple_eliminate(&g2_sub->lhs->e.t, sub_var, sub_val);
+                } else if (is_list_e(g2_sub->lhs)) {
+                    list_eliminate(&g2_sub->lhs->e.a.data.vl.v.l, sub_var, sub_val);
                 }
+
                 if (is_var_e(g2_sub->rhs) && compare_atoms_e(g2_sub->rhs, sub_var)) {
                     //same, so sub
                     free_expr(g2_sub->rhs);
                    *g2_sub->rhs = copy_expr(sub_val);
                 } else if (is_tuple_e(g2_sub->rhs)) {
                     tuple_eliminate(&g2_sub->rhs->e.t, sub_var, sub_val);
-                } else if (is_equ_e(g2_sub->rhs)) {
-                    //go down list in g2->rhs and elinate using sub_var, sub_val
-                    //equ_eliminate(g2_sub->rhs, sub_var, sub_val);
-                    //NOTE. this should now be dead code, as nested equs are
-                    //treated as equ_chains
-                    printf("BAD in eliminate() .. is_equ_e()");
-                } else if (is_equ_chain_e(g2_sub->rhs)) {
-                    //equ_eliminate(g2_sub->rhs, sub_var, sub_val);
-                    //NOTE. this is also dead code, as equ chains are decomposed
-                    //at explicate phase
-                    printf("BAD in eliminate() .. is_equ_chain_e()");
+                } else if (is_list_e(g2_sub->rhs)) {
+                    list_eliminate(&g2_sub->rhs->e.a.data.vl.v.l, sub_var, sub_val);
+                } else if (is_equ_e(g2_sub->rhs) || is_equ_chain_e(g2_sub->rhs)) {
+                    printf("ERROR in eliminate() .. is_equ_*e()");
                 }
             }
+        } else if (is_list_e(sub_var) &&
+                  !is_list_instantiated_e(sub_var) &&
+                   is_list_e(sub_val)) 
+        {
+            double_list_eliminate(&sub_var->e.a.data.vl.v.l, &sub_val->e.a.data.vl.v.l, frm);
+        }
+    }
+}
+
+void double_list_eliminate(list* lst1, list* lst2, frame* frm) {
+    if (lst1->lst == NULL || lst2->lst == NULL) return;
+    if (mfa_card(lst1->lst) != mfa_card(lst2->lst)) return;
+    for (int i = 0; i < mfa_card(lst1->lst); i++) {
+        expr* lhs = mfa_at(lst1->lst, i);
+        expr* rhs = mfa_at(lst2->lst, i);
+        if (is_var_e(lhs) || is_var_e(rhs)) {
+            substitution s;
+            s.lhs = malloc(sizeof(expr));
+           *s.lhs = copy_expr(lhs);
+            s.rhs = malloc(sizeof(expr));
+           *s.rhs = copy_expr(rhs);
+            vec_push_back(frm->G, &s);
+            if (is_var_e(lhs) && !is_var_e(rhs)) {
+                //free lhs
+               *lhs = *rhs;
+            } else if(!is_var_e(lhs) && is_var_e(rhs)) {
+                //free rhs
+               *rhs = *lhs;
+            }
+        }
+    }
+}
+
+void list_eliminate(list* li, const expr* var, const expr* val) {
+    if (li->lst == NULL) return;
+    for (int i = 0; i < mfa_card(li->lst); i++) {
+        expr* ei = mfa_at(li->lst, i);
+        if (is_var_e(ei) && compare_atoms_e(ei, var)) {
+            //expr* eold;
+            //*eold = *ei;
+            //free_expr(eold);
+            *ei = copy_expr(val);
         }
     }
 }
