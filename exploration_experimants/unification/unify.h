@@ -3,27 +3,30 @@
 
 #include "internal_struct.h"
 
-static char* fail_string = "fail";
-static char* pass_string = "pass";
-static char* answ_string = "answers";
+static char* fail_string  = "fail";
+static char* pass_string  = "pass";
+static char* answ_string  = "answers";
+static char* undet_string = "undetermined";
 
 typedef equality substitution;
 typedef enum outcome outcome;
 typedef struct frame frame;
 typedef struct frame_call frame_call;
 
-enum outcome {o_fail, o_answers, o_pass};
+enum outcome {o_fail, o_answers, o_pass, o_undet};
 
 struct frame {
     char* fname;//just for info/debug
     vector* G;//of substitutions
     vector* next_calls;//of frame_calls
     outcome last_result;
+    bool changes;//have any vars changed? The nondets want to know.
 };
 
 struct frame_call {
     fcall fc;
     int call_sequence;//so that return vars dont clash
+    bool undet;//has the complete outcome of this fc been completely determined?
 };
 
 void entry(vector* func_defs_cp, vector* globals);
@@ -33,15 +36,16 @@ frame* init_frame(function*, fcall*, vector* globals, int* call_sequ);
 void free_frame(frame*);
 void add_frame_exprs(frame*, expr*, int* call_sequ);
 void rec_add_expr(frame*, expr*, int* call_sequ);//old
+substitution* get_sub_frm(frame*, expr* var);
 void decompose(frame*);
 void swap_substitution(substitution*);
 void delete_g(frame*);
 outcome conflict(frame*);
 void eliminate(frame*);
 void double_list_eliminate(list* lst1, list* lst2, frame*);
-void list_eliminate(list*, const expr* var, const expr* val);
-void tuple_eliminate(tuple*, const expr* var, const expr* val);
-void rec_tuple_eliminate(and*, const expr* var, const expr* val);
+void list_eliminate(list*, const expr* var, const expr* val, frame*);
+void tuple_eliminate(tuple*, const expr* var, const expr* val, frame*);
+//void rec_tuple_eliminate(and*, const expr* var, const expr* val);
 outcome query(expr*);
 vector* head_results(frame*, function*);
 

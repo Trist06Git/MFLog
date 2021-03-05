@@ -1,0 +1,33 @@
+
+//main(r) =
+//  r = 1,
+//  print(r).
+
+//main(r) =
+//  print(r),
+//  r = 1.
+
+//main(r1) =
+//  print(r1), nl(r1),
+//  print(r2), nl(r2),
+//  r1 = one f(x),
+//  r2 = one f(y),
+//  x = 1,
+//  y = 2.
+//
+//f(1) =
+//  return = 2.
+//f(2) =
+//  return = 1. 
+
+main(r) =
+  x = one f(in),
+  in = 1,
+  r = one f(other),
+  other = 3,
+  x = 2.
+
+f(1) =
+  return = 2.
+f(3) =
+  return = 4.

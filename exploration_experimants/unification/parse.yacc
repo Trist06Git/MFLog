@@ -24,6 +24,10 @@
     extern fcall fc_plus;
     extern fcall fc_minus;
     extern fcall fc_print;
+    extern fcall fc_nl;
+    extern fcall fc_integer;
+    extern fcall fc_lt;
+    extern fcall fc_gt;
     vector* ps = NULL;
     mf_array* ls = NULL;
 
@@ -68,6 +72,7 @@
 %type <u_fc> Fcall
 %type <u_fc> Fcall_ans
 %type <u_fc> Fbuiltin
+%type <u_fc> Fbuiltin_ans
 %type <u_fc> Builtin_func
 %type <u_rs> Answer_count
 %type <u_fc> Ocall
@@ -85,8 +90,12 @@
 %token LP_ROUND RP_ROUND
 %token END
 %left EQUAL
+%left LESS_THAN
+%left GREATER_THAN
 %left AND
-%token PRINT
+%token PRINT_F
+%token NL_F
+%token INTEGER_F
 %token FST_ANS
 %token ONE_ANS
 %token ALL_ANS
@@ -195,11 +204,12 @@ Exprs
     }
     ;
 
-Expr : Fcall_ans { expr ex; ex.type = e_fcall; ex.e.f  = $1; $$ = ex; }
-     | Fbuiltin  { expr ex; ex.type = e_fcall; ex.e.f  = $1; $$ = ex; }
-     | Fcall     { expr ex; ex.type = e_fcall; ex.e.f  = $1; $$ = ex; }
-     | Atom      { expr ex; ex.type = e_atom;  ex.e.a  = $1; $$ = ex; }
-     | Ocall     { expr ex; ex.type = e_fcall; ex.e.f  = $1; $$ = ex; }
+Expr : Fcall_ans     { expr ex; ex.type = e_fcall; ex.e.f  = $1; $$ = ex; }
+     | Fbuiltin_ans  { expr ex; ex.type = e_fcall; ex.e.f  = $1; $$ = ex; }
+     | Fcall         { expr ex; ex.type = e_fcall; ex.e.f  = $1; $$ = ex; }
+     | Fbuiltin      { expr ex; ex.type = e_fcall; ex.e.f  = $1; $$ = ex; }
+     | Atom          { expr ex; ex.type = e_atom;  ex.e.a  = $1; $$ = ex; }
+     | Ocall         { expr ex; ex.type = e_fcall; ex.e.f  = $1; $$ = ex; }
      
      ;
 
@@ -261,9 +271,16 @@ Expr_eq_ch : Equ_chain {
 
 Fbuiltin : Builtin_func LP_ROUND Expr_params RP_ROUND {
     fcall fc = $1;
+    fc.res_set = rs_first;
     fc.params = $3;
     $$ = fc;
 };
+
+Fbuiltin_ans : Answer_count Fbuiltin {
+    fcall fc = $2;
+    fc.res_set = $1;
+    $$ = fc;
+}
 
 Fcall : WORD LP_ROUND Expr_params RP_ROUND {
     fcall fc;
@@ -348,17 +365,23 @@ Ocall : Expr Operator Expr {
     $$ = op;
 };
 
-Operator : PLUS  { $$ = fc_plus;  }
-         | MINUS { $$ = fc_minus; }
-         | DIV   { $$ = fc_div;   }
-         | MUL   { $$ = fc_mul;   }
+Operator : PLUS         { $$ = fc_plus;  }
+         | MINUS        { $$ = fc_minus; }
+         | DIV          { $$ = fc_div;   }
+         | MUL          { $$ = fc_mul;   }
+         | LESS_THAN    { $$ = fc_lt;    }
+         | GREATER_THAN { $$ = fc_gt;    }
          ;
 
-Builtin_func : PRINT { $$ = fc_print; }
+Builtin_func : PRINT_F   { $$ = fc_print;   }
+             | NL_F      { $$ = fc_nl;      }
+             | INTEGER_F { $$ = fc_integer; }
+             ;
 
 Answer_count : FST_ANS { $$ = rs_first; }
              | ONE_ANS { $$ = rs_one;   }
              | ALL_ANS { $$ = rs_all;   }
+             ;
 
 %%
 

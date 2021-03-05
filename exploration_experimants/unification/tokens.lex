@@ -23,10 +23,12 @@ english        [A-Za-z_]
 
 %%
 
-"print" return PRINT;
-"first" return FST_ANS;
-"one" return ONE_ANS;
-"all" return ALL_ANS;
+"print"   return PRINT_F;
+"nl"      return NL_F;
+"first"   return FST_ANS;
+"one"     return ONE_ANS;
+"all"     return ALL_ANS;
+"integer" return INTEGER_F;
 
 {digits}+ {
     yylval.number = atoi(yytext);
@@ -49,6 +51,8 @@ english        [A-Za-z_]
 
 [,] return AND;
 [=] return EQUAL;
+[<] return LESS_THAN;
+[>] return GREATER_THAN;
 [.] return END;
 
 [/] return DIV;

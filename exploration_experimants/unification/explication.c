@@ -57,8 +57,8 @@ void rec_explic_func_expr(expr* e, int* unique, vector* fc_to_move, vector* sing
             rec_explic_func_expr(vec_at(ands, i), unique, fc_to_move, singletons, func_defs, root);
         }
     } else if (is_fcall_e(e)) {
-        //function* def = get_fdef_arity(func_defs, e->e.f.name, size(e->e.f.params));
-        //first attempt to fine a fully defined version
+        if (e->e.f.type == f_builtin) return;
+        //first attempt to find a fully defined version
         function* def = get_fdef_defined(func_defs, e->e.f.name);
         if (def == NULL) {//then resort to non-fully defined
             def = get_fdef(func_defs, e->e.f.name);

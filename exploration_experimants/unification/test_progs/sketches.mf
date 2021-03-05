@@ -196,3 +196,33 @@ f(x, return) =
   return = [x;1].
 //ok, iff x is bound to a val,
 //fully instantiating the list
+
+
+////answer sets
+main(r) =       => main(r) =
+  natural(r),   =>   one natural(r),
+  all r < 10.   =>   one less_than(r, 10).
+
+      |                    |
+      V                    V
+all main(r) =
+  one natural(r),
+  one less_than(r, 10).
+
+all main(r) =
+  one integer(r),
+  one less_than(r, 10),
+  one greater_than(r, 0),
+  one in(r, [4;5;6]).
+
+////capturing results
+main(r) =
+  print_res(x),
+  x = is_cat("whiskey").
+
+is_cat("whiskey").
+
+print_res(true) =
+  print("yes"), nl().
+print_res(false) =
+  print("no"), nl().

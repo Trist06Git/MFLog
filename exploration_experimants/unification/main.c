@@ -31,6 +31,10 @@ fcall fc_mul;
 fcall fc_plus;
 fcall fc_minus;
 fcall fc_print;
+fcall fc_nl;
+fcall fc_integer;
+fcall fc_lt;
+fcall fc_gt;
 function f_div;
 function f_mul;
 function f_plus;
@@ -85,11 +89,11 @@ int main(int argc, char** argv) {
     f.e = gands;
     decompose_equs(&f);
 
-    //printf("Post parse, pre-preproc:\n");
-    //for (int i = 0; i < vec_size(func_defs); i++) {
-    //    function* f = vec_at(func_defs, i);
-    //    dump_func(*f); nl;
-    //}
+    printf("Post parse, pre-preproc:\n");
+    for (int i = 0; i < vec_size(func_defs); i++) {
+        function* f = vec_at(func_defs, i);
+        dump_func(*f); nl;
+    }
 
     if (verbose > 0) printf("Explicating constants/variables.\n");
     for (int i = 0; i < vec_size(func_defs); i++) {
@@ -123,18 +127,27 @@ void init(void) {
     func_defs_cp = new_vector(4, sizeof(choice_point));
     global_defs = new_vector(0, sizeof(expr));
 
-    fc_div.name   = "div";
-    fc_mul.name   = "mul";
-    fc_plus.name  = "plus";
-    fc_minus.name = "minus";
-    fc_print.name = "print";
+    fc_div.name     = "div";
+    fc_mul.name     = "mul";
+    fc_plus.name    = "plus";
+    fc_minus.name   = "minus";
+    fc_print.name   = "print";
+    fc_nl.name      = "nl";
+    fc_integer.name = "integer";
+    fc_lt.name      = "less_than";
+    fc_gt.name      = "greater_than";
     fc_div.res_set   = fc_mul.res_set  = fc_plus.res_set =
     fc_minus.res_set = fc_plus.res_set = rs_first;
+    fc_lt.res_set    = fc_gt.res_set   = rs_one;
+
+    fc_print.type = fc_nl.type = fc_integer.type = fc_lt.type = f_builtin;
 
     fc_main.name = "main";
     fc_main.params = new_vector(1, sizeof(expr));
     fc_main.type = e_fcall;
 
+
+    ///TODO: remove aaaaall of this
     f_div.name = malloc(sizeof(char)*3+1); sprintf(f_div.name, "div");
     f_div.params = new_vector(3, sizeof(atom));
     f_div.fully_defined = true;

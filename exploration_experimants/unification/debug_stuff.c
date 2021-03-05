@@ -97,8 +97,8 @@ void dump_func_call(fcall func, bool extended) {
             default        :                       break;
         }
         switch (func.res_set) {
-            case rs_first : printf("first answer");            break;
-            case rs_one   : printf("single answer");           break;
+            case rs_first : printf("first answer");             break;
+            case rs_one   : printf("single answer");            break;
             case rs_all   : printf("all answers");              break;
             case rs_n     : printf("answer %i", func.rs_index); break;
             default       :                                     break;

@@ -22,13 +22,14 @@
 //called var names from main are
 //leaking into f's scope via the list
 //Next todo. :done, i think..
-//main(r) =
-//  r = f([x;y]),
-//  x = 1, y = 2.
-//
-//f(a, return) =
-//  a = [1;2],
-//  return = a.
+main(r) =
+  r = f([x;y]),
+  x = 1, y = 2,
+  print(x).
+
+f(a, return) =
+  a = [1;2],
+  return = a.
 
 //main(r) =
 //  r = f(1).
@@ -93,8 +94,21 @@
 //  r = tuplise_list([1]).
 
 //fdef pattern match
-main(r) =
-  is_good([r;2], r).
+//main(r) =
+//  all is_good([r;2], r).
+//
+//is_good([1;2]) = //no facts. yet..
+//  return = 1.
+//is_good([3;4], r) =
+//  r = 1.
 
-is_good([1;2]) =
-  return = 1.
+//main(r) =
+//  r = 1,
+//  f(1).
+//f(r) =
+//  r = 1.
+
+//main(r) =
+//  one integer(r),
+//  first integer(0),
+//  one integer(778864).

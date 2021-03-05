@@ -155,6 +155,7 @@ fcall copy_fcall(const fcall* fc) {
     ret.name = malloc(sizeof(char)*(strlen(fc->name)+1));
     strcpy(ret.name, fc->name);
     ret.params = duplicate_params_e(fc->params);
+    ret.res_set = fc->res_set;
     return ret;
 }
 
