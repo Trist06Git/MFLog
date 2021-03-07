@@ -89,11 +89,11 @@ int main(int argc, char** argv) {
     f.e = gands;
     decompose_equs(&f);
 
-    printf("Post parse, pre-preproc:\n");
-    for (int i = 0; i < vec_size(func_defs); i++) {
-        function* f = vec_at(func_defs, i);
-        dump_func(*f); nl;
-    }
+    //printf("Post parse, pre-preproc:\n");
+    //for (int i = 0; i < vec_size(func_defs); i++) {
+    //    function* f = vec_at(func_defs, i);
+    //    dump_func(*f); nl;
+    //}
 
     if (verbose > 0) printf("Explicating constants/variables.\n");
     for (int i = 0; i < vec_size(func_defs); i++) {
@@ -137,7 +137,7 @@ void init(void) {
     fc_lt.name      = "less_than";
     fc_gt.name      = "greater_than";
     fc_div.res_set   = fc_mul.res_set  = fc_plus.res_set =
-    fc_minus.res_set = fc_plus.res_set = rs_first;
+    fc_minus.res_set = fc_plus.res_set = rs_one;
     fc_lt.res_set    = fc_gt.res_set   = rs_one;
 
     fc_print.type = fc_nl.type = fc_integer.type = fc_lt.type = f_builtin;

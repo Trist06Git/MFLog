@@ -32,7 +32,7 @@ struct frame_call {
 void entry(vector* func_defs_cp, vector* globals);
 outcome call(frame_call*, frame* prev, vector* func_defs_cp, vector* globals, int* call_sequ);
 outcome unify(frame*, vector* func_defs_cp, vector* globals, int* call_sequ);
-frame* init_frame(function*, fcall*, vector* globals, int* call_sequ);
+frame* init_frame(function*, fcall*, frame* prev_frm, vector* globals, int* call_sequ);
 void free_frame(frame*);
 void add_frame_exprs(frame*, expr*, int* call_sequ);
 void rec_add_expr(frame*, expr*, int* call_sequ);//old

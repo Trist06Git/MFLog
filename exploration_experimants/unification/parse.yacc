@@ -271,7 +271,7 @@ Expr_eq_ch : Equ_chain {
 
 Fbuiltin : Builtin_func LP_ROUND Expr_params RP_ROUND {
     fcall fc = $1;
-    fc.res_set = rs_first;
+    fc.res_set = rs_one;
     fc.params = $3;
     $$ = fc;
 };
@@ -284,7 +284,7 @@ Fbuiltin_ans : Answer_count Fbuiltin {
 
 Fcall : WORD LP_ROUND Expr_params RP_ROUND {
     fcall fc;
-    fc.res_set = rs_first;
+    fc.res_set = rs_one;
     fc.name = $1;
     fc.params = $3;
     $$ = fc;

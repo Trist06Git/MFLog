@@ -16,3 +16,15 @@ h(R) :-
 
 i(1, 2).
 i(3, 4).
+
+main(R) :-
+    j(X, A, R),
+    j(Y, B, R),
+    X = 1,
+    Y = 3,
+    A = 2,
+    B = 4,
+    R = 5.
+
+j(1, 2, V) :- write(V), nl.
+j(3, 4, V) :- write(V), nl.

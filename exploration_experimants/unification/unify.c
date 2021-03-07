@@ -10,7 +10,7 @@
 
 extern fcall fc_main;
 
-#define UNIFY_DEBUG
+//#define UNIFY_DEBUG
 
 void entry(vector* func_defs_cp, vector* globals) {
     choice_point* main_cp = get_cpoint_na(func_defs_cp, "main", 1);
@@ -21,7 +21,12 @@ void entry(vector* func_defs_cp, vector* globals) {
     int call_sequ = 0;
     function* main_f = vec_at(main_cp->functions, 0);
     
-    frame* first_frame = init_frame(main_f, &fc_main, globals, &call_sequ);
+    frame dummy_prev;
+    dummy_prev.changes = false;
+    dummy_prev.fname = "";
+    dummy_prev.G = new_vector(0, 1);
+    dummy_prev.next_calls = new_vector(0, 1);
+    frame* first_frame = init_frame(main_f, &fc_main, &dummy_prev, globals, &call_sequ);
 
     outcome entry_res = unify(first_frame, func_defs_cp, globals, &call_sequ);
     //only unifying, not binding return vals
@@ -57,9 +62,12 @@ bool is_list_instantiated_e(expr* e) {
     return true;
 }
 
+#define CONSOLIDATE_DEBUG
 //consolidate previous frame with next frame
 //G1 = G1 + G1 N G2, where N = intersect, G1 = prev_frm, G2 = next_frm
 outcome consolidate_frames(frame* prev_frm, frame* next_frm, int call_sequ) {
+    //vector* prevs_subs = new_vector(0, sizeof(substitution));
+    //vector* nexts_subs = new_vector(0, sizeof(substitution));
     for (int g2 = 0; g2 < vec_size(next_frm->G); g2++) {
         substitution* s = vec_at(next_frm->G, g2);
         //first check for uninstantiated list
@@ -77,11 +85,44 @@ outcome consolidate_frames(frame* prev_frm, frame* next_frm, int call_sequ) {
             (is_var_e(s->rhs) && compare_decomp_sequ(s->rhs, call_sequ)))
         {
             substitution ret_s = copy_equ(s);
+            //vec_push_back(prevs_subs, &ret_s);
+            //substitution in_s = copy_equ(get_sub_frm(prev_frm, s->lhs));
+            //vec_push_back(nexts_subs, &in_s);
+
+
             vec_push_back(prev_frm->G, &ret_s);
             //return o_pass;
         }
     }
     return o_pass;
+    /*
+    for (int i = 0; i < vec_size(nexts_subs); i++) {
+        vec_push_back(next_frm->G, vec_at(nexts_subs, i));
+    }
+    eliminate(next_frm);
+    outcome res = conflict(next_frm);
+#ifdef CONSOLIDATE_DEBUG
+    printf("DEBUG :: %s : After consolidation:\n", next_frm->fname);
+    dump_frame(next_frm);
+#endif
+
+    if (res == o_fail) {
+        for (int i = 0; i < vec_size(nexts_subs); i++) {
+            //free_expr(vec_at(nexts_subs, i));
+            free_expr(vec_at(prevs_subs, i));//risky
+        }
+        free_vector(nexts_subs);
+        free_vector(prevs_subs);
+        return o_fail;
+    } else {
+        for (int i = 0; i < vec_size(prevs_subs); i++) {
+            vec_push_back(prev_frm->G, vec_at(prevs_subs, i));
+            //free_expr(vec_at(nexts_subs, i));
+        }
+        free_vector(nexts_subs);
+        free_vector(prevs_subs);
+        return o_pass;
+    }*/
 }
 
 substitution make_uni_sub(int call_sequ, int param_sequ) {
@@ -238,10 +279,9 @@ outcome call(frame_call* fr_c, frame* prev_frm, vector* func_defs_cp, vector* gl
 
     //only get the first answer
     if (fc.res_set == rs_first) {
-        printf("######getting first ans\n");
         function* first_cp = vec_at(f_cp->functions, 0);
         int fs_sequ = fr_c->call_sequence;
-        frame* next_frm = init_frame(first_cp, &fc, globals, &fs_sequ);
+        frame* next_frm = init_frame(first_cp, &fc, prev_frm, globals, &fs_sequ);
         outcome res = unify(next_frm, func_defs_cp, globals, call_sequ);
         if (res == o_fail) return o_fail;
 
@@ -252,21 +292,24 @@ outcome call(frame_call* fr_c, frame* prev_frm, vector* func_defs_cp, vector* gl
     } else if (fc.res_set == rs_one) {//retry enabled
         
         for (int i = 0; i < vec_size(f_cp->functions); i++) {
-            printf("@@@@getting one ans from cp %i\n", i);
             function* f = vec_at(f_cp->functions, i);
             int fs_sequ = fr_c->call_sequence;
-            printf("@@@@@ call sqeuence: %i\n", fs_sequ);
-            frame* next_frm = init_frame(f, &fc, globals, &fs_sequ);
+            frame* next_frm = init_frame(f, &fc, prev_frm, globals, &fs_sequ);
             outcome res = unify(next_frm, func_defs_cp, globals, call_sequ);
             if (res == o_pass) {
-                consolidate_frames(prev_frm, next_frm, fr_c->call_sequence);//what about returned res?
+                res = consolidate_frames(prev_frm, next_frm, fr_c->call_sequence);//what about returned res?
                 free_frame(next_frm);
-                return o_pass;
+                if (res != o_fail) {
+                    return res;
+                }
+                //return res;
             } else if (res == o_fail) {
 #ifdef UNIFY_DEBUG
                 printf("::::DEBUG: failed, retrying.\n");
 #endif
                 free_frame(next_frm);
+            } else {
+                printf("@@@@@@@@@not fail or pass after unify in call()\n");
             }
         }
 #ifdef UNIFY_DEBUG
@@ -281,17 +324,41 @@ outcome call(frame_call* fr_c, frame* prev_frm, vector* func_defs_cp, vector* gl
     //return o_pass;//need a way of returning o_answers..
 }
 
+outcome unify_substitutions(frame* frm) {
+    //reset changes
+    frm->changes = false;
+    //Swap has been moved into eliminate
+    //then eliminate
+    eliminate(frm);
+    //decompose tuples
+    decompose(frm);
+    //then delete 
+    delete_g(frm);
+    //then conflict
+    outcome res = conflict(frm);
+    if (res == o_fail) return o_fail;
+#ifdef UNIFY_DEBUG
+    printf("DEBUG :: %s : After unify:\n", frm->fname);
+    dump_frame(frm);
+#endif
+    return o_pass;
+}
+
 outcome unify(frame* frm, vector* func_defs_cp, vector* globals, int* call_sequ) {
 #ifdef UNIFY_DEBUG
     printf("DEBUG :: %s : Before unify:\n", frm->fname);
     dump_frame(frm);
 #endif
+    //initial unify
+    bool last_changes = frm->changes;
+    outcome res = unify_substitutions(frm);
+    frm->changes |= last_changes;//this needs to be done because we are subbing 2wice per unify
+    if (res == o_fail) return o_fail;
+
     bool undetermined = false;
-    //first call funcs. g, f, etc
+    //call funcs. g, f, etc
     for (int i = 0; i < vec_size(frm->next_calls); i++) {
         frame_call* frc = vec_at(frm->next_calls, i);
-
-        outcome res = o_undet;
         if (frc->undet) {
             if (!frm->changes) {
                 //this fcall was undetermined and nothing has changed
@@ -311,25 +378,15 @@ outcome unify(frame* frm, vector* func_defs_cp, vector* globals, int* call_sequ)
         }
     }
 #ifdef UNIFY_DEBUG
-    printf("DEBUG :: %s : After calls:\n", frm->fname);
-    dump_frame(frm);
+    if (vec_size(frm->next_calls) > 0) {
+        printf("DEBUG :: %s : After calls:\n", frm->fname);
+        dump_frame(frm);
+    }
 #endif
-    //reset changes
-    frm->changes = false;
-    //Note, swap has been moved into eliminate
-    //done before each source substitution
-    //then eliminate
-    eliminate(frm);
-    //decompose tuples
-    decompose(frm);
-    //then delete 
-    delete_g(frm);
-    //then conflict
-    outcome res = conflict(frm);
-#ifdef UNIFY_DEBUG
-    printf("DEBUG :: %s : After unify:\n", frm->fname);
-    dump_frame(frm);
-#endif
+    
+    //unify this frames scope
+    res = unify_substitutions(frm);
+    if (res == o_fail) return o_fail;
 
     if (undetermined) {
 #ifdef UNIFY_DEBUG
@@ -341,7 +398,7 @@ outcome unify(frame* frm, vector* func_defs_cp, vector* globals, int* call_sequ)
     return res;
 }
 
-frame* init_frame(function* f, fcall* fc, vector* globals, int* call_sequ) {
+frame* init_frame(function* f, fcall* fc, frame* prev_frm, vector* globals, int* call_sequ) {
     frame* frm = malloc(sizeof(frame));
     frm->G = new_vector(0, sizeof(substitution));
     frm->last_result = o_pass;
@@ -359,7 +416,18 @@ frame* init_frame(function* f, fcall* fc, vector* globals, int* call_sequ) {
        *call_binds.lhs = make_var_e(decomp_name(call_sequ, &p));
        *call_binds.rhs = wrap_atom(param);
         vec_push_back(frm->G, &call_binds);
-        printf("@@@@@adding substitution:\n");dump_expr(*call_binds.lhs, true);printf(" = ");dump_expr(*call_binds.rhs,false);nl;
+    }
+    //fetch the already bound vals for passed vars
+    for (int g = 0; g < vec_size(prev_frm->G); g++) {
+        substitution* g_sub = vec_at(prev_frm->G, g);
+        if (is_val_e(g_sub->rhs) && compare_decomp_sequ(g_sub->lhs, *call_sequ)) {
+            substitution s;
+            s.lhs = malloc(sizeof(expr));
+            s.rhs = malloc(sizeof(expr));
+           *s.lhs = copy_expr(g_sub->lhs);
+           *s.rhs = copy_expr(g_sub->rhs);
+            vec_push_back(frm->G, &s);
+        }
     }
     
     int list_no = 0;
@@ -702,5 +770,5 @@ void dump_frame(frame* frm) {
         fcall* f = vec_at(frm->next_calls, i);
         printf("  "); dump_func_call(*f, true); nl;
     }
-    printf("Result thus far: %s\n", outcome_to_string(&frm->last_result));
+    //printf("Result thus far: %s\n", outcome_to_string(&frm->last_result));
 }
