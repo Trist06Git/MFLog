@@ -19,7 +19,8 @@ typedef struct expr expr;
 typedef struct function function;
 typedef struct choice_point choice_point;
 
-enum v_type {v_int, v_list};
+//char list is a string
+enum v_type {v_int, v_list, v_char};
 struct list {
     enum v_type type;
     mf_array* lst;//NULL = empty list, with no type
@@ -88,11 +89,13 @@ struct expr {
     } e;
 };
 
+enum fd_type {fd_func, fd_fact};
 struct function {
     char* name;
     vector* params;//as raw atoms
     expr e;
     bool fully_defined;
+    enum e_type type;
 };
 
 struct choice_point {

@@ -108,6 +108,7 @@
 
 Program : Func_def
         | Func_def Program
+        | Fact     Program
         | Global   Program
         ;
 
@@ -118,10 +119,9 @@ Global : Atom_left_equ END {
 
 Func_def : Func_head Exprs END {
     function f = $1;
+    f.type = fd_func;
     f.e.type = e_and;
     f.e.e.n.ands = $2;
-    //f.e = $2;
-    //vec_insert_at(func_defs, 0, &f);
     vec_push_back(func_defs, &f);
 };
 
@@ -139,6 +139,14 @@ Func_head
         $$ = f;
     }
     ;
+
+Fact : WORD LP_ROUND Atom_params RP_ROUND END {
+    function f;
+    f.type = fd_fact;
+    f.name = $1;
+    f.params = $3;
+    vec_push_back(func_defs, &f);
+}
 
 Atom_params
     : Atom {

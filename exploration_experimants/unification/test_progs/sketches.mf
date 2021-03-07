@@ -218,11 +218,42 @@ all main(r) =
 ////capturing results
 main(r) =
   print_res(x),
-  x = is_cat("whiskey").
+  x = is_cat("Whiskey").
 
-is_cat("whiskey").
+is_cat("Whiskey").
 
 print_res(true) =
   print("yes"), nl().
 print_res(false) =
   print("no"), nl().
+
+////facts
+age("Whiskey", 6).
+age("Tristan", 31).
+
+main() =
+  printnl(age_res),
+  age("Tristan", age_res).
+
+     |            |
+     V            V
+age(person, age_r) =
+  person = "Whiskey",
+  age_r  = 6.
+age(person, age_r) =
+  person = "Tristan",
+  age_r  = 31.
+age(person, age_r) =
+main() =
+  printnl(age_res),
+  age("Tristan", age_res).
+
+//undeterminable
+age(x, 6).        => age(U_0, U_1) =
+                  =>   U_0 = x,
+                  =>   U_1 = 6.
+main() =
+  age(p, a),
+  print(p),
+  print(" is "),
+  printnl(a).

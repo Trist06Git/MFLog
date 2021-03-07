@@ -9,6 +9,7 @@ extern vector* func_defs_cp;
 extern vector* global_defs;
 
 void explic_func(function*, vector* func_defs);
+void expand_fact(function*);
 void explic_func_expr(function*, vector* func_defs);
 void explic_func_head(function*);
 void rec_explic_func_expr(expr*, int* unique, vector* fcs_to_move, vector* singletons, vector* func_defs, function* root);

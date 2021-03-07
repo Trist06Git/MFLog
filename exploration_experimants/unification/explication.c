@@ -11,10 +11,17 @@
 #include "debug_stuff.h"
 
 void explic_func(function* f, vector* func_defs) {
-    if (f->fully_defined) return;
-    decompose_equs(f);//doing decomp equs first, not sure what the implications are yet.
-    explic_func_expr(f, func_defs);
-    explic_func_head(f);
+    if (f->fully_defined) return;//this may be old and not needed anymore??
+    
+    if (f->type == fd_func) {
+        decompose_equs(f);//doing decomp equs first, not sure what the implications are yet.
+        explic_func_expr(f, func_defs);
+        explic_func_head(f);
+    } else if (f->type == fd_fact) {
+        //expand to full func
+        expand_fact(f);
+    }
+    
     f->fully_defined = true;
     //add to choice points
     choice_point* cp = get_cpoint(func_defs_cp, f);
@@ -27,6 +34,35 @@ void explic_func(function* f, vector* func_defs) {
     } else {
         vec_push_back(cp->functions, f);
     }
+}
+
+//expand facts into regular predicates/functions
+void expand_fact(function* f) {
+    vector* new_params = new_vector(vec_size(f->params), sizeof(atom));
+    expr new_e = {.type = e_and,
+              .e.n.ands = new_vector(vec_size(f->params), sizeof(expr))
+    };
+    
+    for (int i = 0; i < vec_size(f->params); i++) {
+        atom* old_param = vec_at(f->params, i);
+        atom  new_param = make_var_a(unique_name(&i));
+        
+        equality eq;
+        eq.lhs = malloc(sizeof(expr));
+        eq.rhs = malloc(sizeof(expr));
+       *eq.lhs = wrap_atom(copy_atom(&new_param));
+       *eq.rhs = wrap_atom(copy_atom( old_param));
+        free_atom(old_param);
+        expr ex = {.type = e_equ, .e.e = eq};
+
+        vec_push_back(new_params, &new_param);
+        vec_push_back(new_e.e.n.ands, &ex);
+    }
+
+    free_vector(f->params);
+    f->params = new_params;
+    f->e = new_e;
+    f->type = fd_func;
 }
 
 void explic_func_expr(function* f, vector* func_defs) {

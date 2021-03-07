@@ -18,14 +18,16 @@ void dump_func(function f) {
         dump_atom(ai);
         if(i != ps-1) printf(", ");
     }
-    printf(") = ");
+
     //print function body
-    if (f.e.type != e_builtin) {
-        printf("\n");
+    if (f.type == fd_fact) {
+        printf(").\n");
+    } else if (f.e.type != e_builtin) {
+        printf(") = \n");
         dump_expr(f.e, true);
         printf(".\n");
     } else {
-        printf("...\n");
+        printf(") = ...\n");
     }
 }
 

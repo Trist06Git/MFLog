@@ -17,7 +17,7 @@ h(R) :-
 i(1, 2).
 i(3, 4).
 
-main(R) :-
+main_old(R) :-
     j(X, A, R),
     j(Y, B, R),
     X = 1,
@@ -28,3 +28,17 @@ main(R) :-
 
 j(1, 2, V) :- write(V), nl.
 j(3, 4, V) :- write(V), nl.
+
+age(whiskey, 6).
+age(tristan, 31).
+age(X, -1). /*X is same as _*/
+
+print_age(Person, Age) :-
+    write(Person),
+    write(" is "),
+    write(Age),
+    nl.
+
+main(Person) :-
+    age(Person, Age),
+    print_age(Person, Age).

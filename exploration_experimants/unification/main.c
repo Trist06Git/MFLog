@@ -89,11 +89,11 @@ int main(int argc, char** argv) {
     f.e = gands;
     decompose_equs(&f);
 
-    //printf("Post parse, pre-preproc:\n");
-    //for (int i = 0; i < vec_size(func_defs); i++) {
-    //    function* f = vec_at(func_defs, i);
-    //    dump_func(*f); nl;
-    //}
+    printf("Post parse, pre-preproc:\n");
+    for (int i = 0; i < vec_size(func_defs); i++) {
+        function* f = vec_at(func_defs, i);
+        dump_func(*f); nl;
+    }
 
     if (verbose > 0) printf("Explicating constants/variables.\n");
     for (int i = 0; i < vec_size(func_defs); i++) {
@@ -146,24 +146,22 @@ void init(void) {
     fc_main.params = new_vector(1, sizeof(expr));
     fc_main.type = e_fcall;
 
-
     ///TODO: remove aaaaall of this
-    f_div.name = malloc(sizeof(char)*3+1); sprintf(f_div.name, "div");
-    f_div.params = new_vector(3, sizeof(atom));
-    f_div.fully_defined = true;
-    f_div.e.type = e_builtin;
-    f_mul.name = malloc(sizeof(char)*3+1); sprintf(f_mul.name, "mul");
-    f_mul.params = new_vector(3, sizeof(atom));
-    f_mul.fully_defined = true;
-    f_mul.e.type = e_builtin;
-    f_plus.name = malloc(sizeof(char)*4+1); sprintf(f_plus.name, "plus");
-    f_plus.params = new_vector(3, sizeof(atom));
-    f_plus.fully_defined = true;
-    f_plus.e.type = e_builtin;
+    f_div.name   = malloc(sizeof(char)*3+1); sprintf(f_div.name, "div");
+    f_mul.name   = malloc(sizeof(char)*3+1); sprintf(f_mul.name, "mul");
+    f_plus.name  = malloc(sizeof(char)*4+1); sprintf(f_plus.name, "plus");
     f_minus.name = malloc(sizeof(char)*5+1); sprintf(f_minus.name, "minus");
+    f_div.params   = new_vector(3, sizeof(atom));
+    f_mul.params   = new_vector(3, sizeof(atom));
+    f_plus.params  = new_vector(3, sizeof(atom));
     f_minus.params = new_vector(3, sizeof(atom));
-    f_minus.fully_defined = true;
-    f_minus.e.type = e_builtin;
+    f_div.fully_defined  = f_mul.fully_defined   =
+    f_plus.fully_defined = f_minus.fully_defined = true;
+    f_div.e.type  = f_mul.e.type   =
+    f_plus.e.type = f_minus.e.type = e_builtin;
+    f_div.type  = f_mul.type   =
+    f_plus.type = f_minus.type = fd_func;
+
     atom v = { a_var, .data.vr.symbol = NULL };
     v.data.vr.symbol = malloc(sizeof(char)*2); sprintf(v.data.vr.symbol, "X");
     vec_push_back(f_div.params, &v);

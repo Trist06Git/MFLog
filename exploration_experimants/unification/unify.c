@@ -10,7 +10,7 @@
 
 extern fcall fc_main;
 
-//#define UNIFY_DEBUG
+#define UNIFY_DEBUG
 
 void entry(vector* func_defs_cp, vector* globals) {
     choice_point* main_cp = get_cpoint_na(func_defs_cp, "main", 1);
@@ -21,11 +21,11 @@ void entry(vector* func_defs_cp, vector* globals) {
     int call_sequ = 0;
     function* main_f = vec_at(main_cp->functions, 0);
     
-    frame dummy_prev;
-    dummy_prev.changes = false;
-    dummy_prev.fname = "";
-    dummy_prev.G = new_vector(0, 1);
-    dummy_prev.next_calls = new_vector(0, 1);
+    frame dummy_prev = {.changes = false,
+        .fname = "",
+        .G = new_vector(0, 1),
+        .next_calls = new_vector(0, 1)
+    };
     frame* first_frame = init_frame(main_f, &fc_main, &dummy_prev, globals, &call_sequ);
 
     outcome entry_res = unify(first_frame, func_defs_cp, globals, &call_sequ);
@@ -47,6 +47,8 @@ void entry(vector* func_defs_cp, vector* globals) {
         printf("\"main\" returned with a failure.\n");
     }
 
+    free_vector(dummy_prev.G);
+    free_vector(dummy_prev.next_calls);
     free_frame(first_frame);
 }
 
@@ -212,7 +214,7 @@ outcome call_builtin(fcall* fc, frame* frm, int call_sequ) {
                // return o_pass;
             }
         } else {
-            printf("Info. Not all answer sets have been implemented for \"<\" yet sorry.\n");
+            printf("Info. Not all answer sets have been implemented for \"<\" & \">\" yet sorry.\n");
         }
     } else if (strcmp(fc->name, "print") == 0) {
         int zero = 0;
