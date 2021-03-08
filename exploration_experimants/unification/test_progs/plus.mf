@@ -1,0 +1,12 @@
+
+//main(r) =
+//  3 = r + 2.
+
+loop(5, 5).
+loop(x, r) =
+  print(x),
+  step = x + 1,
+  loop(step, r).
+
+main(r) =
+  loop(0, r).

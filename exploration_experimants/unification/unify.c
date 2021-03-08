@@ -5,12 +5,13 @@
 #include <string.h>
 
 #include "unify.h"
+#include "builtin_calls.h"
 #include "utils.h"
 #include "debug_stuff.h"
 
 extern fcall fc_main;
 
-#define UNIFY_DEBUG
+//#define UNIFY_DEBUG
 
 void entry(vector* func_defs_cp, vector* globals) {
     choice_point* main_cp = get_cpoint_na(func_defs_cp, "main", 1);
@@ -127,145 +128,6 @@ outcome consolidate_frames(frame* prev_frm, frame* next_frm, int call_sequ) {
     }*/
 }
 
-substitution make_uni_sub(int call_sequ, int param_sequ) {
-    substitution s;
-    s.lhs = malloc(sizeof(expr));
-   *s.lhs = make_var_e(decomp_name(&call_sequ, &param_sequ));
-    s.rhs = malloc(sizeof(expr));
-    return s;
-}
-
-//only need name/arity and passed params
-outcome call_builtin(fcall* fc, frame* frm, int call_sequ) {
-    if (strcmp(fc->name, "integer") == 0) {
-        if (vec_size(fc->params) != 1) {
-            printf("Error. Could not find function \"%s\" with arity %i\n", fc->name, vec_size(fc->params));
-            return o_fail;
-        }
-        expr* param = vec_at(fc->params, 0);
-        if (is_var_e(param)) {
-            if (fc->res_set == rs_first || fc->res_set == rs_one || fc->res_set == rs_n) {
-                substitution s = make_uni_sub(call_sequ, 0);
-               *s.rhs = make_int_e(0);
-                vec_push_back(frm->G, &s);
-                return o_pass;
-            } else if (fc->res_set == rs_n) {//no way of communicating this in the parse yet.
-                substitution s = make_uni_sub(call_sequ, fc->rs_index);//isnt it func/arity???
-               *s.rhs = make_int_e(0);
-                vec_push_back(frm->G, &s);
-                return o_pass;
-            } else if (fc->res_set == rs_all) {
-                printf("Error. Failed to return all the integers...\n");
-                return o_fail;
-            }
-        } else if (is_val_e(param) && param->e.a.data.vl.type == v_int) {
-            if (fc->res_set == rs_first && param->e.a.data.vl.v.i != 0) return o_fail;
-            return o_pass;
-        } else {
-            return o_fail;
-        }
-    } else if (strcmp(fc->name, "less_than") == 0 ||
-               strcmp(fc->name, "greater_than") == 0) {
-        int zero = 0;
-        int one  = 1;
-        expr param1 = make_var_e(decomp_name(&call_sequ, &zero));
-        expr param2 = make_var_e(decomp_name(&call_sequ, &one));
-        substitution* s1 = get_sub_frm(frm, &param1);
-        substitution* s2 = get_sub_frm(frm, &param2);
-        free(param1.e.a.data.vr.symbol);
-        free(param2.e.a.data.vr.symbol);
-        if (s1 == NULL || s2 == NULL) {
-            printf("Error. \"<\" & \">\" need 2 operands.\n");
-            return o_fail;
-        }
-        expr* lhs = s1->rhs;
-        expr* rhs = s2->rhs;
-        if (strcmp(fc->name, "greater_than") == 0) {
-            expr* temp = lhs;
-            lhs = rhs;
-            rhs = temp;
-        }
-        if (fc->res_set == rs_one || fc->res_set == rs_first) {
-            if (is_list_e(lhs)) {
-                lhs = mfa_at(lhs->e.a.data.vl.v.l.lst, 0);//check empty list
-            }
-            if (is_list_e(rhs)) {
-                rhs = mfa_at(rhs->e.a.data.vl.v.l.lst, 0);
-            }
-            if (is_var_e(lhs) && is_var_e(rhs)) {
-                printf("Note. Could not find all the integers that are less than all the other integers.\n");
-                return o_undet;
-            } else if (is_val_e(lhs) && is_val_e(rhs)) {
-                if (lhs->e.a.data.vl.v.i < rhs->e.a.data.vl.v.i)
-                    return o_pass;
-                else
-                    return o_fail;
-            } else if (is_var_e(lhs)) {
-                return o_undet;
-               // substitution s = make_uni_sub(call_sequ, 0);
-               //*s.rhs = make_int_e(rhs->e.a.data.vl.v.i - 1);
-               // vec_push_back(frm->G, &s);
-               // return o_pass;
-            } else if (is_var_e(rhs)) {
-                return o_undet;
-               // substitution s = make_uni_sub(call_sequ, 1);
-               //*s.rhs = make_int_e(lhs->e.a.data.vl.v.i + 1);
-               // vec_push_back(frm->G, &s);
-               // return o_pass;
-            }
-        } else {
-            printf("Info. Not all answer sets have been implemented for \"<\" & \">\" yet sorry.\n");
-        }
-    } else if (strcmp(fc->name, "print") == 0) {
-        int zero = 0;
-        expr param = make_var_e(decomp_name(&call_sequ, &zero));
-        substitution* s = get_sub_frm(frm, &param);
-        free(param.e.a.data.vr.symbol);
-        if (s == NULL) {
-            printf("Error. \"print\" needs a parameter.\n");
-            return o_fail;
-        }
-
-        expr* subject = s->rhs;
-        if (is_var_e(subject)) {
-            return o_undet;
-        } else if (is_list_e(subject) && !is_list_instantiated_e(subject)) {
-            return o_undet;
-        } else if (is_val_e(subject)) {
-#ifdef UNIFY_DEBUG
-            printf("DEBUG :: output :\n");
-#endif
-            if (!is_list_e(subject)) {
-                printf("%i", subject->e.a.data.vl.v.i);
-            } else {
-                dump_list(&subject->e.a.data.vl.v.l);
-            }
-            //printf("\n");// <<----- to be replaced with nl.
-            return o_pass;
-        }
-    } else if (strcmp(fc->name, "nl") == 0) {
-        for (int i = 0; ; i++) {
-            expr parami = make_var_e(decomp_name(&call_sequ, &i));
-            substitution* s = get_sub_frm(frm, &parami);
-            free(parami.e.a.data.vr.symbol);
-            if (i == 0 && s == NULL) {
-                printf("\n");
-                return o_pass;
-            } else if (s == NULL) {
-                break;
-            } else if (is_var_e(s->rhs)) {
-                return o_undet;
-            }
-        }
-        printf("\n");
-        return o_pass;
-    } else {
-        printf("Info. Sorry, builtin function \"%s\" is not yet implemented.\n", fc->name);
-        return o_pass;
-    }
-    return o_fail;
-}
-
 outcome call(frame_call* fr_c, frame* prev_frm, vector* func_defs_cp, vector* globals, int* call_sequ) {
 #ifdef UNIFY_DEBUG
     printf("DEBUG :: Calling frame for \"%s\"\n", fr_c->fc.name);
@@ -307,15 +169,24 @@ outcome call(frame_call* fr_c, frame* prev_frm, vector* func_defs_cp, vector* gl
                 //return res;
             } else if (res == o_fail) {
 #ifdef UNIFY_DEBUG
-                printf("::::DEBUG: failed, retrying.\n");
+                printf("DEBUG :: %s : Failed", fc.name);
+                if (i+1 < vec_size(f_cp->functions)) {
+                    printf(", retrying.\n");
+                } else {
+                    printf(".\n");
+                }
 #endif
                 free_frame(next_frm);
+            } else if (res == o_undet) {
+                printf("DEBUG :: %s : Returning from %s as undetermined\n", fc.name, fc.name);
+                return res;
+                
             } else {
-                printf("@@@@@@@@@not fail or pass after unify in call()\n");
+                printf("INTERNAL :: %s : Not fail or pass or undet after unify in call()\n", fc.name);
             }
         }
 #ifdef UNIFY_DEBUG
-        printf("::::DEBUG: no answers.\n");
+        printf("DEBUG :: %s : No answers.\n", fc.name);
 #endif
         return o_fail;
     } else {
@@ -338,12 +209,16 @@ outcome unify_substitutions(frame* frm) {
     delete_g(frm);
     //then conflict
     outcome res = conflict(frm);
-    if (res == o_fail) return o_fail;
+    
 #ifdef UNIFY_DEBUG
     printf("DEBUG :: %s : After unify:\n", frm->fname);
     dump_frame(frm);
 #endif
-    return o_pass;
+    if (res == o_fail) {
+        return o_fail;
+    } else {
+        return o_pass;
+    }
 }
 
 outcome unify(frame* frm, vector* func_defs_cp, vector* globals, int* call_sequ) {
@@ -361,6 +236,7 @@ outcome unify(frame* frm, vector* func_defs_cp, vector* globals, int* call_sequ)
     //call funcs. g, f, etc
     for (int i = 0; i < vec_size(frm->next_calls); i++) {
         frame_call* frc = vec_at(frm->next_calls, i);
+        
         if (frc->undet) {
             if (!frm->changes) {
                 //this fcall was undetermined and nothing has changed
@@ -371,6 +247,7 @@ outcome unify(frame* frm, vector* func_defs_cp, vector* globals, int* call_sequ)
             }
             res = call(frc, frm, func_defs_cp, globals, call_sequ);
             if (res == o_fail) {
+                //clean frame, permute incr the next_call's cp_count, recall/reunify
                 return o_fail;
             } else if (res == o_undet) {
                 undetermined = true;
@@ -400,6 +277,8 @@ outcome unify(frame* frm, vector* func_defs_cp, vector* globals, int* call_sequ)
     return res;
 }
 
+//function and globals Can be NULL inwhich their exprs will not be added to the frame
+//this is to be used for builtins 
 frame* init_frame(function* f, fcall* fc, frame* prev_frm, vector* globals, int* call_sequ) {
     frame* frm = malloc(sizeof(frame));
     frm->G = new_vector(0, sizeof(substitution));
@@ -410,7 +289,7 @@ frame* init_frame(function* f, fcall* fc, frame* prev_frm, vector* globals, int*
 
     //setup uniquely named parameter variables, so as not to
     //clash with the caller
-    for (int p = 0; p < vec_size(f->params); p++) {
+    if (f != NULL) for (int p = 0; p < vec_size(f->params); p++) {
         atom param = copy_atom(vec_at(f->params, p));
         substitution call_binds;
         call_binds.lhs = malloc(sizeof(expr));
@@ -468,16 +347,19 @@ frame* init_frame(function* f, fcall* fc, frame* prev_frm, vector* globals, int*
     //from this functions return vars
 
     //add all of f's equations
-    add_frame_exprs(frm, &f->e, call_sequ);
-    //add global scope equations
-    for (int i = 0; i < vec_size(globals); i++) {
-        //rec_add_expr(frm, vec_at(globals, i), call_sequ);
-        expr gls;
-        gls.type = e_and;
-        gls.e.n.ands = globals;
-        add_frame_exprs(frm, &gls, call_sequ);
+    if (f != NULL) {
+        add_frame_exprs(frm, &f->e, call_sequ);
     }
-
+    //add global scope equations
+    if (globals != NULL) {
+        for (int i = 0; i < vec_size(globals); i++) {
+            //rec_add_expr(frm, vec_at(globals, i), call_sequ);
+            expr gls;
+            gls.type = e_and;
+            gls.e.n.ands = globals;
+            add_frame_exprs(frm, &gls, call_sequ);
+        }
+    }
     return frm;
 }
 
@@ -533,11 +415,28 @@ void add_frame_exprs(frame* frm, expr* e, int* call_sequ) {
 
 //var is a variable
 //returned NULL = not found
+//WARNING, this only returns the first occurrence, not all.
 substitution* get_sub_frm(frame* frm, expr* var) {
     if (!is_var_e(var)) return NULL;
     for (int g = 0; g < vec_size(frm->G); g++) {
         substitution* sub = vec_at(frm->G, g);
         if (compare_atoms_e(var, sub->lhs)) return sub;
+    }
+    return NULL;
+}
+//truly horrid..
+substitution* get_sub_frm_i(frame* frm, int call_no, int var_no) {
+    for (int g = 0; g < vec_size(frm->G); g++) {
+        substitution* sub = vec_at(frm->G, g);
+        if (is_var_e(sub->lhs)) {
+            char* name = sub->lhs->e.a.data.vr.symbol;
+            if (strlen(name) > 4 &&
+                name[2] == call_no+48 &&
+                name[4] ==  var_no+48
+               ) {//D_x_y
+                return sub;
+            }
+        }
     }
     return NULL;
 }

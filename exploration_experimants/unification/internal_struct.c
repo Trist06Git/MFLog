@@ -33,6 +33,8 @@ bool is_tuple_e(const expr* e)     { return e->type == e_tuple; }
 bool is_fcall_e(const expr* e)     { return e->type == e_fcall; }
 bool is_equ_e(const expr* e)       { return e->type == e_equ;   }
 bool is_equ_chain_e(const expr* e) { return e->type == e_equ_chain; }
+bool is_int_a(const atom* a)       { return is_val_a(a) && a->data.vl.type == v_int; }
+bool is_int_e(const expr* e)       { return is_atom_e(e) && is_int_a(&e->e.a); }
 bool is_generated_var(const expr* e) {
     if (e->type != e_atom || e->e.a.type != a_var) return false;
     return strstr(e->e.a.data.vr.symbol, "U_") != NULL;

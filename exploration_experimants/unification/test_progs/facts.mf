@@ -1,8 +1,19 @@
 
+printnl(x) =
+  print(x), nl(x).
+
 age(0, 6).
 age(1, 31).
 age(x, 99).
 
+//main(r) =
+//  age(0, r),
+//  printnl(r),
+//  r < 90.
+
+get_age(x, r1, r2) =
+  x = r1,
+  age(x, r2).
+
 main(r) =
-  age(3, r),
-  r < 90.
+  r = get_age(0).

@@ -311,6 +311,12 @@ Val
         v.v.i = $1;
         $$ = v;
     }
+    | MINUS NUMBER {
+        val v;
+        v.type = v_int;
+        v.v.i = -$2;
+        $$ = v;
+    }
     | List {
         val v;
         v.type = v_list;

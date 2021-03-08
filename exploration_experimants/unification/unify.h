@@ -26,6 +26,7 @@ struct frame {
 struct frame_call {
     fcall fc;
     int call_sequence;//so that return vars dont clash
+    int cp_count;//keep track of which cp we attempted last
     bool undet;//has the complete outcome of this fc been completely determined?
 };
 
@@ -37,6 +38,7 @@ void free_frame(frame*);
 void add_frame_exprs(frame*, expr*, int* call_sequ);
 void rec_add_expr(frame*, expr*, int* call_sequ);//old
 substitution* get_sub_frm(frame*, expr* var);
+substitution* get_sub_frm_i(frame*, int call_no, int var_no);
 void decompose(frame*);
 void swap_substitution(substitution*);
 void delete_g(frame*);

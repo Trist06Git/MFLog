@@ -118,6 +118,8 @@ bool is_list_a(const atom*);
 bool is_fcall_e(const expr*);
 bool is_equ_e(const expr*);
 bool is_equ_chain_e(const expr*);
+bool is_int_a(const atom*);
+bool is_int_e(const expr*);
 bool is_generated_var(const expr*);
 int tuple_size_e(const expr*);
 atom make_var_a(char*);

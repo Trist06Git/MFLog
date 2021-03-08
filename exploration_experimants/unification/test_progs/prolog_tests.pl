@@ -39,6 +39,16 @@ print_age(Person, Age) :-
     write(Age),
     nl.
 
-main(Person) :-
+main_old2(Person) :-
     age(Person, Age),
     print_age(Person, Age).
+
+my_plus(Xi, Yi, Rv) :-
+    nonvar(Xi), nonvar(Yi),
+    Rv is Xi + Yi.
+my_plus(Xi, Yv, Ri) :-
+    nonvar(Xi), nonvar(Ri),
+    Yv is Ri - Xi.
+my_plus(Xv, Yi, Ri) :-
+    nonvar(Yi), nonvar(Ri),
+    Xv is Ri - Yi.

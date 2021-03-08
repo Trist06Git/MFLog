@@ -93,7 +93,7 @@ void rec_explic_func_expr(expr* e, int* unique, vector* fc_to_move, vector* sing
             rec_explic_func_expr(vec_at(ands, i), unique, fc_to_move, singletons, func_defs, root);
         }
     } else if (is_fcall_e(e)) {
-        if (e->e.f.type == f_builtin) return;
+        //if (e->e.f.type == f_builtin) return;// <-- this should be deleted..
         //first attempt to find a fully defined version
         function* def = get_fdef_defined(func_defs, e->e.f.name);
         if (def == NULL) {//then resort to non-fully defined
@@ -137,6 +137,9 @@ void rec_explic_func_equ(expr* e, int* unique, vector* fc_to_move, vector* singl
         vector* new_singles = get_var_singles(root, true);
 
         expr unbounds = tuplise_params(e->e.f.params, new_singles);
+        if (unbounds.type == e_builtin) {
+            //there were no unbounds to tupilise...
+        }
        *e = copy_expr(&unbounds);
         free_vector(new_singles);
     }
