@@ -157,7 +157,6 @@ outcome plus_builtin(fcall* fc, frame* frm, int call_sequ) {
         return o_fail;
     }
     
-    //printf("@@@@@call_sequ is: %i, last is : %i\n", call_sequ, call_sequ-1);
     substitution* sX = get_sub_frm_i(frm, call_sequ, 0);
     substitution* sY = get_sub_frm_i(frm, call_sequ, 1);
     substitution* sR = get_sub_frm_i(frm, call_sequ, 2);
@@ -168,13 +167,15 @@ outcome plus_builtin(fcall* fc, frame* frm, int call_sequ) {
         //check
         if (is_int_e(X) && is_int_e(Y) && is_int_e(R)) {
             if (X->e.a.data.vl.v.i + Y->e.a.data.vl.v.i == R->e.a.data.vl.v.i) {
-                printf("@@@@@plus checking:\n");
+#ifdef UNIFY_DEBIG
+                printf("DEBUG :: plus : checking:\n");
                 printf("%i + %i == %i ; ans:%i\n",
                     X->e.a.data.vl.v.i,
                     Y->e.a.data.vl.v.i,
                     R->e.a.data.vl.v.i,
                     X->e.a.data.vl.v.i + Y->e.a.data.vl.v.i
                 );
+#endif
                 return o_pass;
             }
         }
@@ -224,11 +225,13 @@ outcome plus_builtin(fcall* fc, frame* frm, int call_sequ) {
 
         return o_pass;
     } else {
+#ifdef UNIFY_DEBIG
         printf("Info. Sorry that permutation of \"+\" operands has not yet been implemented.\n");
         printf("Namely:\n");
         printf("X = "); if (X==NULL) {printf("NULL");} else {dump_expr(*X, false);} nl;
         printf("Y = "); if (Y==NULL) {printf("NULL");} else {dump_expr(*Y, false);} nl;
         printf("R = "); if (R==NULL) {printf("NULL");} else {dump_expr(*R, false);} nl;
+#endif
         return o_undet;
     }
 

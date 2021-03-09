@@ -20,7 +20,6 @@ struct frame {
     vector* G;//of substitutions
     vector* G_clean;
     vector* next_calls;//of frame_calls
-    int call_sequ;//this frames sequence
     outcome last_result;
     bool changes;//have any vars changed? The nondets want to know.
 };
@@ -33,9 +32,9 @@ struct frame_call {
 };
 
 void entry(vector* func_defs_cp, vector* globals);
-outcome call(frame_call*, frame* prev, frame* next, vector* func_defs_cp, vector* globals, int* call_sequ);
+outcome call(frame_call*, frame* prev, vector* func_defs_cp, vector* globals, int* call_sequ);
 outcome unify(frame*, vector* func_defs_cp, vector* globals, int* call_sequ);
-frame* init_frame(function*, fcall*, frame* prev_frm, vector* globals, int* global_call_sequ, int this_call_sequ);
+frame* init_frame(function*, fcall*, frame* prev_frm, vector* globals, int* call_sequ);
 void free_frame(frame*);
 void add_frame_exprs(frame*, expr*, int* call_sequ);
 void rec_add_expr(frame*, expr*, int* call_sequ);//old

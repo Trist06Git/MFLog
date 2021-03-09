@@ -24,6 +24,7 @@ bool compare_func_vals(function*, function*);
 function* get_fdef(vector*, char* name);
 function* get_fdef_defined(vector*, char* name);
 function* get_fdef_arity(vector*, char* name, int arity);
+int get_cp_count(vector* cps, fcall*);
 
 int digits(int);
 int digits_neg(int);

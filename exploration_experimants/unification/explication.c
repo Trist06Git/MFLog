@@ -11,7 +11,7 @@
 #include "debug_stuff.h"
 
 void explic_func(function* f, vector* func_defs) {
-    if (f->fully_defined) return;//this may be old and not needed anymore??
+    if (f->fully_defined || f->e.type == e_builtin) return;//this may be old and not needed anymore??
     
     if (f->type == fd_func) {
         decompose_equs(f);//doing decomp equs first, not sure what the implications are yet.
@@ -101,9 +101,11 @@ void rec_explic_func_expr(expr* e, int* unique, vector* fc_to_move, vector* sing
         }
         if (def == NULL) {
             printf("Error, unknown function %s with arity %i.\n", e->e.f.name, vec_size(e->e.f.params));
-            return;
+            //return;
+        } else {
+            explic_func(def, func_defs);//DANGER, if no base case is defined, then infinit loop
+            //this really needs to be fixed.. maybe declare name/arity before the definition eg: f/2 \nl f(x,y) = ...
         }
-        explic_func(def, func_defs);//DANGER, if no base case is defined, then infinit loop
         explic_func_params(&e->e.f, unique, fc_to_move, singletons, func_defs, root);
         explic_callsite(&e->e.f, unique, NULL, func_defs);
     } else if (is_equ_e(e)) {

@@ -1,10 +1,18 @@
 
-printnl(x) =
-  print(x), nl(x).
+//printnl(x) =
+//  print(x), nl(x).
 
-age(0, 6).
-age(1, 31).
-age(x, 99).
+////Whiskey
+//age(0, 6).
+////Me
+//age(1, 31).
+////everyone else..
+//age(y, 99).
+
+age(a, b) = a = 0, b = 6.
+age(a, b) = a = 1, b = 31.
+age(a, b) = a = 2, b = 13.
+//age(y, b) = y = y, b = 99.
 
 //main(r) =
 //  age(0, r),
@@ -16,4 +24,4 @@ get_age(x, r1, r2) =
   age(x, r2).
 
 main(r) =
-  r = get_age(0).
+  r = get_age(3).

@@ -134,6 +134,7 @@ expr wrap_and_t(and);//in a tuple
 bool compare_lists_l(const list*, const list*);
 bool compare_atoms_a(const atom*, const atom*);
 bool compare_atoms_e(const expr*, const expr*);
+bool compare_equs_e(const equality*, const equality*);
 
 expr copy_var_e(const expr*);
 function copy_fdef(const function*);

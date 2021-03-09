@@ -40,6 +40,7 @@ function f_mul;
 function f_plus;
 function f_minus;
 function f_print;
+function f_less_than;
 //slight hack for calling main
 fcall fc_main;
 
@@ -89,11 +90,11 @@ int main(int argc, char** argv) {
     f.e = gands;
     decompose_equs(&f);
 
-    printf("Post parse, pre-preproc:\n");
-    for (int i = 0; i < vec_size(func_defs); i++) {
-        function* f = vec_at(func_defs, i);
-        dump_func(*f); nl;
-    }
+    //printf("Post parse, pre-preproc:\n");
+    //for (int i = 0; i < vec_size(func_defs); i++) {
+    //    function* f = vec_at(func_defs, i);
+    //    dump_func(*f); nl;
+    //}
 
     if (verbose > 0) printf("Explicating constants/variables.\n");
     for (int i = 0; i < vec_size(func_defs); i++) {
@@ -151,16 +152,22 @@ void init(void) {
     f_mul.name   = malloc(sizeof(char)*3+1); sprintf(f_mul.name, "mul");
     f_plus.name  = malloc(sizeof(char)*4+1); sprintf(f_plus.name, "plus");
     f_minus.name = malloc(sizeof(char)*5+1); sprintf(f_minus.name, "minus");
+    f_print.name = malloc(sizeof(char)*5+1); sprintf(f_print.name, "print");
+    f_less_than.name = malloc(sizeof(char)*9+1); sprintf(f_less_than.name, "less_than");
     f_div.params   = new_vector(3, sizeof(atom));
     f_mul.params   = new_vector(3, sizeof(atom));
     f_plus.params  = new_vector(3, sizeof(atom));
     f_minus.params = new_vector(3, sizeof(atom));
+    f_print.params = new_vector(1, sizeof(atom));
+    f_less_than.params = new_vector(2, sizeof(atom));
     f_div.fully_defined  = f_mul.fully_defined   =
     f_plus.fully_defined = f_minus.fully_defined = true;
-    f_div.e.type  = f_mul.e.type   =
-    f_plus.e.type = f_minus.e.type = e_builtin;
-    f_div.type  = f_mul.type   =
-    f_plus.type = f_minus.type = fd_func;
+    f_div.e.type   = f_mul.e.type       =
+    f_plus.e.type  = f_minus.e.type     = 
+    f_print.e.type = f_less_than.e.type = e_builtin;
+    f_div.type   = f_mul.type       =
+    f_plus.type  = f_minus.type     =
+    f_print.type = f_less_than.type = fd_func;
 
     atom v = { a_var, .data.vr.symbol = NULL };
     v.data.vr.symbol = malloc(sizeof(char)*2); sprintf(v.data.vr.symbol, "X");
@@ -168,11 +175,14 @@ void init(void) {
     vec_push_back(f_mul.params, &v);
     vec_push_back(f_plus.params, &v);
     vec_push_back(f_minus.params, &v);
+    vec_push_back(f_print.params, &v);
+    vec_push_back(f_less_than.params, &v);
     v.data.vr.symbol = malloc(sizeof(char)*2); sprintf(v.data.vr.symbol, "Y");
     vec_push_back(f_div.params, &v);
     vec_push_back(f_mul.params, &v);
     vec_push_back(f_plus.params, &v);
     vec_push_back(f_minus.params, &v);
+    vec_push_back(f_less_than.params, &v);
     v.data.vr.symbol = malloc(sizeof(char)*2); sprintf(v.data.vr.symbol, "R");
     vec_push_back(f_div.params, &v);
     vec_push_back(f_mul.params, &v);
@@ -186,6 +196,8 @@ void init(void) {
     vec_push_back(func_defs, &f_mul);
     vec_push_back(func_defs, &f_plus);
     vec_push_back(func_defs, &f_minus);
+    vec_push_back(func_defs, &f_print);
+    vec_push_back(func_defs, &f_less_than);
 
     choice_point c_div;
     c_div.functions = new_vector(1, sizeof(function));
@@ -206,6 +218,11 @@ void init(void) {
     c_minus.functions = new_vector(1, sizeof(function));
     vec_push_back(c_minus.functions, &f_minus);
     vec_push_back(func_defs_cp, &c_minus);
+
+    choice_point c_print;
+    c_print.functions = new_vector(1, sizeof(function));
+    vec_push_back(c_print.functions, &f_print);
+    vec_push_back(func_defs_cp, &c_print);
 }
 
 void print_help(void) {

@@ -115,6 +115,14 @@ bool compare_atoms_e(const expr* a1, const expr* a2) {
     return compare_atoms_a(&a1->e.a, &a2->e.a);
 }
 
+//assumes that vars are on the left
+bool compare_equs_e(const equality* equ_a, const equality* equ_b) {
+    return
+      compare_atoms_e(equ_a->lhs, equ_b->lhs) &&
+      compare_atoms_e(equ_a->rhs, equ_b->rhs)
+    ;
+}
+
 expr copy_var_e(const expr* e) {
     char* ret_name = malloc(sizeof(char)*(strlen(e->e.a.data.vr.symbol)+1));
     strcpy(ret_name, e->e.a.data.vr.symbol);

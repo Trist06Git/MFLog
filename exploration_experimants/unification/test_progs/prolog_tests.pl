@@ -52,3 +52,12 @@ my_plus(Xi, Yv, Ri) :-
 my_plus(Xv, Yi, Ri) :-
     nonvar(Yi), nonvar(Ri),
     Xv is Ri - Yi.
+
+loop(0, 0).
+loop(X, R) :-
+    write(X), nl,
+    Step is X - 1,
+    loop(Step, R).
+
+main(R) :-
+    loop(3, R).

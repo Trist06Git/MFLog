@@ -142,6 +142,22 @@ function* get_fdef_arity(vector* defs, char* name, int arity) {
     return NULL;
 }
 
+int get_cp_count(vector* cps, fcall* fc) {
+    for (int i = 0; i < vec_size(cps); i++) {
+        choice_point* cp = vec_at(cps, i);
+        if (cp->functions == NULL || vec_size(cp->functions) < 1) return -1;
+        function* first = vec_at(cp->functions, 0);
+        printf("### Checking : %s\n", first->name);
+        if (strcmp(first->name, fc->name) == 0 &&
+            vec_size(first->params) == vec_size(fc->params)
+           ) {
+            return vec_size(cp->functions);
+        }
+        
+    }
+    return -1;
+}
+
 int digits(int num) {
     int res = 0;
     do {res++;} while (num/=10);

@@ -1,0 +1,17 @@
+
+inter(4).
+inter(5).
+
+retry(5, 5).
+retry(x, 5) =
+  inter(x),
+  retry(5, 5).
+
+main(r) =
+  retry(4, r).
+
+//loop(5).
+//loop(x) =
+//  print(x),
+//  step = x + 1,
+//  loop(step).
