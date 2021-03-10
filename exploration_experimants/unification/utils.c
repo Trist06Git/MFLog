@@ -147,7 +147,6 @@ int get_cp_count(vector* cps, fcall* fc) {
         choice_point* cp = vec_at(cps, i);
         if (cp->functions == NULL || vec_size(cp->functions) < 1) return -1;
         function* first = vec_at(cp->functions, 0);
-        printf("### Checking : %s\n", first->name);
         if (strcmp(first->name, fc->name) == 0 &&
             vec_size(first->params) == vec_size(fc->params)
            ) {

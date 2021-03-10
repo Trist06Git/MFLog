@@ -19,13 +19,11 @@ void entry(vector* func_defs_cp, vector* globals) {
         printf("Error. Could not find a main with arity 1.\n  >1 arity not yet supported.\n");
         return;
     }
+
     int global_call_sequ = 1;
     function* main_f = vec_at(main_cp->functions, 0);
-    
     frame* first_frame = init_frame(main_f, &fc_main, NULL, globals, &global_call_sequ, 0);
-
     outcome entry_res = unify(first_frame, func_defs_cp, globals, &global_call_sequ);
-    //only unifying, not binding return vals
 
     if (entry_res == o_pass) {
         printf("\"main\" returned a pass, with answers:\n");
@@ -107,17 +105,25 @@ void consolidate_frames(frame* prev_frm, frame* next_frm) {
 }
 
 outcome call(frame_call* frc, frame* prev_frm, frame* next_frm, vector* func_defs_cp, vector* globals, int* call_sequ) {
-    if (frc->cp_count < 0 && frc->fc.type != f_builtin) {
-        printf("INTERNAL :: Error, invalid choice point for function %s : %i\n", frc->fc.name, frc->cp_count);
-        exit(-1);
-    }
+#ifdef UNIFY_DEBUG
     printf("DEBUG :: Calling frame for \"%s\" at choice point %i\n", frc->fc.name, frc->cp_count);
+#endif
     fcall fc = frc->fc;
     //get choice points
     choice_point* f_cp = get_cpoint_na(func_defs_cp, fc.name, vec_size(fc.params));
+    //just double check things
+    if ((frc->cp_count < 0 && frc->fc.type != f_builtin) ||
+        (frc->cp_count >= vec_size(f_cp->functions) && frc->fc.type != f_builtin))
+    {
+        printf("INTERNAL :: Error, invalid choice point for function %s : %i\n", frc->fc.name, frc->cp_count);
+        exit(-1);
+    }
+
     if (fc.type == f_builtin) {
         //call builtin
+#ifdef UNIFY_DEBUG
         printf("DEBUG :: Calling builtin \"%s\"\n", fc.name);
+#endif
         frame dummy_frame;
         dummy_frame.G = new_vector(0, 1);
         dummy_frame.G_clean = new_vector(0, 1);
@@ -138,44 +144,6 @@ outcome call(frame_call* frc, frame* prev_frm, frame* next_frm, vector* func_def
     return unify(next_frm, func_defs_cp, globals, call_sequ);
 }
 
-outcome call_old(frame_call* fr_c, frame* prev_frm, vector* func_defs_cp, vector* globals, int* call_sequ) {
-    printf("DEBUG :: Calling frame for \"%s\" at choice point %i\n", fr_c->fc.name, fr_c->cp_count);
-    fcall fc = fr_c->fc;
-    choice_point* f_cp = get_cpoint_na(func_defs_cp, fc.name, vec_size(fc.params));
-    if (fc.type == f_builtin) {
-        return call_builtin(&fc, prev_frm, fr_c->call_sequence);//only first answer for now
-    } else if (f_cp == NULL) {
-        printf("Error. Could not find function \"%s\" with arity %i\n", fc.name, vec_size(fc.params));
-        return o_fail;
-    }
-
-    function* f = vec_at(f_cp->functions, fr_c->cp_count);
-    int fs_sequ = fr_c->call_sequence;
-    frame* next_frm = init_frame(f, &fc, prev_frm, globals, NULL, fs_sequ);
-    outcome res = unify(next_frm, func_defs_cp, globals, call_sequ);
-    if (res == o_pass) {
-        //res = consolidate_frames(prev_frm, next_frm, fr_c->call_sequence);//what about returned res?
-        free_frame(next_frm);
-        return res;
-    } else if (res == o_fail) {
-        printf("DEBUG :: %s : Failed", fc.name);
-        if (fr_c->cp_count+1 < vec_size(f_cp->functions)) {
-            printf(", retrying.\n");
-        } else {
-            printf(".\n");
-        }
-        free_frame(next_frm);
-        return o_fail;
-    } else if (res == o_undet) {
-        printf("DEBUG :: %s : Returning from %s as undetermined\n", fc.name, fc.name);
-        return res;
-        
-    } else {
-        printf("INTERNAL :: %s : Not fail or pass or undet after unify in call()\n", fc.name);
-        return res;
-    }
-}
-
 outcome unify_substitutions(frame* frm) {
     //reset changes
     frm->changes = false;
@@ -190,7 +158,7 @@ outcome unify_substitutions(frame* frm) {
     outcome res = conflict(frm);
     
 #ifdef UNIFY_DEBUG
-    printf("DEBUG :: %s : After unify:\n", frm->fname);
+    printf("DEBUG :: %s-%i : After unify:\n", frm->fname, frm->call_sequ);
     dump_frame(frm);
 #endif
     if (res == o_fail) {
@@ -209,11 +177,10 @@ bool incr_cp_counts(frame* frm, vector* func_defs_cp) {
             printf("EXPLOSION!!!\n");
             return false;
         }
-        if (fc->cp_count < cp_count) {
+        if (fc->cp_count < cp_count-1) {
             (fc->cp_count)++;
-            printf("### Incremented %s:%i->%i\n", fc->fc.name, fc->cp_count-1, fc->cp_count);
             return true;
-        } else if (fc->cp_count == cp_count) {////////PROBLEM IS IN HERERERRR...
+        } else if (fc->cp_count == cp_count-1) {
             fc->cp_count = 0;//nullify ours
             for (int j = 0; j < i; j++) {
                 frame_call* fcj = vec_at(frm->next_calls, j);
@@ -222,12 +189,10 @@ bool incr_cp_counts(frame* frm, vector* func_defs_cp) {
             if (i < vec_size(frm->next_calls)-1) {
                 //continue
             } else {
-                printf("### End, no increment for %s\n", fc->fc.name);
                 return false;
             }
         }
     }
-    printf("### End, no increment from requested frame : %s\n", frm->fname);
     return false;
 }
 
@@ -243,7 +208,9 @@ outcome unify(frame* frm, vector* func_defs_cp, vector* globals, int* call_sequ)
     //dump_frame(frm);
     outcome res = unify_substitutions(frm);
     if (res == o_fail) {
-        printf("DEBUG :: %s : unify_substitutions() failed in unify()\n", frm->fname);
+#ifdef UNIFY_DEBUG
+        printf("DEBUG :: %s-%i : unify_substitutions() failed in unify()\n", frm->fname, frm->call_sequ);
+#endif
         return o_fail;
     }
     //hack to keep the while loop, which i think is more clearer
@@ -259,178 +226,61 @@ outcome unify(frame* frm, vector* func_defs_cp, vector* globals, int* call_sequ)
             frame* next_frm = malloc(sizeof(frame));
             res = call(frc, frm, next_frm, func_defs_cp, globals, call_sequ);
             if (res == o_fail) {
-                printf("DEBUG :: %s : call() failed, trying next cp perm\n", frm->fname);
+#ifdef UNIFY_DEBUG
+                printf("DEBUG :: %s-%i : call() failed, trying next cp perm\n", frm->fname, frm->call_sequ);
+#endif
                 //try next perm
                 free_frame(next_frm);
+                //NOTE, may not need to clean G here.
+                free_G(frm->G);
+                frm->G = duplicate_G(frm->G_clean);
                 break;
-            } else {
+            } else {//WARN, o_undet
                 //try and consolidate
                 consolidate_frames(frm, next_frm);
                 free_frame(next_frm);
                 res = unify_substitutions(frm);
                 if (res == o_fail) {
-                    printf("DEBUG :: %s : consolidation of successful call failed,\ncleaning G and trying next cp perm\n", frm->fname);
+#ifdef UNIFY_DEBUG
+                    printf("DEBUG :: %s-%i : consolidation of successful call failed,\ncleaning G and trying next cp perm\n", frm->fname, frm->call_sequ);
+#endif
                     //clean G, try next perm
                     free_G(frm->G);
                     frm->G = duplicate_G(frm->G_clean);
                     break;
+                } else {
+#ifdef UNIFY_DEBUG
+                    printf("DEBUG :: %s-%i : call and consolidation of %s %s\n", frm->fname, frm->call_sequ, frc->fc.name, outcome_to_string(&res));
+#endif
                 }
             }
         }
         if (res != o_fail) {
-            printf("DEBUG :: %s : Found answer, returning success\n", frm->fname);
+#ifdef UNIFY_DEBUG
+            printf("DEBUG :: %s-%i : Found answer, returning success\n", frm->fname, frm->call_sequ);
+#endif
             break;//found an answer
         } else {
+#ifdef UNIFY_DEBUG
             printf("DEBIG :: incrementing cp_counts\n");
+#endif
         }
     }
-    return res;
-}
-
-outcome unify_old2(frame* frm, vector* func_defs_cp, vector* globals, int* call_sequ) {
-    outcome res = unify_substitutions(frm);
-    if (res == o_fail) return o_fail;//at this point, undet is okay
-
-    //while there are still cp perms
-    while (incr_cp_counts(frm, func_defs_cp)) {
-        //call f, g
-        for (int i = 0; i < vec_size(frm->next_calls); i++) {
-            frame_call* frc = vec_at(frm->next_calls, i);
-            //as yet undetermined
-            //if (frc->undet) {
-                //res = call(frc, frm, func_defs_cp, globals, call_sequ);
-                if (res == o_fail) {
-                    //failed, so move to next cp
-                    break;
-                } else if (res == o_pass) {
-                    //calls passed, now unify to see if they fit with the caller
-                    res = unify_substitutions(frm);
-                    if (res == o_fail) {
-                        //failed, so move to next cp
-                        break;
-                    } else {
-                        //succeeded, move to next function call
-                    }
-                }
-            //}
-        }
-        //pass or undet, so stop cps
-        if (res != o_fail) {
-            //set determined?
-            break;
-        } else {
-            free_G(frm->G);
-            frm->G = duplicate_G(frm->G_clean);
-            reset_determined(frm);
-            //res = unify(frm, func_defs_cp, globals, call_sequ);
-        }
-    }
-    if (res == o_fail) {
-        //forward signal a failure, so as callees can incr their cps
-        /*while (!exhausted && res != o_fail) {
-            bump cps;
-            res = unify();
-        }*/
-    }
-    return res;
-}
-
-outcome unify_old(frame* frm, vector* func_defs_cp, vector* globals, int* call_sequ) {
-//#ifdef UNIFY_DEBUG
-//    printf("DEBUG :: %s : Before unify:\n", frm->fname);
-//    dump_frame(frm);
-//#endif
-    //initial unify
-    bool last_changes = frm->changes;
-    outcome res = unify_substitutions(frm);
-    frm->changes |= last_changes;//this needs to be done because we are subbing 2wice per unify
-    if (res == o_fail) return o_fail;
-
-    bool undetermined = false;
-    //call funcs. g, f, etc
-    for (int i = 0; i < vec_size(frm->next_calls); i++) {
-        frame_call* frc = vec_at(frm->next_calls, i);
-        
-        if (frc->undet) {
-            if (!frm->changes) {
-                //this fcall was undetermined and nothing has changed
-#ifdef UNIFY_DEBUG
-                printf("DEBUG :: %s : Unification is undeterminable at this point.\n", frm->fname);
-#endif
-                return o_undet;
-            }
-            //res = call(frc, frm, func_defs_cp, globals, call_sequ);
-            if (res == o_fail) {
-                //clean frame, permute incr the next_call's cp_count, recall/reunify
-                free_G(frm->G);
-                frm->G = duplicate_G(frm->G_clean);
-                if (incr_cp_counts(frm, func_defs_cp)) {
-#ifdef UNIFY_DEBIG
-                    printf("DEBUG :: %s call : about to retry %s with its functions next choice points.\n", frm->fname, frm->fname);
-#endif
-                    reset_determined(frm);
-                    return unify(frm, func_defs_cp, globals, call_sequ);
-                } else {
-#ifdef UNIFY_DEBIG
-                    printf("DEBUG :: %s call : no more choice points to try, failing.\n", frm->fname);
-#endif
-                    //set to determined??
-                    frc->undet = false;
-                    return o_fail;
-                }
-            } else if (res == o_undet) {
-                undetermined = true;
-            } else if (res == o_pass) {
-                //printf("@@@@@setting %s to determined.\n", frc->fc.name);
-                frc->undet = false;
-            }
-        }
-    }
-#ifdef UNIFY_DEBUG
-    if (vec_size(frm->next_calls) > 0) {
-        printf("DEBUG :: %s : After calls:\n", frm->fname);
-        dump_frame(frm);
-    }
-#endif
-    
-    //unify this frames scope
-    res = unify_substitutions(frm);
-    if (res == o_fail) {
-        //clean frame, permute incr the next_call's cp_count, recall/reunify
-        free_G(frm->G);
-        frm->G = duplicate_G(frm->G_clean);
-        if (incr_cp_counts(frm, func_defs_cp)) {
-#ifdef UNIFY_DEBUG
-            printf("DEBUG :: %s unify : about to retry %s on with its functions next choice points.\n", frm->fname, frm->fname);
-#endif
-            reset_determined(frm);
-            return unify(frm, func_defs_cp, globals, call_sequ);
-        } else {
-            return o_fail;
-        }
-    } else {
-        printf("@@@@@unaccounted for outcome : %s in %s\n", outcome_to_string(&res), frm->fname);
-    }
-
-    if (undetermined) {
-#ifdef UNIFY_DEBUG
-        printf("DEBUG :: %s : Unification still has unbound variables, trying again\n", frm->fname);
-#endif
-        res = unify(frm, func_defs_cp, globals, call_sequ);
-    }
-
     return res;
 }
 
 //function and globals Can be NULL inwhich their exprs will not be added to the frame
 //this is to be used for builtins 
 frame* init_frame(function* f, fcall* fc, frame* prev_frm, vector* globals, int* global_call_sequ, int this_call_sequ) {
+#ifdef UNIFY_DEBUG
     printf("DEBUG :: Initialising frame for %s inside %s's frame\n", fc->name, prev_frm==NULL ? "BEGIN" : prev_frm->fname);
+#endif
     frame* frm = malloc(sizeof(frame));
     frm->last_result = o_pass;
     frm->next_calls = new_vector(0, sizeof(frame_call));
     frm->fname = fc->name;
     frm->changes = true;
+    frm->call_sequ = this_call_sequ;
 
     //copy prev_frame and add to it
     if (prev_frm != NULL) {
@@ -448,6 +298,9 @@ frame* init_frame(function* f, fcall* fc, frame* prev_frm, vector* globals, int*
         call_binds.rhs = malloc(sizeof(expr));
        *call_binds.lhs = make_var_e(decomp_name(&this_call_sequ, &p));
        *call_binds.rhs = wrap_atom(param);
+        if (is_var_e(call_binds.rhs)) {
+            prepend_unique_var_e(call_binds.rhs, frm->call_sequ);
+        }
         vec_push_back(frm->G, &call_binds);
     }
     
@@ -477,6 +330,9 @@ frame* init_frame(function* f, fcall* fc, frame* prev_frm, vector* globals, int*
             call_bind.rhs = malloc(sizeof(expr));
            *call_bind.lhs = make_var_e(decomp_name(&this_call_sequ, &p));
            *call_bind.rhs = passed;
+            if (is_var_e(call_bind.rhs)) {
+                prepend_unique_var_e(call_bind.rhs, frm->call_sequ);
+            }
             vec_push_back(frm->G, &call_bind);
         }
         
@@ -522,6 +378,13 @@ void add_frame_exprs(frame* frm, expr* e, int* call_sequ) {
         }
     } else if (is_equ_e(e)) {//by now all equ chains should have decomposed
         substitution s = copy_equ(&e->e.e);
+        //prepend this frames call_sequ to make the vars unique
+        if (is_var_e(s.lhs)) {
+            prepend_unique_var_e(s.lhs, frm->call_sequ);
+        }
+        if (is_var_e(s.rhs)) {
+            prepend_unique_var_e(s.rhs, frm->call_sequ);
+        }
         vec_push_back(frm->G, &s);
 
     } else if (is_atom_e(e)) {//dead code
@@ -540,6 +403,9 @@ void add_frame_exprs(frame* frm, expr* e, int* call_sequ) {
             s.rhs = malloc(sizeof(expr));
            *s.lhs = make_var_e(decomp_name(call_sequ, &i));
            *s.rhs = copy_expr(vec_at(params, i));
+            if (is_var_e(s.rhs)) {
+                prepend_unique_var_e(s.rhs, frm->call_sequ);
+            }
             vec_push_back(frm->G, &s);
         }
         frame_call f;
@@ -550,6 +416,14 @@ void add_frame_exprs(frame* frm, expr* e, int* call_sequ) {
         vec_push_back(frm->next_calls, &f);
         (*call_sequ)++;
     }
+}
+
+void prepend_unique_var_e(expr* vr, int call_sequ) {
+    var* subject = &vr->e.a.data.vr;
+    char* old = strdup(subject->symbol);
+    subject->symbol = realloc(subject->symbol, sizeof(char) * (3+digits(call_sequ)+strlen(old)));//V_x_name
+    sprintf(subject->symbol, "V_%i_%s", call_sequ, old);
+    free(old);
 }
 
 vector* duplicate_G(vector* G) {
@@ -586,12 +460,26 @@ substitution* get_sub_frm_i(frame* frm, int call_no, int var_no) {
         substitution* sub = vec_at(frm->G, g);
         if (is_var_e(sub->lhs)) {
             char* name = sub->lhs->e.a.data.vr.symbol;
-            if (strlen(name) > 4 &&
-                name[2] == call_no+48 &&
-                name[4] ==  var_no+48
-               ) {//D_x_y
+            ///D_x_y
+            if (strlen(name) < 3) return NULL;
+            name += 2;//move to first num
+            char* end = NULL;
+            int this_call = strtol(name, &end, 10);
+            name = end;
+            end++;//move to second num
+            char* end2 = NULL;
+            int this_var = strtol(end, &end2, 10);
+
+            if (this_call == call_no && this_var == var_no) {
                 return sub;
             }
+
+            //if (strlen(name) > 4 &&
+            //    name[2] == call_no+48 &&
+            //    name[4] ==  var_no+48
+            //   ) {//D_x_y
+            //    return sub;
+            //}
         }
     }
     return NULL;
@@ -795,6 +683,7 @@ vector* head_results(frame* frm, function* f) {
     for (int i = 0; i < vec_size(f->params); i++) {
         atom* atm = vec_at(f->params, i);
         expr ex = {.type = e_atom, .e.a = *atm};
+        if (is_var_e(&ex)) prepend_unique_var_e(&ex, 0);
         for (int g = 0; g < vec_size(frm->G); g++) {
             equality* eq = vec_at(frm->G, g);
             //at this point, only vars should be on the lhs

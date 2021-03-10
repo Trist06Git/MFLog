@@ -59,5 +59,12 @@ loop(X, R) :-
     Step is X - 1,
     loop(Step, R).
 
+bad_loop(3).
+bad_loop(X) :-
+  write(X),
+  Step is X + 1,
+  bad_loop(Step).
+
 main(R) :-
-    loop(3, R).
+    R = 0,
+    bad_loop(R).

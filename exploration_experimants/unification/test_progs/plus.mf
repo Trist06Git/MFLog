@@ -2,21 +2,26 @@
 //main(r) =
 //  3 = r + 2.
 
-loop(3, 3).
-loop(x, r) =
-  print(x),
-  step = x + 1,
-  print(step),
-  loop(step, r).
-
-//loop(5).
-//loop(x) =
-//  print(x),
-//  step = x + 1,
-//  loop(step).
-
+//loop(3, 3).
+//loop(x, r) =
+//  printnl(x),
+//  //step = x + 1,
+//  plus(x, 1, step),
+//  loop(step, r).
+//
 //main(r) =
 //  loop(0, r).
+
+loop(100).
+loop(x) =
+  print(x),
+  //step = x + 1,
+  plus(x, 1, step),
+  loop(step).
+
+main(r) =
+  loop(0), nl(r),
+  r = 5.
 
 printnl(x) =
   print(x), nl(x).
@@ -27,5 +32,5 @@ printnl(x) =
 
 //main(r) =
 //  1 = r + 3.
-main(r) =
-  3 = r + 1.
+//main(r) =
+//  3 = r + 1.

@@ -39,6 +39,7 @@ frame* init_frame(function*, fcall*, frame* prev_frm, vector* globals, int* glob
 void free_frame(frame*);
 void add_frame_exprs(frame*, expr*, int* call_sequ);
 void rec_add_expr(frame*, expr*, int* call_sequ);//old
+void prepend_unique_var_e(expr* vr, int call_sequ);
 vector* duplicate_G(vector* G);
 void free_G(vector* G);
 substitution* get_sub_frm(frame*, expr* var);
