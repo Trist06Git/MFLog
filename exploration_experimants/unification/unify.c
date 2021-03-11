@@ -149,13 +149,14 @@ outcome unify_substitutions(frame* frm) {
     frm->changes = false;
     //Swap has been moved into eliminate
     //then eliminate
-    eliminate(frm);
+    outcome res = eliminate(frm);
+    if (res == o_fail) return o_fail;
     //decompose tuples
     decompose(frm);
     //then delete 
     delete_g(frm);
     //then conflict
-    outcome res = conflict(frm);
+    res = conflict(frm);
     
 #ifdef UNIFY_DEBUG
     printf("DEBUG :: %s-%i : After unify:\n", frm->fname, frm->call_sequ);
@@ -231,7 +232,7 @@ outcome unify(frame* frm, vector* func_defs_cp, vector* globals, int* call_sequ)
 #endif
                 //try next perm
                 free_frame(next_frm);
-                //NOTE, may not need to clean G here.
+                //NOTE, may not need to clean G here.. seems faster if we do clean..
                 free_G(frm->G);
                 frm->G = duplicate_G(frm->G_clean);
                 break;
@@ -574,21 +575,31 @@ void equ_eliminate(expr* equ_ch, const expr* var, const expr* val) {
 }
 
 //maybe add an early conflict check for a small speed boost??
-void eliminate(frame* frm) {
+outcome eliminate(frame* frm) {
     for (int g = 0; g < vec_size(frm->G); g++) {
         substitution* sub = vec_at(frm->G, g);
         swap_substitution(sub);
         expr* sub_var = sub->lhs;
         expr* sub_val = sub->rhs;
-        if (is_var_e(sub_var)) {
+        if (is_var_e(sub_var) && is_val_e(sub_val)) {
             //eliminate in G
             for (int g2 = 0; g2 < vec_size(frm->G); g2++) {
                 if (g2 == g) continue;//skip self
                 substitution* g2_sub = vec_at(frm->G, g2);
+                
+
+
                 if (is_var_e(g2_sub->lhs) && compare_atoms_e(g2_sub->lhs, sub_var)) {
+                    //check for early conflict
+                    if (is_val_e(sub_var) && is_val_e(g2_sub->rhs) && !compare_atoms_e(g2_sub->rhs, sub_var)) {
+                        return o_fail;
+                    }
                     //they are the same, so substitute
                     free_expr(g2_sub->lhs);
                    *g2_sub->lhs = copy_expr(sub_val);
+                    if (compare_atoms_e(g2_sub->lhs, g2_sub->rhs)) {
+                        vec_remove_at(frm->G, g2); g2--;
+                    }
                     frm->changes = true;
                 } else if (is_tuple_e(g2_sub->lhs)) {
                     tuple_eliminate(&g2_sub->lhs->e.t, sub_var, sub_val, frm);
@@ -621,6 +632,7 @@ void eliminate(frame* frm) {
             //changes
         }
     }
+    return o_pass;
 }
 
 void double_list_eliminate(list* lst1, list* lst2, frame* frm) {

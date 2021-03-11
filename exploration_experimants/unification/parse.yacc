@@ -296,6 +296,8 @@ Fcall : WORD LP_ROUND Expr_params RP_ROUND {
     fc.name = $1;
     if (strcmp(fc.name, "plus") == 0) {
         fc.type = f_builtin;
+    } else {
+        fc.type = f_user;
     }
     fc.params = $3;
     $$ = fc;

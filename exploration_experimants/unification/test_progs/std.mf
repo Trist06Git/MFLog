@@ -1,0 +1,10 @@
+//standard library
+
+printnl(x) =
+  print(x), nl(x).
+
+println(x) = //convenience nl vs ln
+  printnl(x).
+
+minus(a, b, r) = // 2 - 1 = 1
+  plus(r, b, a). // 1 + 1 = 2

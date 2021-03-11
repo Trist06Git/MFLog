@@ -12,19 +12,30 @@
 //main(r) =
 //  loop(0, r).
 
-loop(100).
+//loop(5).
+//loop(x) =
+//  printnl(x),
+//  //step = x + 1,
+//  plus(x, 1, step),
+//  loop(step).
+//
+//main(r) =
+//  loop(0), nl(r),
+//  r = 5.
+
+loop(0).
 loop(x) =
+  minus(x, 1, step),
   print(x),
-  //step = x + 1,
-  plus(x, 1, step),
   loop(step).
 
 main(r) =
-  loop(0), nl(r),
-  r = 5.
+  loop(100),
+  r = 1,
+  nl(r).
 
-printnl(x) =
-  print(x), nl(x).
+//main(r) =
+//  my_minus(2, 1, r).
 
 //sort of works, fix explication.
 //main(r) =

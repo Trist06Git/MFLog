@@ -4,13 +4,14 @@ LL = lex
 YY = yacc
 WARNS = -Wreturn-type
 DEBUG_FLAGS = #-DUNIFY_DEBUG
+OPTIMISATIONS = -O3
 C_LIBS = y.tab.c lex.yy.c internal_struct.c generic_vector.c generic_map.c\
          mlog_array.c utils.c explication.c unify.c builtin_calls.c debug_stuff.c
 
 .PHONY: run clean
 
 all: objs
-	$(CC) $(WARNS) *.o main.c -o build.bin
+	$(CC) $(WARNS) $(OPTIMISATIONS) *.o main.c -o build.bin
 
 run: all
 	./build.bin
@@ -26,7 +27,7 @@ debug: yaccify lexify $(C_LIBS)
 
 objs: yaccify lexify $(C_LIBS)
 	#$(CC) $(WARNS) -c $(C_LIBS)
-	$(CC) $(WARNS) $(DEBUG_FLAGS) -c $(C_LIBS)
+	$(CC) $(WARNS) $(OPTIMISATIONS) $(DEBUG_FLAGS) -c $(C_LIBS)
 
 lexify: yaccify tokens.lex
 	$(LL) tokens.lex

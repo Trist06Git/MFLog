@@ -62,8 +62,35 @@ int main(int argc, char** argv) {
         }
     }
     if (verbose > 0) printf("Starting.\n");
-    if (optind < argc) filename_path = argv[argc-1];
-    if (filename_path != NULL) {
+    
+    vector* files = new_vector(1, sizeof(char*));
+    while (optind < argc) {
+        //filename_path = argv[argc-1];
+        vec_push_back(files, &argv[optind]);
+        optind++;
+    }
+    
+    if (verbose > 0) printf("Initialising.\n");
+    init();
+    if (vec_size(files) > 0) {
+        for (int i = 0; i < vec_size(files); i++) {
+            char** filename = vec_at(files, i);
+            FILE* file = fopen(*filename, "r");
+            if (file == NULL) {
+                printf("Error, could not open file %s:\n  %s\n", *filename, strerror(errno));
+                return EXIT_FAILURE;
+            }
+            yyin = file;
+            if (verbose > 0) printf("Parsing/Lexing: %s\n", *filename);
+            yyparse();
+            fclose(file);
+        }
+        
+    } else if (verbose > 0) {
+        printf("Entering inspection mode\n");
+    }
+
+    /*if (filename_path != NULL) {
         if (verbose > 0) printf("Loading file : %s\n", filename_path);
         FILE* file = fopen(filename_path, "r");
         if (file == NULL) {
@@ -74,13 +101,7 @@ int main(int argc, char** argv) {
         //WARN. file not closed yet.
     } else if (verbose > 0) {
         printf("Entering inspection mode\n");
-    }
-
-    if (verbose > 0) printf("Initialising.\n");
-    init();
-    if (verbose > 0) printf("Parsing/Lexing.\n");
-    yyparse();
-    //close file here?
+    }*/
 
     //decomposing equs in globals
     //pretty bad, needs rewrite
@@ -221,10 +242,10 @@ void init(void) {
     vec_push_back(c_plus.functions, &f_plus);
     vec_push_back(func_defs_cp, &c_plus);
     
-    choice_point c_minus;
-    c_minus.functions = new_vector(1, sizeof(function));
-    vec_push_back(c_minus.functions, &f_minus);
-    vec_push_back(func_defs_cp, &c_minus);
+//    choice_point c_minus;
+//    c_minus.functions = new_vector(1, sizeof(function));
+//    vec_push_back(c_minus.functions, &f_minus);
+//    vec_push_back(func_defs_cp, &c_minus);
 
     choice_point c_print;
     c_print.functions = new_vector(1, sizeof(function));

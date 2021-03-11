@@ -48,7 +48,7 @@ void decompose(frame*);
 void swap_substitution(substitution*);
 void delete_g(frame*);
 outcome conflict(frame*);
-void eliminate(frame*);
+outcome eliminate(frame*);
 void double_list_eliminate(list* lst1, list* lst2, frame*);
 void list_eliminate(list*, const expr* var, const expr* val, frame*);
 void tuple_eliminate(tuple*, const expr* var, const expr* val, frame*);

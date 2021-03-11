@@ -1,0 +1,48 @@
+succ(a,b) = a = 0, b = 1.
+succ(a,b) = a = 1, b = 2.
+succ(a,b) = a = 2, b = 3.
+succ(a,b) = a = 3, b = 4.
+succ(a,b) = a = 4, b = 5.
+succ(a,b) = a = 5, b = 6.
+succ(a,b) = a = 6, b = 7.
+succ(a,b) = a = 7, b = 8.
+succ(a,b) = a = 8, b = 9.
+
+//NOTE, there is a problem while parsing facts
+//succ as raw facts seems to skip succ(5, 6)
+
+s_lt(X, Y) =
+  succ(X, Y).
+s_lt(X, Z) =
+  succ(X, Y),
+  s_lt(Y, Z).
+
+s_plus(0, Y, Y).
+s_plus(X, Y, Z) =
+  succ(XX,X), 
+  succ(Y,YY),
+  s_plus(XX,YY,Z).
+
+times(0, Y, 0).
+times(X, Y, Z) = 
+  succ(XX,X), 
+  times(XX, Y, ZZ),
+  s_plus(Y,ZZ,Z). 
+
+//main(result) =
+//  s_plus(2, 3, result),
+
+//main(result) =
+//  s_plus(2, 3, inter),
+//  s_plus(inter, 4, result).
+
+//main(1) =
+//  s_lt(0, 9).
+
+main(r) =
+  times(2, 3, r).
+
+//main(result) =
+//  s_plus(3,1,inter),
+//  times(inter,2,result),
+//  print(result).
