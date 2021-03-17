@@ -2,13 +2,14 @@
 #include <string.h>
 
 #include "builtin_calls.h"
+#include "internal_struct.h"
 #include "utils.h"
 #include "debug_stuff.h"
 
 substitution make_uni_sub(int call_sequ, int param_sequ) {
     substitution s;
     s.lhs = malloc(sizeof(expr));
-   *s.lhs = make_var_e(decomp_name(&call_sequ, &param_sequ));
+   *s.lhs = make_var_e(make_decomp_s(call_sequ, param_sequ));
     s.rhs = malloc(sizeof(expr));
     return s;
 }
@@ -48,12 +49,12 @@ outcome integer_builtin(fcall* fc, frame* frm, int call_sequ) {
 outcome ltgt_builtin(fcall* fc, frame* frm, int call_sequ) {
     int zero = 0;
     int one  = 1;
-    expr param1 = make_var_e(decomp_name(&call_sequ, &zero));
-    expr param2 = make_var_e(decomp_name(&call_sequ, &one));
+    expr param1 = make_var_e(make_decomp_s(call_sequ, zero));
+    expr param2 = make_var_e(make_decomp_s(call_sequ, one));
     substitution* s1 = get_sub_frm(frm, &param1);
     substitution* s2 = get_sub_frm(frm, &param2);
-    free(param1.e.a.data.vr.symbol);
-    free(param2.e.a.data.vr.symbol);
+    free_expr(&param1);
+    free_expr(&param2);
     if (s1 == NULL || s2 == NULL) {
         printf("Error. \"<\" & \">\" need 2 operands.\n");
         return o_fail;
@@ -104,11 +105,11 @@ outcome ltgt_builtin(fcall* fc, frame* frm, int call_sequ) {
 
 outcome print_builtin(fcall* fc, frame* frm, int call_sequ) {
     int zero = 0;
-    expr param = make_var_e(decomp_name(&call_sequ, &zero));
+    expr param = make_var_e(make_decomp_s(call_sequ, zero));
     substitution* s = get_sub_frm(frm, &param);
-    free(param.e.a.data.vr.symbol);
+    free_expr(&param);
     if (s == NULL) {
-        printf("Error. \"print\" needs a parameter.\n");
+        printf("Error. \"print-%i\" needs a parameter.\n", call_sequ);
         return o_fail;
     }
 
@@ -137,9 +138,9 @@ outcome print_builtin(fcall* fc, frame* frm, int call_sequ) {
 
 outcome nl_builtin(fcall* fc, frame* frm, int call_sequ) {
     for (int i = 0; ; i++) {
-        expr parami = make_var_e(decomp_name(&call_sequ, &i));
+        expr parami = make_var_e(make_decomp_s(call_sequ, i));
         substitution* s = get_sub_frm(frm, &parami);
-        free(parami.e.a.data.vr.symbol);
+        free_expr(&parami);
         if (i == 0 && s == NULL) {
             printf("\n");
             return o_pass;
@@ -165,11 +166,8 @@ outcome plus_builtin(fcall* fc, frame* frm, int call_sequ) {
     substitution* sX = get_sub_frm_i(frm, call_sequ, 0);
     substitution* sY = get_sub_frm_i(frm, call_sequ, 1);
     substitution* sR = get_sub_frm_i(frm, call_sequ, 2);
-    expr* X = sX == NULL || is_var_e(sX->rhs) ? NULL : sX->rhs;
-    expr* Y = sY == NULL || is_var_e(sY->rhs) ? NULL : sY->rhs;
-    expr* R = sR == NULL || is_var_e(sR->rhs) ? NULL : sR->rhs;
 #ifdef UNIFY_DEBUG
-    printf("DEBUG :: print : print called with:\n");
+    printf("DEBUG :: plus : print called with:\n");
     if (sX != NULL) {
         dump_expr(*sX->lhs, false);printf(" = ");dump_expr(*sX->rhs, false);nl;
     }
@@ -182,88 +180,73 @@ outcome plus_builtin(fcall* fc, frame* frm, int call_sequ) {
 #endif
 
 
-    if (X != NULL && Y != NULL && R != NULL) {
+    if (is_int_e(sX->rhs) && is_int_e(sY->rhs) && is_int_e(sR->rhs)) {
         //check
 #ifdef UNIFY_DEBUG
                 printf("DEBUG :: plus : checking:\n");
                 printf("%i + %i == %i ; ans:%i\n",
-                    X->e.a.data.vl.v.i,
-                    Y->e.a.data.vl.v.i,
-                    R->e.a.data.vl.v.i,
-                    X->e.a.data.vl.v.i + Y->e.a.data.vl.v.i
+                    sX->rhs->e.a.data.vl.v.i,
+                    sY->rhs->e.a.data.vl.v.i,
+                    sR->rhs->e.a.data.vl.v.i,
+                    sX->rhs->e.a.data.vl.v.i + sY->rhs->e.a.data.vl.v.i
                 );
 #endif
-        if (is_int_e(X) && is_int_e(Y) && is_int_e(R)) {
-            if (X->e.a.data.vl.v.i + Y->e.a.data.vl.v.i == R->e.a.data.vl.v.i) {
-
-                return o_pass;
-            }
+        if (sX->rhs->e.a.data.vl.v.i + sY->rhs->e.a.data.vl.v.i == sR->rhs->e.a.data.vl.v.i) {
+            return o_pass;
         }
 #ifdef UNIFY_DEBUG
         printf("DEBUG :: plus : returned as a failure\n");
 #endif
         return o_fail;
 
-    } else if (X != NULL && Y != NULL && R == NULL) {
+    } else if (is_int_e(sX->rhs) && is_int_e(sY->rhs) && is_var_e(sR->rhs)) {
         ///regular x + y = r
         //result var
-        substitution s1 = make_uni_sub(call_sequ, 2);
-       *s1.rhs = make_int_e(X->e.a.data.vl.v.i + Y->e.a.data.vl.v.i);
-        vec_push_back(frm->G, &s1);
-        //passed var
-        substitution s2 = make_uni_sub(call_sequ, 2);
-       *s2.rhs = *s2.lhs;
-       *s2.lhs = copy_expr(vec_at(fc->params, 2));
-        prepend_unique_var_e(s2.lhs, call_sequ);
-        vec_push_back(frm->G, &s2);
+        substitution s;
+        s.lhs = malloc(sizeof(expr));
+        s.rhs = malloc(sizeof(expr));
+       *s.lhs = copy_expr(sR->rhs);
+       *s.rhs = make_int_e(sX->rhs->e.a.data.vl.v.i + sY->rhs->e.a.data.vl.v.i);
+        vec_push_back(frm->G, &s);
+
 #ifdef UNIFY_DEBUG
-        printf("DEBUG :: plus : successful and returning : %i eg:\n", s1.rhs->e.a.data.vl.v.i);
-        expr sub1 = {.type = e_equ, .e.e = s1};
-        expr sub2 = {.type = e_equ, .e.e = s2};
+        printf("DEBUG :: plus : successful and returning : %i eg:\n", s.rhs->e.a.data.vl.v.i);
+        expr sub1 = {.type = e_equ, .e.e = s};
         dump_expr(sub1, true); nl;
-        dump_expr(sub2, true); nl;
 #endif
         return o_pass;
 
-    } else if (X != NULL && Y == NULL && R != NULL) {
+    } else if (is_int_e(sX->rhs) && is_var_e(sY->rhs) && is_int_e(sR->rhs)) {
         ///subtraction y = r - x
         //result var
-        substitution s = make_uni_sub(call_sequ, 1);
-       *s.rhs = make_int_e(R->e.a.data.vl.v.i - X->e.a.data.vl.v.i);
+        substitution s;
+        s.lhs = malloc(sizeof(expr));
+        s.rhs = malloc(sizeof(expr));
+       *s.lhs = copy_expr(sY->rhs);
+       *s.rhs = make_int_e(sR->rhs->e.a.data.vl.v.i - sX->rhs->e.a.data.vl.v.i);
         vec_push_back(frm->G, &s);
-        //passed var
-        substitution s2 = make_uni_sub(call_sequ, 1);
-       *s2.rhs = *s2.lhs;
-       *s2.lhs = copy_expr(vec_at(fc->params, 1));
-        prepend_unique_var_e(s2.lhs, call_sequ);
-        vec_push_back(frm->G, &s2);
+
 #ifdef UNIFY_DEBUG
         printf("DEBUG :: plus : successful and returning : %i\n", s.rhs->e.a.data.vl.v.i);
         expr sub1 = {.type = e_equ, .e.e = s};
-        expr sub2 = {.type = e_equ, .e.e = s2};
         dump_expr(sub1, true); nl;
-        dump_expr(sub2, true); nl;
 #endif
         return o_pass;
 
-    } else if (X == NULL && Y != NULL && R != NULL) {
+    } else if (is_var_e(sX->rhs) && is_int_e(sY->rhs) && is_int_e(sR->rhs)) {
         ///subtraction x = r - y
         //result var 
-        substitution s = make_uni_sub(call_sequ, 0);
-       *s.rhs = make_int_e(R->e.a.data.vl.v.i - Y->e.a.data.vl.v.i);
+        substitution s;
+        s.lhs = malloc(sizeof(expr));
+        s.rhs = malloc(sizeof(expr));
+       *s.lhs = copy_expr(sX->rhs);
+       *s.rhs = make_int_e(sR->rhs->e.a.data.vl.v.i - sY->rhs->e.a.data.vl.v.i);
         vec_push_back(frm->G, &s);
-        //passed var
-        substitution s2 = make_uni_sub(call_sequ, 0);
-       *s2.rhs = *s2.lhs;
-       *s2.lhs = copy_expr(vec_at(fc->params, 0));
-        prepend_unique_var_e(s2.lhs, call_sequ);
-        vec_push_back(frm->G, &s2);
+
 #ifdef UNIFY_DEBUG
         printf("DEBUG :: plus : successful and returning : %i\n", s.rhs->e.a.data.vl.v.i);
         expr sub1 = {.type = e_equ, .e.e = s};
-        expr sub2 = {.type = e_equ, .e.e = s2};
         dump_expr(sub1, true); nl;
-        dump_expr(sub2, true); nl;
 #endif
         return o_pass;
 
@@ -271,9 +254,9 @@ outcome plus_builtin(fcall* fc, frame* frm, int call_sequ) {
 #ifdef UNIFY_DEBUG
         printf("Info. Sorry that permutation of \"+\" operands has not yet been implemented.\n");
         printf("Namely:\n");
-        printf("X = "); if (X==NULL) {printf("NULL");} else {dump_expr(*X, false);} nl;
-        printf("Y = "); if (Y==NULL) {printf("NULL");} else {dump_expr(*Y, false);} nl;
-        printf("R = "); if (R==NULL) {printf("NULL");} else {dump_expr(*R, false);} nl;
+        dump_expr(*sX->lhs, true);printf(" = ");dump_expr(*sX->rhs, false);nl;
+        dump_expr(*sY->lhs, true);printf(" = ");dump_expr(*sY->rhs, false);nl;
+        dump_expr(*sR->lhs, true);printf(" = ");dump_expr(*sR->rhs, false);nl;
 #endif
         //return o_undet;
         return o_fail;

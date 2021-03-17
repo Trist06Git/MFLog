@@ -1,16 +1,23 @@
+%define api.prefix {func}
+//%code provides {
+//    #define YY_DECL int funclex (FUNCSTYPE *yylval, FUNCLTYPE *yylloc)
+//    YY_DECL;
+//}
+
 %{
     #include <stdio.h>
     #include <string.h>
     #include <stdbool.h>
     #include "internal_struct.h"
     #include "generic_vector.h"
+    #include "generic_map.h"
     #include "mlog_array.h"
     #include "utils.h"
 
     #include "debug_stuff.h"
 
-    int yydebug = 1;
-    extern int line_number;
+    int funcdebug = 1;
+    extern int func_line_number;
 
     int unique = 0;
     bool unique_match = false;
@@ -19,6 +26,7 @@
     extern int flag;
     extern vector* func_defs;
     extern vector* global_defs;
+    extern map* global_symbol_table;
     extern fcall fc_div;
     extern fcall fc_mul;
     extern fcall fc_plus;
@@ -30,11 +38,11 @@
     extern fcall fc_gt;
     vector* ps = NULL;
     mf_array* ls = NULL;
+    map* symbol_table = NULL;
 
-    int yylex(void);
-    void yyerror(char*);
+    int funclex(void);
+    void funcerror(char*);
 %}
-
 
 %start Program
 
@@ -103,21 +111,33 @@
 %token CONS_LIST
 %token APP_LIST
 %token AND_LIST
+%token WILD_VAR
 
 %%
 
 Program : Func_def
-        | Func_def Program
-        | Fact     Program
-        | Global   Program
+        | Func_def       Program
+        | Fact           Program
+        | error Program { yyerrok; }
         ;
 
-Global : Atom_left_equ END {
-    //expr ex = {.type = e_equ, .e.e = $1};
-    vec_push_back(global_defs, &$1);
-};
+//Global : Atom_left_equ END {
+//    //vec_push_back(global_defs, &$1);
+//    //skip
+//};
 
 Func_def : Func_head Exprs END {
+    //reset symbol_table for local scope
+    if (symbol_table != NULL) {
+        for (int i = 0; i < map_size(symbol_table); i++) {
+            pair* kv = map_at_index(symbol_table, i);
+            char** str = kv->fst;
+            free(*str);
+        }
+        free_map(symbol_table);
+        symbol_table = NULL;
+    }
+    
     function f = $1;
     f.type = fd_func;
     f.e.type = e_and;
@@ -288,7 +308,7 @@ Fbuiltin_ans : Answer_count Fbuiltin {
     fcall fc = $2;
     fc.res_set = $1;
     $$ = fc;
-}
+};
 
 Fcall : WORD LP_ROUND Expr_params RP_ROUND {
     fcall fc;
@@ -307,7 +327,7 @@ Fcall_ans : Answer_count Fcall {
     fcall fc = $2;
     fc.res_set = $1;
     $$ = fc;
-}
+};
 
 Val
     : NUMBER {
@@ -330,13 +350,45 @@ Val
     }
     ;
 
-Var : WORD {
-    var v;
-    v.symbol = malloc(sizeof(char)*strlen($1)+1);
-    memcpy(v.symbol, $1, strlen($1)+1);
-    v.symbol[strlen($1)] = 0;
-    $$ = v;
-};
+Var
+    : WORD {
+        if (symbol_table == NULL) {
+            symbol_table = new_map(sizeof(char*), sizeof(int));
+            set_fst_comparator(symbol_table, string_compare);
+            set_snd_comparator(symbol_table, byte_compare);
+        }
+        char* debug_test = $1;
+
+        var v;
+        v.symbol.type = s_var;
+        v.symbol.scope = -1;
+
+        int* found_num = snd(symbol_table, &debug_test);
+        if (found_num == NULL) {
+            found_num = snd(global_symbol_table, &debug_test);
+            if (found_num == NULL) {
+                //first occurance
+                char* name = strdup($1);
+                int num = map_size(symbol_table);
+                map_add(symbol_table, &name, &num);
+                v.symbol.num = num;
+                v.symbol.scope = -1;
+            } else {
+                //found in globals
+                v.symbol.scope = 0;
+                v.symbol.num = *found_num;
+            }
+        } else {
+            v.symbol.num = *found_num;
+        }
+        $$ = v;
+    }
+    | WILD_VAR {
+        var v;
+        v.symbol.type = s_wild;
+        $$ = v;
+    }
+    ;
 
 Atom
     : Var {
@@ -404,7 +456,7 @@ Answer_count : FST_ANS { $$ = rs_first; }
 
 %%
 
-void yyerror(char* s) {
-    printf("Error, %s\nOn line %i.\n", s, line_number);
+void funcerror(char* s) {
+    printf("Error, %s : On line %i. funcerror()\n", s, func_line_number);
     flag = 1;
 }

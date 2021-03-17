@@ -257,3 +257,21 @@ main() =
   print(p),
   print(" is "),
   printnl(a).
+
+////back to lists/cons
+f([0;1;2]) = 1.
+g([1;2])   = 1.
+
+main() =
+  lst = [1;2],
+  x = 0::lst, 
+  return = f(x) = g(lst).
+
+    |         |
+    V         V
+main(return) =
+  lst = [1;2],
+  x = U_0,
+  cons(0, lst),
+  f(x, return),
+  g(lst, return).

@@ -22,14 +22,14 @@
 //called var names from main are
 //leaking into f's scope via the list
 //Next todo. :done, i think..
-main(r) =
-  r = f([x;y]),
-  x = 1, y = 2,
-  print(x).
-
-f(a, return) =
-  a = [1;2],
-  return = a.
+//main(r) =
+//  r = f([x;y]),
+//  x = 1, y = 2,
+//  printnl(x).
+//
+//f(a, return) =
+//  a = [1;2],
+//  return = a.
 
 //main(r) =
 //  r = f(1).
@@ -112,3 +112,74 @@ f(a, return) =
 //  one integer(r),
 //  first integer(0),
 //  one integer(778864).
+
+//main(r) =
+//  [r;2] = [1;2].
+
+//main(r) =
+//  [1;2] = x,
+//  r = 1.
+
+//main(r) =
+//  x = [1;2],
+//  x = [r;2].
+
+//seems fine, no var leak/clash
+//main(r) =
+//  x = [a;b],
+//  r = f(x),
+//  a = 2,
+//  b = 1.
+//
+////come back here latter to investigate  a = a.
+//f(l) =
+//  a = 1, a = a,
+//  b = 2, b = b,
+//  return = 3.
+
+//lst = [1;2].
+//
+//main() =
+//  r = f(lst).
+//
+//f([1;2]) = 1.
+
+//main() =
+//  r = match_2([2;2;3], 2).
+//
+//match_2(lst, x) =
+//  lst = [x; x; _],
+//  return = 1.
+
+//main() =
+//  [1;2] = [3;4],
+//  r = 1.
+
+//main() = 
+//  [1;2] = [1;2],
+//  r = 1.
+
+//main() =
+//  [r; 2] = [1; 2].
+
+//main(r) =
+//  r = [1],
+//  r = [1].
+
+//main() =
+//  [return; _] = switch_l2([1;2]).
+
+main() =
+  [return; _; _] = switch_l2([1;2;3]).
+
+switch_l2([a;b]  , [b;a]  ).
+switch_l2([a;b;_], [b;a;_]).
+
+//switch_l2([a;b]) =
+//  return = [b;a].
+
+//main() =
+//  r = lst_match([1;2]).
+//
+//lst_match([_]) = 1.
+//lst_match([_;2]) = 2.

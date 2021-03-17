@@ -11,21 +11,19 @@
 
 extern fcall fc_main;
 
-//#define UNIFY_DEBUG
-
-void entry(vector* func_defs_cp, vector* globals) {
+void entry(vector* func_defs_cp, vector* globals, bool verbose_return) {
     choice_point* main_cp = get_cpoint_na(func_defs_cp, "main", 1);
     if (main_cp == NULL) {
         printf("Error. Could not find a main with arity 1.\n  >1 arity not yet supported.\n");
         return;
     }
 
-    int global_call_sequ = 1;
+    int global_call_sequ = 2;
     function* main_f = vec_at(main_cp->functions, 0);
-    frame* first_frame = init_frame(main_f, &fc_main, NULL, globals, &global_call_sequ, 0);
+    frame* first_frame = init_frame(main_f, &fc_main, NULL, globals, &global_call_sequ, 1);
     outcome entry_res = unify(first_frame, func_defs_cp, globals, &global_call_sequ);
 
-    if (entry_res == o_pass) {
+    if (verbose_return && entry_res == o_pass) {
         printf("\"main\" returned a pass, with answers:\n");
         vector* res = head_results(first_frame, main_f);
         for (int i = 0; i < vec_size(res); i++) {
@@ -33,27 +31,15 @@ void entry(vector* func_defs_cp, vector* globals) {
             dump_expr(*r, true);
             printf("\n");
         }
-    } else if (entry_res == o_answers) {
+    } else if (verbose_return && entry_res == o_answers) {
         printf("\"main\" returned a pass, with no answers.\n");
-    } else if (entry_res == o_undet) {
+    } else if (verbose_return && entry_res == o_undet) {
         printf("\"main\" returned but its results could not be determined.\n");
-    } else if (entry_res == o_fail) {
+    } else if (verbose_return && entry_res == o_fail) {
         printf("\"main\" returned with a failure.\n");
     }
 
     free_frame(first_frame);
-}
-
-bool is_list_instantiated_e(expr* e) {
-    list* lst = &e->e.a.data.vl.v.l;
-    if (!lst->has_vars) return true;
-    mf_array* arr = lst->lst;
-    for (int i = 0; i < mfa_card(arr); i++) {
-        expr* ei = mfa_at(arr, i);
-        if (is_var_e(ei)) return false;
-    }
-    lst->has_vars = false;
-    return true;
 }
 
 #define CONSOLIDATE_DEBUG
@@ -124,11 +110,13 @@ outcome call(frame_call* frc, frame* prev_frm, frame* next_frm, vector* func_def
 #ifdef UNIFY_DEBUG
         printf("DEBUG :: Calling builtin \"%s\"\n", fc.name);
 #endif
-        frame dummy_frame;
-        dummy_frame.G = new_vector(0, 1);
-        dummy_frame.G_clean = new_vector(0, 1);
-        dummy_frame.next_calls = new_vector(0, 1);
+        frame dummy_frame = {
+            .G = new_vector(0, 1),
+            .G_clean = new_vector(0, 1),
+            .next_calls = new_vector(0, 1)
+        };
        *next_frm = dummy_frame;/// <-- pretty bad..
+        
         return call_builtin(&fc, prev_frm, frc->call_sequence);//only first answer for now
     } else if (f_cp == NULL) {
         //func not found
@@ -154,9 +142,9 @@ outcome unify_substitutions(frame* frm) {
     //decompose tuples
     decompose(frm);
     //then delete 
-    delete_g(frm);
+    //delete_g(frm);
     //then conflict
-    res = conflict(frm);
+    //res = conflict(frm);
     
 #ifdef UNIFY_DEBUG
     printf("DEBUG :: %s-%i : After unify:\n", frm->fname, frm->call_sequ);
@@ -175,7 +163,7 @@ bool incr_cp_counts(frame* frm, vector* func_defs_cp) {
         //if (fc->fc.type == f_builtin) continue;
         int cp_count = get_cp_count(func_defs_cp, &fc->fc);
         if (cp_count == -1) {
-            printf("EXPLOSION!!!\n");
+            printf("EXPLOSION!!! Details: %s in %s\n", fc->fc.name, frm->fname);
             return false;
         }
         if (fc->cp_count < cp_count-1) {
@@ -207,10 +195,15 @@ void reset_determined(frame* frm) {
 outcome unify(frame* frm, vector* func_defs_cp, vector* globals, int* call_sequ) {
     //printf("DEBUG :: %s : Before first unify\n", frm->fname);
     //dump_frame(frm);
-    outcome res = unify_substitutions(frm);
+    outcome res = eliminate(frm);
+#ifdef UNIFY_DEBUG
+    printf("DEBUG :: %s-%i : after first eliminate()\n", frm->fname, frm->call_sequ);
+    dump_frame(frm);
+#endif    
     if (res == o_fail) {
 #ifdef UNIFY_DEBUG
-        printf("DEBUG :: %s-%i : unify_substitutions() failed in unify()\n", frm->fname, frm->call_sequ);
+        printf("DEBUG :: %s-%i : eliminate() failed in unify()\n", frm->fname, frm->call_sequ);
+        dump_frame(frm);
 #endif
         return o_fail;
     }
@@ -232,7 +225,7 @@ outcome unify(frame* frm, vector* func_defs_cp, vector* globals, int* call_sequ)
 #endif
                 //try next perm
                 free_frame(next_frm);
-                //NOTE, may not need to clean G here.. seems faster if we do clean..
+                //NOTE, may not need to clean G here.. seems faster if we do clean.. have you tried since enabling optimisations??
                 free_G(frm->G);
                 frm->G = duplicate_G(frm->G_clean);
                 break;
@@ -240,7 +233,7 @@ outcome unify(frame* frm, vector* func_defs_cp, vector* globals, int* call_sequ)
                 //try and consolidate
                 consolidate_frames(frm, next_frm);
                 free_frame(next_frm);
-                res = unify_substitutions(frm);
+                res = eliminate(frm);
                 if (res == o_fail) {
 #ifdef UNIFY_DEBUG
                     printf("DEBUG :: %s-%i : consolidation of successful call failed,\ncleaning G and trying next cp perm\n", frm->fname, frm->call_sequ);
@@ -270,6 +263,18 @@ outcome unify(frame* frm, vector* func_defs_cp, vector* globals, int* call_sequ)
     return res;
 }
 
+void scopify_list_vars(list* lst, int call_sequ) {
+    //bool has_vars = false;
+    for (int i = 0; i < mfa_card(lst->lst); i++) {
+        expr* ei = mfa_at(lst->lst, i);
+        if (is_var_e(ei) && !is_global_var_ve(ei)) {
+            //has_vars = true;
+            ei->e.a.data.vr.symbol.scope = call_sequ;
+        }
+    }
+    //lst->has_vars = has_vars;
+}
+
 //function and globals Can be NULL inwhich their exprs will not be added to the frame
 //this is to be used for builtins 
 frame* init_frame(function* f, fcall* fc, frame* prev_frm, vector* globals, int* global_call_sequ, int this_call_sequ) {
@@ -294,14 +299,20 @@ frame* init_frame(function* f, fcall* fc, frame* prev_frm, vector* globals, int*
     //clash with the caller
     if (f != NULL) for (int p = 0; p < vec_size(f->params); p++) {
         atom param = copy_atom(vec_at(f->params, p));
+        
         substitution call_binds;
         call_binds.lhs = malloc(sizeof(expr));
         call_binds.rhs = malloc(sizeof(expr));
-       *call_binds.lhs = make_var_e(decomp_name(&this_call_sequ, &p));
+       *call_binds.lhs = make_var_e(make_decomp_s(this_call_sequ, p));
        *call_binds.rhs = wrap_atom(param);
-        if (is_var_e(call_binds.rhs)) {
-            prepend_unique_var_e(call_binds.rhs, frm->call_sequ);
+        if (is_var_e(call_binds.rhs) && !is_global_var_ve(call_binds.rhs)) {
+            //prepend_unique_var_e(call_binds.rhs, frm->call_sequ);
+            //bind scope
+            call_binds.rhs->e.a.data.vr.symbol.scope = frm->call_sequ;
+        } else if (!is_list_instantiated_e(call_binds.rhs)) {
+            scopify_list_vars(&call_binds.rhs->e.a.data.vl.v.l, frm->call_sequ);
         }
+        
         vec_push_back(frm->G, &call_binds);
     }
     
@@ -315,9 +326,11 @@ frame* init_frame(function* f, fcall* fc, frame* prev_frm, vector* globals, int*
             list* lst = &p_ex->e.a.data.vl.v.l;
             for (int i = 0; i < mfa_card(lst->lst); i++) {
                 expr* ei = mfa_at(lst->lst, i);
-                if (is_var_e(ei)) {
+                if (is_var_e(ei) && !is_global_var_ve(ei)) {
                     //free ei
-                   *ei = make_var_e(anon_list_name(list_prefix, *global_call_sequ, list_no, arg_no));
+                    //WARNING!!!! lists have not yet been incorperated into the new variable enumeration!!!
+                   //*ei = make_var_e(anon_list_name(list_prefix, *global_call_sequ, list_no, arg_no));
+                    ei->e.a.data.vr.symbol.scope = frm->call_sequ;
                     arg_no++;
                 }
             }
@@ -329,10 +342,12 @@ frame* init_frame(function* f, fcall* fc, frame* prev_frm, vector* globals, int*
             substitution call_bind;
             call_bind.lhs = malloc(sizeof(expr));
             call_bind.rhs = malloc(sizeof(expr));
-           *call_bind.lhs = make_var_e(decomp_name(&this_call_sequ, &p));
+           //*call_bind.lhs = make_var_e(decomp_name(&this_call_sequ, &p));
+           *call_bind.lhs = make_var_e(make_decomp_s(this_call_sequ, p));
            *call_bind.rhs = passed;
-            if (is_var_e(call_bind.rhs)) {
-                prepend_unique_var_e(call_bind.rhs, frm->call_sequ);
+            if (is_var_e(call_bind.rhs) && !is_global_var_ve(call_bind.rhs)) {
+                //prepend_unique_var_e(call_bind.rhs, frm->call_sequ);
+                call_bind.rhs->e.a.data.vr.symbol.scope = frm->call_sequ;
             }
             vec_push_back(frm->G, &call_bind);
         }
@@ -345,14 +360,18 @@ frame* init_frame(function* f, fcall* fc, frame* prev_frm, vector* globals, int*
     }
     //add global scope equations
     if (globals != NULL && prev_frm == NULL) {
-        for (int i = 0; i < vec_size(globals); i++) {
-            expr gls;
-            gls.type = e_and;
-            gls.e.n.ands = globals;
-            add_frame_exprs(frm, &gls, global_call_sequ);
-        }
+        expr gls;
+        gls.type = e_and;
+        gls.e.n.ands = globals;
+        //add_frame_exprs(frm, &gls, global_call_sequ);
+        int zero = 0;
+        add_frame_exprs(frm, &gls, &zero);
     }
     frm->G_clean = duplicate_G(frm->G);
+#ifdef UNIFY_DEBUG
+    printf("DEBUG :: %s : After init_frame()\n", frm->fname);
+    dump_frame(frm);
+#endif
     return frm;
 }
 
@@ -379,12 +398,25 @@ void add_frame_exprs(frame* frm, expr* e, int* call_sequ) {
         }
     } else if (is_equ_e(e)) {//by now all equ chains should have decomposed
         substitution s = copy_equ(&e->e.e);
-        //prepend this frames call_sequ to make the vars unique
+        //add this frames call_sequ to make the vars unique
         if (is_var_e(s.lhs)) {
-            prepend_unique_var_e(s.lhs, frm->call_sequ);
+            if (*call_sequ == 0) {//bad way of signaling globals
+                s.lhs->e.a.data.vr.symbol.scope = 0;
+            } else if (!is_global_var_ve(s.lhs)) {//refactor
+                s.lhs->e.a.data.vr.symbol.scope = frm->call_sequ;
+            }
+        } else if (is_list_e(s.lhs) && !is_list_instantiated_e(s.lhs)) {
+            scopify_list_vars(&s.lhs->e.a.data.vl.v.l, frm->call_sequ);
         }
         if (is_var_e(s.rhs)) {
-            prepend_unique_var_e(s.rhs, frm->call_sequ);
+            //prepend_unique_var_e(s.rhs, frm->call_sequ);
+            if (*call_sequ == 0) {
+                s.rhs->e.a.data.vr.symbol.scope = 0;
+            } else if (!is_global_var_ve(s.rhs)) {//refactor
+                s.rhs->e.a.data.vr.symbol.scope = frm->call_sequ;
+            }
+        } else if (is_list_e(s.rhs) && !is_list_instantiated_e(s.rhs)) {
+            scopify_list_vars(&s.rhs->e.a.data.vl.v.l, frm->call_sequ);
         }
         vec_push_back(frm->G, &s);
 
@@ -399,13 +431,18 @@ void add_frame_exprs(frame* frm, expr* e, int* call_sequ) {
     } else if (is_fcall_e(e)) {
         vector* params = e->e.f.params;
         for (int i = 0; i < vec_size(params); i++) {
+            expr* px = vec_at(params, i);
             substitution s;
             s.lhs = malloc(sizeof(expr));
             s.rhs = malloc(sizeof(expr));
-           *s.lhs = make_var_e(decomp_name(call_sequ, &i));
-           *s.rhs = copy_expr(vec_at(params, i));
-            if (is_var_e(s.rhs)) {
-                prepend_unique_var_e(s.rhs, frm->call_sequ);
+           *s.lhs = make_var_e(make_decomp_s(*call_sequ, i));
+           *s.rhs = copy_expr(px);
+            if (is_var_e(s.rhs) && !is_global_var_ve(s.rhs)) {
+                //prepend_unique_var_e(s.rhs, frm->call_sequ);
+                s.rhs->e.a.data.vr.symbol.scope = frm->call_sequ;
+            } else if (is_list_e(s.rhs) && !is_list_instantiated_e(s.rhs)) {
+                list* lst = &s.rhs->e.a.data.vl.v.l;
+                scopify_list_vars(lst, frm->call_sequ);
             }
             vec_push_back(frm->G, &s);
         }
@@ -417,14 +454,6 @@ void add_frame_exprs(frame* frm, expr* e, int* call_sequ) {
         vec_push_back(frm->next_calls, &f);
         (*call_sequ)++;
     }
-}
-
-void prepend_unique_var_e(expr* vr, int call_sequ) {
-    var* subject = &vr->e.a.data.vr;
-    char* old = strdup(subject->symbol);
-    subject->symbol = realloc(subject->symbol, sizeof(char) * (3+digits(call_sequ)+strlen(old)));//V_x_name
-    sprintf(subject->symbol, "V_%i_%s", call_sequ, old);
-    free(old);
 }
 
 vector* duplicate_G(vector* G) {
@@ -460,20 +489,26 @@ substitution* get_sub_frm_i(frame* frm, int call_no, int var_no) {
     for (int g = 0; g < vec_size(frm->G); g++) {
         substitution* sub = vec_at(frm->G, g);
         if (is_var_e(sub->lhs)) {
-            char* name = sub->lhs->e.a.data.vr.symbol;
-            ///D_x_y
-            if (strlen(name) < 3) return NULL;
-            name += 2;//move to first num
-            char* end = NULL;
-            int this_call = strtol(name, &end, 10);
-            name = end;
-            end++;//move to second num
-            char* end2 = NULL;
-            int this_var = strtol(end, &end2, 10);
-
-            if (this_call == call_no && this_var == var_no) {
-                return sub;
+            symbol_nos name = sub->lhs->e.a.data.vr.symbol;
+            if (name.type == s_decomposed &&
+                name.scope == call_no &&
+                name.num == var_no) {
+                    return sub;
             }
+            //char* name = sub->lhs->e.a.data.vr.symbol;
+            /////D_x_y
+            //if (strlen(name) < 3) return NULL;
+            //name += 2;//move to first num
+            //char* end = NULL;
+            //int this_call = strtol(name, &end, 10);
+            //name = end;
+            //end++;//move to second num
+            //char* end2 = NULL;
+            //int this_var = strtol(end, &end2, 10);
+//
+            //if (this_call == call_no && this_var == var_no) {
+            //    return sub;
+            //}
 
             //if (strlen(name) > 4 &&
             //    name[2] == call_no+48 &&
@@ -574,31 +609,52 @@ void equ_eliminate(expr* equ_ch, const expr* var, const expr* val) {
     }
 }
 
-//maybe add an early conflict check for a small speed boost??
+//g's are pushed in order, so if g > el, it was skipped
+bool vec_contains_g(vector* vec, int g) {
+    for (int i = 0; i < vec_size(vec); i++) {
+        int *el = vec_at(vec, i);
+        if (g == *el)
+            return true;
+        else if (g > *el)
+            return false;
+    }
+    return false;
+}
+
 outcome eliminate(frame* frm) {
+    //prevents O(n*m) deletes
+    vector* deletes = new_vector(0, sizeof(int));
     for (int g = 0; g < vec_size(frm->G); g++) {
         substitution* sub = vec_at(frm->G, g);
         swap_substitution(sub);
         expr* sub_var = sub->lhs;
         expr* sub_val = sub->rhs;
-        if (is_var_e(sub_var) && is_val_e(sub_val)) {
+        if (is_wild_e(sub_var) || is_wild_e(sub_val)) {
+            vec_push_back(deletes, &g);
+            continue;
+        }
+        if (vec_contains_g(deletes, g)) continue;
+        if (is_var_e(sub_var)) {
             //eliminate in G
             for (int g2 = 0; g2 < vec_size(frm->G); g2++) {
                 if (g2 == g) continue;//skip self
                 substitution* g2_sub = vec_at(frm->G, g2);
-                
-
-
+                if (is_wild_e(g2_sub->lhs) || is_wild_e(g2_sub->rhs)) continue;
                 if (is_var_e(g2_sub->lhs) && compare_atoms_e(g2_sub->lhs, sub_var)) {
-                    //check for early conflict
-                    if (is_val_e(sub_var) && is_val_e(g2_sub->rhs) && !compare_atoms_e(g2_sub->rhs, sub_var)) {
-                        return o_fail;
+                    //check for conflict
+                    if (is_val_e(sub_val) && is_val_e(g2_sub->rhs)) {
+                        if (!is_list_e(sub_val) && !is_list_e(g2_sub->rhs) && !compare_atoms_e(g2_sub->rhs, sub_val)) {
+                            free_vector(deletes);
+                            return o_fail;
+                        }
                     }
                     //they are the same, so substitute
                     free_expr(g2_sub->lhs);
                    *g2_sub->lhs = copy_expr(sub_val);
+                    //early delete
                     if (compare_atoms_e(g2_sub->lhs, g2_sub->rhs)) {
-                        vec_remove_at(frm->G, g2); g2--;
+                        //vec_remove_at(frm->G, g2); g2--;//expensive
+                        vec_push_back(deletes, &g2);
                     }
                     frm->changes = true;
                 } else if (is_tuple_e(g2_sub->lhs)) {
@@ -610,9 +666,21 @@ outcome eliminate(frame* frm) {
                 }
 
                 if (is_var_e(g2_sub->rhs) && compare_atoms_e(g2_sub->rhs, sub_var)) {
+                    //conflict check
+                    if (is_val_e(sub_val) && is_val_e(g2_sub->lhs)) {
+                        if (!is_list_e(sub_val) && !is_list_e(g2_sub->lhs) && !compare_atoms_e(sub_val, g2_sub->lhs)) {
+                            free_vector(deletes);
+                            return o_fail;
+                        }
+                    }
                     //same, so sub
                     free_expr(g2_sub->rhs);
                    *g2_sub->rhs = copy_expr(sub_val);
+                    //early delete
+                    if (compare_atoms_e(g2_sub->lhs, g2_sub->rhs)) {
+                        //vec_remove_at(frm->G, g2); g2--;//expensive
+                        vec_push_back(deletes, &g2);
+                    }
                     frm->changes = true;
                 } else if (is_tuple_e(g2_sub->rhs)) {
                     tuple_eliminate(&g2_sub->rhs->e.t, sub_var, sub_val, frm);
@@ -621,23 +689,63 @@ outcome eliminate(frame* frm) {
                     list_eliminate(&g2_sub->rhs->e.a.data.vl.v.l, sub_var, sub_val, frm);
                     //changes
                 } else if (is_equ_e(g2_sub->rhs) || is_equ_chain_e(g2_sub->rhs)) {
-                    printf("ERROR in eliminate() .. is_equ_*e()");
+                    printf("Internal :: Error. in eliminate() .. is_equ_*e()");
                 }
             }
         } else if (is_list_e(sub_var) &&
                   !is_list_instantiated_e(sub_var) &&
                    is_list_e(sub_val)) 
         {
-            double_list_eliminate(&sub_var->e.a.data.vl.v.l, &sub_val->e.a.data.vl.v.l, frm);
-            //changes
+            outcome res = double_list_eliminate(&sub_var->e.a.data.vl.v.l, &sub_val->e.a.data.vl.v.l, frm);
+            if (res == o_fail) return o_fail;
+        } else if (is_val_e(sub_var) && is_val_e(sub_val)) {
+            //conflict
+            if (!compare_atoms_e(sub_var, sub_val)) {
+                free_vector(deletes);
+                return o_fail;
+            } else {
+                //delete
+                //vec_remove_at(frm->G, g); g--;//expensive
+                vec_push_back(deletes, &g);
+            }
         }
     }
+    
+    if (vec_size(deletes) > 0) {
+        vector* new_G = new_vector(vec_size(frm->G) - vec_size(deletes), sizeof(substitution));
+        int del_i = 0;
+        int* next_skip = vec_at(deletes, del_i);
+        for (int g = 0; g < vec_size(frm->G); g++) {
+            if (g != *next_skip) {
+                //keep
+                substitution* sub = vec_at(frm->G, g);
+                vec_push_back(new_G, sub);
+            } else {
+                //skip
+                del_i++;
+                if (del_i >= vec_size(deletes)) {
+                    //done
+                    continue;
+                } else {
+                    next_skip = vec_at(deletes, del_i);
+                }
+            }
+        }
+        free_vector(frm->G);
+        frm->G = new_G;
+    }
+    free_vector(deletes);
     return o_pass;
 }
 
-void double_list_eliminate(list* lst1, list* lst2, frame* frm) {
-    if (lst1->lst == NULL || lst2->lst == NULL) return;
-    if (mfa_card(lst1->lst) != mfa_card(lst2->lst)) return;
+//ToDo. add removal of lists that are instantiated excepting wildcard vars, eg [_;1] = [2;1]
+outcome double_list_eliminate(list* lst1, list* lst2, frame* frm) {
+    if (lst1->lst == NULL && lst2->lst == NULL) {//both = same
+        return o_pass;
+    } else if (lst1->lst == NULL || lst2->lst == NULL) {//else one = diff
+        return o_fail;
+    }
+    if (mfa_card(lst1->lst) != mfa_card(lst2->lst)) return o_fail;
     for (int i = 0; i < mfa_card(lst1->lst); i++) {
         expr* lhs = mfa_at(lst1->lst, i);
         expr* rhs = mfa_at(lst2->lst, i);
@@ -659,20 +767,30 @@ void double_list_eliminate(list* lst1, list* lst2, frame* frm) {
             }
         }
     }
+    return o_pass;
 }
 
 void list_eliminate(list* li, const expr* var, const expr* val, frame* frm) {
-    if (li->lst == NULL) return;
+    if (li->lst == NULL || li->has_vars == false) return;
+    bool had_vars = false;
     for (int i = 0; i < mfa_card(li->lst); i++) {
         expr* ei = mfa_at(li->lst, i);
-        if (is_var_e(ei) && compare_atoms_e(ei, var)) {
-            //expr* eold;
-            //*eold = *ei;
-            //free_expr(eold);
-           *ei = copy_expr(val);
-            frm->changes = true;
+        if (is_var_e(ei)) {
+            had_vars |= true;
+            if (compare_atoms_e(ei, var)) {
+                //expr* eold;
+                //*eold = *ei;
+                //free_expr(eold);
+               *ei = copy_expr(val);
+                frm->changes = true;
+                
+            }
         }
     }
+    li->has_vars = had_vars;
+    //printf("#####eliminating in list:\n");
+    //dump_expr(*var, false);printf(" = ");dump_expr(*val, false);nl;
+    //dump_list(li);nl;
 }
 
 void tuple_eliminate(tuple* tu, const expr* var, const expr* val, frame* frm) {
@@ -695,7 +813,8 @@ vector* head_results(frame* frm, function* f) {
     for (int i = 0; i < vec_size(f->params); i++) {
         atom* atm = vec_at(f->params, i);
         expr ex = {.type = e_atom, .e.a = *atm};
-        if (is_var_e(&ex)) prepend_unique_var_e(&ex, 0);
+        //if (is_var_e(&ex)) prepend_unique_var_e(&ex, 0);
+        if (is_var_e(&ex)) ex.e.a.data.vr.symbol.scope = 1;
         for (int g = 0; g < vec_size(frm->G); g++) {
             equality* eq = vec_at(frm->G, g);
             //at this point, only vars should be on the lhs

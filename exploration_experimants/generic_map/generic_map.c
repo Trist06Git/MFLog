@@ -7,12 +7,12 @@
 #include <stdbool.h>
 #include "generic_vector.h"
 
-void map_push_back(map* mp, void* element1, void* element2) {
+void map_push_back(const map* mp, const void* element1, const void* element2) {
     map_add(mp, element1, element2);
 }
 
 //does not deal with duplicate keys..
-void map_add(map* mp, void* element1, void* element2) {
+void map_add(const map* mp, const void* element1, const void* element2) {
     pair els;
     els.fst = malloc(mp->el1_size);
     els.snd = malloc(mp->el2_size);
@@ -64,7 +64,7 @@ int map_remove(map* mp, void* key) {
     return -1;
 }
 
-bool map_contains_key(map* mp, void* key) {
+bool map_contains_key(const map* mp, const void* key) {
     for (int i = 0; i < vec_size(mp->store); i++) {
         pair* kv = vec_at(mp->store, i);
         if (mp->el1_comparator(key, kv->fst, mp->el1_size)) {
@@ -73,7 +73,7 @@ bool map_contains_key(map* mp, void* key) {
     }
     return false;
 }///////reaaaaly needs merging
-bool map_contains_val(map* mp, void* val) {
+bool map_contains_val(const map* mp, const void* val) {
     for (int i = 0; i < vec_size(mp->store); i++) {
         pair* kv = vec_at(mp->store, i);
         if (mp->el2_comparator(val, kv->snd, mp->el2_size)) {
@@ -83,29 +83,32 @@ bool map_contains_val(map* mp, void* val) {
     return false;
 }
 
-int map_size(map* mp) {
+int map_size(const map* mp) {
     return vec_size(mp->store);
 }
 
-bool byte_compare(void* e1, void* e2, int bytes) {
+bool byte_compare(const void* e1, const void* e2, int bytes) {
+    const char* c_lhs = e1;
+    const char* c_rhs = e2;
     for (int i = 0; i < bytes; i++) {
-        if (*(char*)e1 != *(char*)e2) return false;
+        //if (*(char*)e1 != *(char*)e2) return false;
+        if (c_lhs[i] != c_rhs[i]) return false;
     }
     return true;
 }
 
-bool string_compare(void* el1, void* el2, int size) {
+bool string_compare(const void* el1, const void* el2, int size) {
     //size not needed..
-    char* str1 = *(char**)el1;
-    char* str2 = *(char**)el2;
+    const char* str1 = *(char**)el1;
+    const char* str2 = *(char**)el2;
     return strcmp(str1, str2) == 0;
 }
 
-void set_fst_comparator(map* mp, bool (*comp1)(void*, void*, int)) {
+void set_fst_comparator(map* mp, bool (*comp1)(const void*, const void*, int)) {
     mp->el1_comparator = comp1;
 }
 
-void set_snd_comparator(map* mp, bool (*comp2)(void*, void*, int)) {
+void set_snd_comparator(map* mp, bool (*comp2)(const void*, const void*, int)) {
     mp->el2_comparator = comp2;
 }
 

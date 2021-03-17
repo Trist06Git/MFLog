@@ -8,6 +8,7 @@
 
 typedef struct atom atom;
 typedef struct val val;
+typedef struct symbol_nos symbol_nos;
 typedef struct var var;
 typedef struct list list;
 typedef struct fcall fcall;
@@ -35,8 +36,15 @@ struct val {
     } v;
 };
 
+enum s_type {s_var, s_decomposed, s_unnamed, s_wild};
+struct symbol_nos {
+    enum s_type type;
+    int scope;
+    int num;
+};
+
 struct var {
-    char* symbol;
+    symbol_nos symbol;
 };
 
 enum a_type {a_val, a_var};
@@ -103,11 +111,13 @@ struct choice_point {
 };
 
 //nasty
-static expr debug_dummy_var = {.type = e_atom, .e.a = {.type = a_var, .data.vr = {.symbol = "DEBUG_DUMMY"}}};
+static expr debug_dummy_var = {.type = e_atom, .e.a = {.type = a_var, .data.vr = {.symbol = {.type = -1, .scope = -1, .num = -1}}}};
 
 void append_expr(expr* nd, const expr* ex);
 bool is_var_a(const atom*);
 bool is_var_e(const expr*);
+bool is_wild_e(const expr*);
+bool is_global_var_ve(const expr*);
 bool is_val_a(const atom*);
 bool is_val_e(const expr*);
 bool is_atom_e(const expr*);
@@ -121,17 +131,22 @@ bool is_equ_chain_e(const expr*);
 bool is_int_a(const atom*);
 bool is_int_e(const expr*);
 bool is_generated_var(const expr*);
+bool is_list_instantiated_e(expr*);
 int tuple_size_e(const expr*);
-atom make_var_a(char*);
-expr make_var_e(char*);
+//atom make_var_a(char*);
+//expr make_var_e(char*);
 atom make_int_a(int);
 expr make_int_e(int);
+expr make_var_e(symbol_nos);
 expr make_query(atom*);
 expr wrap_atom(atom);//in an expr
 expr wrap_and_e(and);//in an expr
 expr wrap_and_t(and);//in a tuple
 
+symbol_nos make_decomp_s(int scope, int args);
+
 bool compare_lists_l(const list*, const list*);
+bool compare_symbols_s(const symbol_nos*, const symbol_nos*);
 bool compare_atoms_a(const atom*, const atom*);
 bool compare_atoms_e(const expr*, const expr*);
 bool compare_equs_e(const equality*, const equality*);

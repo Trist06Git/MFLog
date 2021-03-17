@@ -32,7 +32,7 @@ struct frame_call {
     bool undet;//has the complete outcome of this fc been completely determined?
 };
 
-void entry(vector* func_defs_cp, vector* globals);
+void entry(vector* func_defs_cp, vector* globals, bool verbose_return);
 outcome call(frame_call*, frame* prev, frame* next, vector* func_defs_cp, vector* globals, int* call_sequ);
 outcome unify(frame*, vector* func_defs_cp, vector* globals, int* call_sequ);
 frame* init_frame(function*, fcall*, frame* prev_frm, vector* globals, int* global_call_sequ, int this_call_sequ);
@@ -49,14 +49,13 @@ void swap_substitution(substitution*);
 void delete_g(frame*);
 outcome conflict(frame*);
 outcome eliminate(frame*);
-void double_list_eliminate(list* lst1, list* lst2, frame*);
+outcome double_list_eliminate(list* lst1, list* lst2, frame*);
 void list_eliminate(list*, const expr* var, const expr* val, frame*);
 void tuple_eliminate(tuple*, const expr* var, const expr* val, frame*);
 //void rec_tuple_eliminate(and*, const expr* var, const expr* val);
 outcome query(expr*);
 vector* head_results(frame*, function*);
 
-bool is_list_instantiated_e(expr*);
 char* outcome_to_string(const outcome*);
 
 //may not need

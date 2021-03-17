@@ -78,10 +78,10 @@ bool compare_func_heads(function* f1, function* f2) {
 }
 
 bool compare_func_arity(function* f1, function* f2) {
-    return vec_size(f1->params) == vec_size(f2->params)
-           &&
-           strcmp(f1->name, f2->name) == 0
-           ;
+    return
+      vec_size(f1->params) == vec_size(f2->params) &&
+      strcmp(f1->name, f2->name) == 0
+    ;
 }
 
 bool same(atom* a, atom* b) {
@@ -152,7 +152,6 @@ int get_cp_count(vector* cps, fcall* fc) {
            ) {
             return vec_size(cp->functions);
         }
-        
     }
     return -1;
 }
@@ -204,6 +203,7 @@ char* anon_list_name(const char* prefix, int frm, int lst, int arg) {
 
 //promise that vr is a variable
 //needs overhaul
+/*
 bool compare_list_sequ(expr* vr, int sequ) {
     if (!is_var_e(vr)) return false;
     int ds = digits(sequ);
@@ -219,7 +219,7 @@ bool compare_list_sequ(expr* vr, int sequ) {
 
     free(s_sequ);
     return true;
-}
+}*/
 
 ////should probably change this around to be D_func_arity
 //like in the prolog api, eg incr/2
@@ -235,20 +235,21 @@ char* decomp_name(int* arity, int* func) {
 //needs overhaul
 bool compare_decomp_sequ(expr* vr, int sequ) {
     if (!is_var_e(vr)) return false;
+    return vr->e.a.data.vr.symbol.scope == sequ;
     //itoa() is not a part of the c standard
-    int ds = digits(sequ);
-    char* s_sequ = malloc(sizeof(char)*(ds+1));
-    sprintf(s_sequ, "%i", sequ);
-    
-    char* subject = vr->e.a.data.vr.symbol;
-    if (strlen(subject) < 2+ds || subject[0] != 'D') return false;
-    subject += 2;//move past the "D_"
-    for (int i = 0; i < strlen(s_sequ) && *subject != '0'; i++, subject++) {
-        if (subject[0] != s_sequ[0]) return false;
-    }
-    
-    free(s_sequ);
-    return true;
+    //int ds = digits(sequ);
+    //char* s_sequ = malloc(sizeof(char)*(ds+1));
+    //sprintf(s_sequ, "%i", sequ);
+    //
+    //char* subject = vr->e.a.data.vr.symbol;
+    //if (strlen(subject) < 2+ds || subject[0] != 'D') return false;
+    //subject += 2;//move past the "D_"
+    //for (int i = 0; i < strlen(s_sequ) && *subject != '0'; i++, subject++) {
+    //    if (subject[0] != s_sequ[0]) return false;
+    //}
+    //
+    //free(s_sequ);
+    //return true;
 }
 
 //Unfinished, not needed for now.

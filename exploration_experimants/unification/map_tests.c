@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <string.h>
 
 #include "generic_map.h"
@@ -30,6 +31,7 @@ test_results custom_comparators(void);
 test_results custom_comparators2(void);
 test_results string_comparator(void);
 test_results builtin_string_comparator(void);
+test_results byte_comp_struct(void);
 
 int main(int argc, char** argv) {
     printf(":: Running tests ::\n");
@@ -47,6 +49,7 @@ int main(int argc, char** argv) {
     print_results(custom_comparators2());
     print_results(string_comparator());
     print_results(builtin_string_comparator());
+    print_results(byte_comp_struct());
 
     printf(":: Done ::\n");
 }
@@ -375,6 +378,33 @@ test_results builtin_string_comparator(void) {
     char* dummy = "Nuuuu :-0";
     res.result &= map_contains_val(mp, &dummy) == false;
     
+    free_map(mp);
+    return res;
+}
+
+test_results byte_comp_struct(void) {
+    test_results res;
+    res.name = "byte comparator on struct";
+    res.result = true;
+
+    typedef struct {
+        uint8_t a;
+        uint8_t b;
+    } test_struct;
+
+    map* mp = new_map(sizeof(test_struct), sizeof(int));
+    set_fst_comparator(mp, byte_compare);
+    set_snd_comparator(mp, byte_compare);
+    
+    test_struct one = {.a = 1, .b = 'a'};
+    int i_one = 1;
+    map_add(mp, &one , &i_one);
+    
+    res.result &= map_contains_key(mp, &one);
+
+    test_struct two = {.a = 1, .b = 'b'};
+    res.result &= map_contains_key(mp, &two) == false;
+
     free_map(mp);
     return res;
 }

@@ -139,9 +139,30 @@ void dump_val(val* vl) {
     }
 }
 
+void dump_symbol(symbol_nos s) {
+    char* prefix;
+    if (s.type == s_decomposed) {
+        prefix = "D_";
+    } else if (s.type == s_var) {
+        prefix = "V_";
+    } else if (s.type == s_unnamed) {
+        prefix = "U_";
+    } else {
+        prefix = "?_";
+    }
+    if (s.scope == -1) {
+        printf("%s%i", prefix, s.num);
+    } else if (s.type == s_wild) {
+        printf("_");
+    } else {
+        printf("%s%i_%i", prefix, s.scope, s.num);
+    }
+}
+
 void dump_atom(atom* a) {
     if (is_var_a(a)) {
-        printf("%s", a->data.vr.symbol);
+        //printf("%s", a->data.vr.symbol);
+        dump_symbol(a->data.vr.symbol);
     } else if (is_val_a(a)) {
         dump_val(&a->data.vl);
     }

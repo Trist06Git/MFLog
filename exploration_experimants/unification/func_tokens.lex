@@ -1,10 +1,12 @@
+%option prefix="func"
+
 %{
     #include <stdio.h>
     #include "internal_struct.h"
-    #include "y.tab.h"
+    #include "func.tab.h"
 
-    extern void yyerror(char*);
-    int line_number = 1;
+    extern void funcerror(char*);
+    int func_line_number = 1;
     extern int verbose;
 
     //Notes
@@ -19,7 +21,7 @@
 greek_lower    [αβγδεζηθικλμνξοπρσςτυφχψω]
 greek_upper    [ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ]
 digits         [0-9]
-english        [A-Za-z_]
+english        [A-Za-z]
 
 %%
 
@@ -31,14 +33,20 @@ english        [A-Za-z_]
 "integer" return INTEGER_F;
 
 {digits}+ {
-    yylval.number = atoi(yytext);
+    funclval.number = atoi(functext);
     return NUMBER;
 }
 
-({english}|{greek_lower}|{greek_upper})({digits}|{english}|{greek_lower}|{greek_upper})* {
-    yylval.string = strdup(yytext);
+({english}|{greek_lower}|{greek_upper})(_|{digits}|{english}|{greek_lower}|{greek_upper})* {
+    funclval.string = strdup(functext);
     return WORD;
 }
+
+[_] {
+    printf("#####found uscore\n");
+    return WILD_VAR;
+}
+
 
 [(] return LP_ROUND;
 [)] return RP_ROUND;
@@ -63,26 +71,26 @@ english        [A-Za-z_]
 [\t] ;
 " " ;
 
-[\n] line_number++;
+[\n] func_line_number++;
 
 "/*"                { BEGIN(MULTI_COMMENT); }
 <MULTI_COMMENT>"*/" { BEGIN(INITIAL); }
 <MULTI_COMMENT>.    { }
-<MULTI_COMMENT>\n   { line_number++; }
+<MULTI_COMMENT>\n   { func_line_number++; }
 
 "//"                { BEGIN(SINGLE_COMMENT); }
 <SINGLE_COMMENT>.   { }
-<SINGLE_COMMENT>\n  { BEGIN(INITIAL); line_number++; }
+<SINGLE_COMMENT>\n  { BEGIN(INITIAL); func_line_number++; }
 
 <<EOF>> { 
     if (verbose > 0) printf("End Of File.\n");
     yyterminate();
 };
-. return yytext[0];
+. return functext[0];
 
 
 %%
 
-int yywrap() {
+int funcwrap() {
     return 1;
 }

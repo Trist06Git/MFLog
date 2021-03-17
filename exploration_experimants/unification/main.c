@@ -12,11 +12,13 @@
 #include "generic_vector.h"
 #include "generic_map.h"
 #include "utils.h"
-#include "y.tab.h"
+#include "func.tab.h"
+#include "glob.tab.h"
 #include "debug_stuff.h"
 
 int extern errno;
-extern FILE* yyin;
+extern FILE* funcin;
+extern FILE* globin;
 
 int flag;
 int verbose = 0;
@@ -24,6 +26,7 @@ int verbose = 0;
 vector* func_defs;
 vector* func_defs_cp;
 vector* global_defs;
+map* global_symbol_table;
 
 //builtins
 fcall fc_div;
@@ -52,11 +55,13 @@ void print_help(void);
 int main(int argc, char** argv) {
     char* filename_path = NULL;
     int option;
-    while ((option = getopt(argc, argv, "hvf:")) != -1) {
+    bool verbose_return = false;
+    while ((option = getopt(argc, argv, "hvrf:")) != -1) {
         switch (option) {
             case 'h': print_help(); return EXIT_SUCCESS;       break;
             case 'v': verbose++;                               break;
             case 'f': filename_path = optarg;                  break;
+            case 'r': verbose_return = true;                   break;
             case '?': printf("Unknown option : %c\n", optopt); break;
             default :                                          break;
         }
@@ -80,9 +85,14 @@ int main(int argc, char** argv) {
                 printf("Error, could not open file %s:\n  %s\n", *filename, strerror(errno));
                 return EXIT_FAILURE;
             }
-            yyin = file;
             if (verbose > 0) printf("Parsing/Lexing: %s\n", *filename);
-            yyparse();
+            globin = file;
+            globparse();
+            rewind(file);
+
+            funcin = file;
+            funcparse();
+            
             fclose(file);
         }
         
@@ -138,8 +148,9 @@ int main(int argc, char** argv) {
         printf("\nRunning entry.\n");
     }
     
-    entry(func_defs_cp, global_defs);
+    entry(func_defs_cp, global_defs, verbose_return);
     
+    //do cleanup
     if (verbose > 0) printf("Done.\n");
     return EXIT_SUCCESS;
 }
@@ -149,6 +160,9 @@ void init(void) {
     func_defs = new_vector(4, sizeof(function));
     func_defs_cp = new_vector(4, sizeof(choice_point));
     global_defs = new_vector(0, sizeof(expr));
+    global_symbol_table = new_map(sizeof(char*), sizeof(int));
+    set_fst_comparator(global_symbol_table, string_compare);
+    set_snd_comparator(global_symbol_table, byte_compare);
 
     fc_div.name     = "div";
     fc_mul.name     = "mul";
@@ -167,7 +181,7 @@ void init(void) {
 
     fc_main.name = "main";
     fc_main.params = new_vector(1, sizeof(expr));
-    fc_main.type = e_fcall;
+    fc_main.type = f_user;
 
     ///TODO: remove aaaaall of this
     f_div.name   = malloc(sizeof(char)*3+1); sprintf(f_div.name, "div");
@@ -195,8 +209,8 @@ void init(void) {
     f_print.type = f_less_than.type = 
     f_nl.type    = fd_func;
 
-    atom v = { a_var, .data.vr.symbol = NULL };
-    v.data.vr.symbol = malloc(sizeof(char)*2); sprintf(v.data.vr.symbol, "X");
+    atom v = {.type = a_var, .data.vr = {.symbol = {.type = s_var, .scope = -1, .num = 0}}};
+    //v.data.vr.symbol = malloc(sizeof(char)*2); sprintf(v.data.vr.symbol, "X");
     vec_push_back(f_div.params, &v);
     vec_push_back(f_mul.params, &v);
     vec_push_back(f_plus.params, &v);
@@ -204,20 +218,23 @@ void init(void) {
     vec_push_back(f_print.params, &v);
     vec_push_back(f_nl.params, &v);
     vec_push_back(f_less_than.params, &v);
-    v.data.vr.symbol = malloc(sizeof(char)*2); sprintf(v.data.vr.symbol, "Y");
+    //v.data.vr.symbol = malloc(sizeof(char)*2); sprintf(v.data.vr.symbol, "Y");
+    v.data.vr.symbol.num++;
     vec_push_back(f_div.params, &v);
     vec_push_back(f_mul.params, &v);
     vec_push_back(f_plus.params, &v);
     vec_push_back(f_minus.params, &v);
     vec_push_back(f_less_than.params, &v);
-    v.data.vr.symbol = malloc(sizeof(char)*2); sprintf(v.data.vr.symbol, "R");
+    //v.data.vr.symbol = malloc(sizeof(char)*2); sprintf(v.data.vr.symbol, "R");
+    v.data.vr.symbol.num++;
     vec_push_back(f_div.params, &v);
     vec_push_back(f_mul.params, &v);
     vec_push_back(f_plus.params, &v);
     vec_push_back(f_minus.params, &v);
 
     //NOTE
-    vec_push_back(fc_main.params, &v);
+    expr ev = {.type = e_atom, .e.a = v};
+    vec_push_back(fc_main.params, &ev);
 
     vec_push_back(func_defs, &f_div);
     vec_push_back(func_defs, &f_mul);
@@ -263,7 +280,6 @@ void print_help(void) {
     printf("  ./mlogc -f file.mf   : compile file \"file.mf\"\n");
     printf("  ./mlogc file.mf      :     \"           \"\n");
     printf("  -v                   : verbose/debug    \n");
+    printf("  -r                   : show mains returned result and answers\n");
     printf("  ./mlogc              : interactive mode\n");
 }
-
-

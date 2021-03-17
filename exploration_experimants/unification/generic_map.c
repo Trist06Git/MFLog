@@ -88,8 +88,11 @@ int map_size(map* mp) {
 }
 
 bool byte_compare(void* e1, void* e2, int bytes) {
+    char* c_lhs = e1;
+    char* c_rhs = e2;
     for (int i = 0; i < bytes; i++) {
-        if (*(char*)e1 != *(char*)e2) return false;
+        //if (*(char*)e1 != *(char*)e2) return false;
+        if (c_lhs[i] != c_rhs[i]) return false;
     }
     return true;
 }

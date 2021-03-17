@@ -45,7 +45,15 @@ void expand_fact(function* f) {
     
     for (int i = 0; i < vec_size(f->params); i++) {
         atom* old_param = vec_at(f->params, i);
-        atom  new_param = make_var_a(unique_name(&i));
+        //atom  new_param = {make_var_a(unique_name(&i))};
+        atom new_param = {
+            .type = a_var,
+            .data.vr.symbol = {
+                .type = s_unnamed,
+                .scope = -1,
+                .num = i
+            }
+        };
         
         equality eq;
         eq.lhs = malloc(sizeof(expr));
@@ -77,10 +85,26 @@ void explic_func_expr(function* f, vector* func_defs) {
     }
 }
 
+expr make_unnamed_var_e(int number) {
+    expr res = {
+        .type = e_atom,
+        .e.a = {
+            .type = a_var,
+            .data.vr.symbol = {
+                .type = s_unnamed,
+                .scope = -1,
+                .num = number
+            }
+        }
+    };
+    return res;
+}
+
 void rec_explic_func_expr(expr* e, int* unique, vector* fc_to_move, vector* singletons, vector* func_defs, function* root) {
     if (is_val_e(e)) {
         //replace with equality and unique var
-        expr new_left  = make_var_e(unique_name_incr(unique));
+        //expr new_left  = make_var_e(unique_name_incr(unique));
+        expr new_left = make_unnamed_var_e(*unique); unique++;
         expr new_right = *e;
         e->type = e_equ;
         e->e.e.lhs = malloc(sizeof(expr));
@@ -141,8 +165,9 @@ void rec_explic_func_equ(expr* e, int* unique, vector* fc_to_move, vector* singl
         expr unbounds = tuplise_params(e->e.f.params, new_singles);
         if (unbounds.type == e_builtin) {
             //there were no unbounds to tupilise...
+        } else {
+            *e = copy_expr(&unbounds);
         }
-       *e = copy_expr(&unbounds);
         free_vector(new_singles);
     }
 }
@@ -160,7 +185,7 @@ expr tuplise_params(vector* params, vector* singles) {
     ex.type = e_builtin;//not the best
     for (int i = 0; i < vec_size(params); i++) {
         expr* pr = vec_at(params, i);
-        if (is_var_e(pr) && vec_contains_string(singles, pr->e.a.data.vr.symbol)) {
+        if (is_var_e(pr) && vec_contains(singles, &pr->e.a.data.vr.symbol)) {
             if (ex.type == e_builtin) {
                 ex = copy_expr(pr);
             } else {
@@ -202,14 +227,16 @@ void explic_func_params(fcall* fc, int* unique, vector* fc_to_move, vector* sing
             for (int j = 0; j < vec_size(param.e.f.params); j++) {/////////NOTE. I think this may be dead code...
                 expr* pparam = vec_at(param.e.f.params, j);
                 for (int k = 0; k < vec_size(singletons); k++) {
-                    char** sing = vec_at(singletons, k);
+                    symbol_nos* sing = vec_at(singletons, k);
                     if (is_var_e(pparam)) {
-                        if (strcmp(*sing, pparam->e.a.data.vr.symbol) == 0) {
+                        //if (strcmp(*sing, pparam->e.a.data.vr.symbol) == 0) {
+                        if (compare_symbols_s(sing, &pparam->e.a.data.vr.symbol)) {
                             //is a singleton
-                            char* temp = malloc(sizeof(char)*(strlen(*sing)+1));
-                            sprintf(temp, "%s", *sing);////added this..
-                            printf("###about to add : %s\n", *sing);
-                            expr new_var = make_var_e(temp);
+                            //char* temp = malloc(sizeof(char)*(strlen(*sing)+1));
+                            //sprintf(temp, "%s", *sing);////added this..
+                            //printf("###about to add : %s\n", *sing);
+                            //expr new_var = make_var_e(temp);
+                            expr new_var = make_var_e(*sing);
                             vec_insert_at(fc->params, i, &new_var); i++;
                         }
                     }   
@@ -232,7 +259,8 @@ void explic_callsite(fcall* fc, int* unique, vector* newly_generated, vector* fu
         return;
     }
     while (vec_size(fc->params) < vec_size(def->params)) {
-        expr new_name = make_var_e(unique_name_incr(unique));
+        //expr new_name = make_var_e(unique_name_incr(unique));
+        expr new_name = make_unnamed_var_e(*unique); unique++;
         vec_push_back(fc->params, &new_name);
         if (newly_generated != NULL) {
             vec_push_back(newly_generated, &new_name);
@@ -243,12 +271,9 @@ void explic_callsite(fcall* fc, int* unique, vector* newly_generated, vector* fu
 void explic_func_head(function* f) {
     vector* f_singles = get_var_singles(f, false);
     for (int i = 0; i < vec_size(f_singles); i++) {
-        char** s = vec_at(f_singles, i);
-        //*s = regular char*
-        char*  s_new_param = malloc(sizeof(char)*strlen(*s)+1);
-        strcpy(s_new_param, *s);
-        atom a_new_param = {a_var, .data.vr.symbol = s_new_param};
-        vec_push_back(f->params, &a_new_param);
+        symbol_nos* s = vec_at(f_singles, i);
+        atom new_param = {.type = a_var, .data.vr.symbol = *s};
+        vec_push_back(f->params, &new_param);
     }
 
     free_vector(f_singles);
@@ -276,59 +301,7 @@ void decompose_equs(function* f) {
     }
 }
 
-/*
-void rec_decompose_equs_chain(expr* ex, expr equ_root, expr* func_root) {
-    if (is_equ_e(ex)) {
-        //lhs
-        expr new_equ;
-        new_equ.type = e_equ;
-        expr new_lhs = copy_expr(&equ_root);
-        new_equ.e.e.lhs = malloc(sizeof(expr));
-       *new_equ.e.e.lhs = new_lhs;
-        expr new_rhs = copy_expr(ex->e.e.lhs);
-        new_equ.e.e.rhs = malloc(sizeof(expr));
-       *new_equ.e.e.rhs = new_rhs;
-        append_expr(func_root, &new_equ);
-        //rhs
-        rec_decompose_equs_chain(ex->e.e.rhs, equ_root, func_root);
-    } else {
-        expr new_eq;
-        new_eq.type = e_equ;
-        expr new_lhs = copy_expr(&equ_root);
-        new_eq.e.e.lhs = malloc(sizeof(expr));
-       *new_eq.e.e.lhs = new_lhs;
-        expr new_rhs = copy_expr(ex);
-        new_eq.e.e.rhs = malloc(sizeof(expr));
-       *new_eq.e.e.rhs = new_rhs;
-        append_expr(func_root, &new_eq);
-    }
-}
-
-//horrific, please make better
-void rec_decompose_equs(expr* ex, expr* func_root) {
-    if (is_and_e(ex)) {
-        printf("current expression is an and\n");
-        rec_decompose_equs(ex->e.n.lhs, func_root);
-        //replace with dummy
-        //if (is_equ_e(ex->e.n.lhs) && is_equ_e(ex->e.n.lhs->e.e.rhs)) {
-        //    *ex->e.n.lhs = make_int_e(1);
-        //}
-        rec_decompose_equs(ex->e.n.rhs, func_root);
-        
-    } else if (is_equ_e(ex)) {//root
-        printf("found a root equ\n");
-        expr orig_lhs = copy_expr(ex->e.e.lhs);
-        if (is_equ_e(ex->e.e.rhs)) {//rhs
-            printf("processing tail\n");
-            rec_decompose_equs_chain(ex->e.e.rhs, orig_lhs, func_root);
-           *ex->e.e.lhs->e.e.rhs = orig_lhs;
-        }
-    }
-}
-void decompose_equs(function* f) {
-    rec_decompose_equs(&f->e, &f->e);
-}*/
-
+//WARN! very old
 //probably dont need
 void free_var_singles(vector* vec) {
     if (vec == NULL) return;
@@ -341,8 +314,9 @@ void free_var_singles(vector* vec) {
 
 vector* get_var_singles(function* f, bool globals) {
     //varname, count
-    map* mp = new_map(sizeof(char*), sizeof(int));
-    mp->el1_comparator = string_compare;
+    map* mp = new_map(sizeof(symbol_nos), sizeof(int));
+    mp->el1_comparator = byte_compare;
+    mp->el2_comparator = byte_compare;
     rec_get_var_singles_e(&f->e, mp);
     ////cheating by using global externs...
     if (globals) for (int i = 0; i < vec_size(global_defs); i++) {
@@ -358,8 +332,8 @@ vector* get_var_singles(function* f, bool globals) {
     expr g_temp = {.type = e_and, .e.n.ands = global_defs};
     vector* global_sings = get_var_singles_e(&g_temp);
     for (int i = 0; i < vec_size(singles); i++) {
-        char** sing = vec_at(singles, i);
-        if (vec_contains_string(global_sings, *sing)) {
+        symbol_nos* sing = vec_at(singles, i);
+        if (vec_contains(global_sings, sing)) {
             //remove
             vec_remove_at(singles, i); i--;
         }
@@ -372,19 +346,19 @@ vector* get_var_singles(function* f, bool globals) {
 //eg globals/f.expr
 vector* get_var_singles_e(expr* ex) {
     //varname, count
-    map* mp = new_map(sizeof(char*), sizeof(int));
-    mp->el1_comparator = string_compare;
+    map* mp = new_map(sizeof(symbol_nos), sizeof(int));
+    mp->el1_comparator = byte_compare;
     rec_get_var_singles_e(ex, mp);
     return extract_singles_map(mp);
 }
 
 vector* extract_singles_map(map* mp) {
-    vector* singletons = new_vector(0, sizeof(char*));
+    vector* singletons = new_vector(0, sizeof(symbol_nos));
     for (int i = 0; i < map_size(mp); i++) {
         pair* kv = map_at_index(mp, i);
         if (*(int*)kv->snd == 1) {
             //push_back(singletons, *(char**)kv->fst);//check this.
-            vec_push_back(singletons, (char**)kv->fst);//check this.
+            vec_push_back(singletons, (symbol_nos*)kv->fst);//check this.
         }
     }
     free_map(mp);
@@ -392,8 +366,8 @@ vector* extract_singles_map(map* mp) {
 }
 
 void rec_get_var_singles_e(expr* e, map* mp) {
-    if (is_var_e(e)) {
-        char* v_name = e->e.a.data.vr.symbol;
+    if (is_var_e(e) && !is_wild_e(e)) {
+        symbol_nos v_name = e->e.a.data.vr.symbol;
         if (map_contains_key(mp, &v_name)) {
             (*(int*)snd(mp, &v_name))++;
         } else {
@@ -440,10 +414,22 @@ void check_var_singles_params(vector* params, map* mp) {
     for (int i = 0; i < vec_size(params); i++) {
         atom* pr = vec_at(params, i);
         if (is_var_a(pr)) {
-            char* v_name = pr->data.vr.symbol;
+            symbol_nos v_name = pr->data.vr.symbol;
             if (map_contains_key(mp, &v_name)) {
                 (*(int*)snd(mp, &v_name))++;
             }
-        }//doesnt add new singles, only increments existing ones
+        } else if (is_list_a(pr)) {
+            mf_array* lst = pr->data.vl.v.l.lst;
+            for (int i = 0; i < mfa_card(lst); i++) {
+                expr* ei = mfa_at(lst, i);
+                if (is_var_e(ei)) {
+                    symbol_nos ei_name = ei->e.a.data.vr.symbol;
+                    if (map_contains_key(mp, &ei_name)) {
+                        (*(int*)snd(mp, &ei_name))++;
+                    }
+                }
+            }
+        }
+        //doesnt add new singles, only increments existing ones
     }
 }

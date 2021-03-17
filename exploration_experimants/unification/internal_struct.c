@@ -21,29 +21,45 @@ void append_expr(expr* nd, const expr* ex)  {
     }
 }
 
-bool is_var_a(const atom* a)       { return a->type == a_var; }
-bool is_val_a(const atom* a)       { return a->type == a_val; }
-bool is_var_e(const expr* e)       { return is_atom_e(e) && is_var_a(&e->e.a); }
-bool is_val_e(const expr* e)       { return is_atom_e(e) && is_val_a(&e->e.a); }
-bool is_list_e(const expr* e)      { return is_atom_e(e) && is_list_a(&e->e.a); } 
-bool is_list_a(const atom* a)      { return is_val_a(a)  && a->data.vl.type == v_list; }
-bool is_atom_e(const expr* e)      { return e->type == e_atom;  }
-bool is_and_e(const expr* e)       { return e->type == e_and;   }
-bool is_tuple_e(const expr* e)     { return e->type == e_tuple; }
-bool is_fcall_e(const expr* e)     { return e->type == e_fcall; }
-bool is_equ_e(const expr* e)       { return e->type == e_equ;   }
-bool is_equ_chain_e(const expr* e) { return e->type == e_equ_chain; }
-bool is_int_a(const atom* a)       { return is_val_a(a) && a->data.vl.type == v_int; }
-bool is_int_e(const expr* e)       { return is_atom_e(e) && is_int_a(&e->e.a); }
+bool is_var_a(const atom* a)         { return a->type == a_var; }
+bool is_val_a(const atom* a)         { return a->type == a_val; }
+bool is_var_e(const expr* e)         { return is_atom_e(e) && is_var_a(&e->e.a); }
+bool is_val_e(const expr* e)         { return is_atom_e(e) && is_val_a(&e->e.a); }
+bool is_wild_e(const expr* e)        { return is_var_e(e) && e->e.a.data.vr.symbol.type == s_wild; }
+bool is_global_var_ve(const expr* e) { return e->e.a.data.vr.symbol.scope == 0; }
+bool is_list_e(const expr* e)        { return is_atom_e(e) && is_list_a(&e->e.a); } 
+bool is_list_a(const atom* a)        { return is_val_a(a)  && a->data.vl.type == v_list; }
+bool is_atom_e(const expr* e)        { return e->type == e_atom;  }
+bool is_and_e(const expr* e)         { return e->type == e_and;   }
+bool is_tuple_e(const expr* e)       { return e->type == e_tuple; }
+bool is_fcall_e(const expr* e)       { return e->type == e_fcall; }
+bool is_equ_e(const expr* e)         { return e->type == e_equ;   }
+bool is_equ_chain_e(const expr* e)   { return e->type == e_equ_chain; }
+bool is_int_a(const atom* a)         { return is_val_a(a) && a->data.vl.type == v_int; }
+bool is_int_e(const expr* e)         { return is_atom_e(e) && is_int_a(&e->e.a); }
 bool is_generated_var(const expr* e) {
     if (e->type != e_atom || e->e.a.type != a_var) return false;
-    return strstr(e->e.a.data.vr.symbol, "U_") != NULL;
+    //return strstr(e->e.a.data.vr.symbol, "U_") != NULL;
+    return e->e.a.data.vr.symbol.type == s_unnamed;
+}
+
+bool is_list_instantiated_e(expr* e) {
+    list* lst = &e->e.a.data.vl.v.l;
+    if (!lst->has_vars) return true;
+    mf_array* arr = lst->lst;
+    for (int i = 0; i < mfa_card(arr); i++) {
+        expr* ei = mfa_at(arr, i);
+        if (is_var_e(ei)) return false;
+    }
+    lst->has_vars = false;
+    return true;
 }
 
 int tuple_size_e(const expr* e) {
     return vec_size(e->e.t.n.ands);
 }
 
+/*//may not need with new symbol enumeration
 atom make_var_a(char* name) {
     atom new_var = {a_var, .data.vr = name};
     return new_var;
@@ -51,7 +67,7 @@ atom make_var_a(char* name) {
 expr make_var_e(char* name) {
     expr new_var = {e_atom, .e.a = make_var_a(name)};
     return new_var;
-}
+}*/
 atom make_int_a(int n) {
     atom new_int = {.type = a_val, .data.vl = {.type = v_int, .v.i = n}};
     return new_int;
@@ -59,6 +75,16 @@ atom make_int_a(int n) {
 expr make_int_e(int n) {
     expr new_int = {e_atom, .e.a = make_int_a(n)};
     return new_int;
+}
+expr make_var_e(symbol_nos s) {
+    expr res = {
+        .type = e_atom,
+        .e.a = {
+            .type = a_var,
+            .data.vr.symbol = s
+        }
+    };
+    return res;
 }
 expr make_query(atom* at) {
     expr qr;
@@ -79,6 +105,15 @@ expr wrap_and_t(and nd) {
     return ex;
 }
 
+symbol_nos make_decomp_s(int scope, int args) {
+    symbol_nos s = {
+        .type  = s_decomposed,
+        .scope = scope,
+        .num   = args
+    };
+    return s;
+}
+
 bool compare_lists_l(const list* l1, const list* l2) {
     if (l1->type != l2->type
           ||
@@ -93,6 +128,14 @@ bool compare_lists_l(const list* l1, const list* l2) {
     return true;
 }
 
+bool compare_symbols_s(const symbol_nos* a, const symbol_nos* b) {
+    return
+      a->type  == b->type &&
+      a->scope == b->scope &&
+      a->num   == b->num
+    ;
+}
+
 bool compare_atoms_a(const atom* a1, const atom* a2) {
     if (a1->type != a2->type) {
         return false;
@@ -104,8 +147,8 @@ bool compare_atoms_a(const atom* a1, const atom* a2) {
                 return compare_lists_l(&a1->data.vl.v.l, &a2->data.vl.v.l);
             }//else other types
         }
-    } else if (a1->type == a_var) {
-        return strcmp(a1->data.vr.symbol, a2->data.vr.symbol) == 0;
+    } else if (a1->type == a_var && a2->type == a_var) {
+        return compare_symbols_s(&a1->data.vr.symbol, &a2->data.vr.symbol);
     }
     return false;
 }
@@ -124,9 +167,15 @@ bool compare_equs_e(const equality* equ_a, const equality* equ_b) {
 }
 
 expr copy_var_e(const expr* e) {
-    char* ret_name = malloc(sizeof(char)*(strlen(e->e.a.data.vr.symbol)+1));
-    strcpy(ret_name, e->e.a.data.vr.symbol);
-    return make_var_e(ret_name);
+    atom at;
+    at.type = a_var;
+    at.data.vr.symbol = e->e.a.data.vr.symbol;
+    expr res = {.type = e_atom, .e.a = at};
+    
+    //char* ret_name = malloc(sizeof(char)*(strlen(e->e.a.data.vr.symbol)+1));
+    //strcpy(ret_name, e->e.a.data.vr.symbol);
+    //return make_var_e(ret_name);
+    return res;
 }
 
 function copy_fdef(const function* f) {
@@ -155,7 +204,7 @@ expr copy_expr(const expr* ex) {
     } else if (ex->type == e_tuple) {
         ret.e.t = copy_tuple(&ex->e.t);
     } else {
-        printf("Error. In copy_expr(). Unknown type.\n");
+        printf("Internal :: Error. In copy_expr(). Unknown type.\n");
     }
     return ret;
 }
@@ -169,7 +218,7 @@ fcall copy_fcall(const fcall* fc) {
     return ret;
 }
 
-val copy_val(const val* vl) {//a little superfluous
+val copy_val(const val* vl) {
     val ret = *vl;
     if (vl->type == v_int) {
         ret.v.i = vl->v.i;
@@ -183,14 +232,18 @@ val copy_val(const val* vl) {//a little superfluous
         }
         ret.v.l.type = vl->v.l.type;
         ret.v.l.has_vars = ret.v.l.has_vars;
+    } else {
+        printf("Error. In copy_val(). Unknown type.\n");
     }
     return ret;
 }
 
 var copy_var(const var* vr) {
     var ret;
-    ret.symbol = malloc(sizeof(char)*(strlen(vr->symbol)+1));
-    strcpy(ret.symbol, vr->symbol);
+    ret.symbol.type  = vr->symbol.type;
+    ret.symbol.scope = vr->symbol.scope;
+    ret.symbol.num   = vr->symbol.num;
+    
     return ret;
 }
 
@@ -316,7 +369,8 @@ void free_val(val* vl) {
 }
 
 void free_var(var* vr) {
-    free(vr->symbol);
+    //free(vr->symbol);
+    return;
 }
 
 //promise that params is atom.
