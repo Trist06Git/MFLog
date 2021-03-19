@@ -151,6 +151,8 @@ int get_cp_count(vector* cps, fcall* fc) {
             vec_size(first->params) == vec_size(fc->params)
            ) {
             return vec_size(cp->functions);
+        } else if (fc->type == f_builtin) {
+            return 1;
         }
     }
     return -1;

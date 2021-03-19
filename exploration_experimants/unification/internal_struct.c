@@ -92,6 +92,24 @@ expr make_query(atom* at) {
     qr.e.q = copy_atom(at);
     return qr;
 }
+expr make_list_e(void) {
+    list lst = {.type = v_notype, .has_vars = false, .lst = NULL};
+    expr ex = {
+        .type = e_atom, .e.a = {
+            .type = a_val, .data.vl = {
+                .type = v_list, .v.l = lst
+                }
+        }
+    };
+    return ex;
+}
+equality alloc_sub(void) {
+    substitution s = {
+        .lhs = malloc(sizeof(expr)),
+        .rhs = malloc(sizeof(expr))
+    };
+    return s;
+}
 expr wrap_atom(atom at) {
     expr ex = {e_atom, .e.a = at};
     return ex;
@@ -115,6 +133,11 @@ symbol_nos make_decomp_s(int scope, int args) {
 }
 
 bool compare_lists_l(const list* l1, const list* l2) {
+    if (l1->lst == NULL && l2->lst == NULL) {
+        return true;
+    } else if (l1->lst == NULL || l2->lst == NULL) {
+        return false;
+    }
     if (l1->type != l2->type
           ||
         mfa_card(l1->lst) != mfa_card(l2->lst)
@@ -215,6 +238,7 @@ fcall copy_fcall(const fcall* fc) {
     strcpy(ret.name, fc->name);
     ret.params = duplicate_params_e(fc->params);
     ret.res_set = fc->res_set;
+    ret.type = fc->type;
     return ret;
 }
 
@@ -225,6 +249,7 @@ val copy_val(const val* vl) {
         ret.type = vl->type;
     } else if  (vl->type == v_list) {
         //for now always copying, need to add referencing for non-mutable stuff
+        //cow/copy-on-write
         if (vl->v.l.lst != NULL) {
             ret.v.l.lst = mfa_duplicate(vl->v.l.lst);
         } else {

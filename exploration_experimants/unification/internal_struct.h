@@ -21,7 +21,7 @@ typedef struct function function;
 typedef struct choice_point choice_point;
 
 //char list is a string
-enum v_type {v_int, v_list, v_char};
+enum v_type {v_int, v_list, v_char, v_notype};
 struct list {
     enum v_type type;
     mf_array* lst;//NULL = empty list, with no type
@@ -139,6 +139,8 @@ atom make_int_a(int);
 expr make_int_e(int);
 expr make_var_e(symbol_nos);
 expr make_query(atom*);
+expr make_list_e(void);
+equality alloc_sub(void);
 expr wrap_atom(atom);//in an expr
 expr wrap_and_e(and);//in an expr
 expr wrap_and_t(and);//in a tuple

@@ -161,7 +161,7 @@ void rec_explic_func_equ(expr* e, int* unique, vector* fc_to_move, vector* singl
         vec_push_back(fc_to_move, e);
         //get new singles from root def
         vector* new_singles = get_var_singles(root, true);
-
+        
         expr unbounds = tuplise_params(e->e.f.params, new_singles);
         if (unbounds.type == e_builtin) {
             //there were no unbounds to tupilise...

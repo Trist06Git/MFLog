@@ -272,6 +272,17 @@ main() =
 main(return) =
   lst = [1;2],
   x = U_0,
-  cons(0, lst),
+  cons(0, lst), //mutation cons
   f(x, return),
   g(lst, return).
+
+main() =
+  x = cons(1, []).     => 1::[]
+
+main() =
+  x = cons(1, 2, []).  => 1::2::[]
+
+//to test after naive implementation
+main() =
+  x = cons([3], [1;2;3]). => a::b::[3] = [1;2;3]
+                          => a=1, b=2, x=(a,b)

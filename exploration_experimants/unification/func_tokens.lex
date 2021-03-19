@@ -31,6 +31,7 @@ english        [A-Za-z]
 "one"     return ONE_ANS;
 "all"     return ALL_ANS;
 "integer" return INTEGER_F;
+"cons"    return CONS_F;
 
 {digits}+ {
     funclval.number = atoi(functext);
@@ -42,11 +43,7 @@ english        [A-Za-z]
     return WORD;
 }
 
-[_] {
-    printf("#####found uscore\n");
-    return WILD_VAR;
-}
-
+[_] return WILD_VAR;
 
 [(] return LP_ROUND;
 [)] return RP_ROUND;

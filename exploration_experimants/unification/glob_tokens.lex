@@ -31,6 +31,7 @@ english        [A-Za-z]
 "one"     return G_ONE_ANS;
 "all"     return G_ALL_ANS;
 "integer" return G_INTEGER_F;
+"cons"    return G_CONS_F;
 
 {digits}+ {
     globlval.number = atoi(globtext);

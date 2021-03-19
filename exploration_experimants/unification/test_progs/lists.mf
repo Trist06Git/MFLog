@@ -169,11 +169,11 @@
 //main() =
 //  [return; _] = switch_l2([1;2]).
 
-main() =
-  [return; _; _] = switch_l2([1;2;3]).
-
-switch_l2([a;b]  , [b;a]  ).
-switch_l2([a;b;_], [b;a;_]).
+//main() =
+//  [return; _; _] = switch_l2([1;2;3]).
+//
+//switch_l2([a;b]  , [b;a]  ).
+//switch_l2([a;b;_], [b;a;_]).
 
 //switch_l2([a;b]) =
 //  return = [b;a].
@@ -183,3 +183,70 @@ switch_l2([a;b;_], [b;a;_]).
 //
 //lst_match([_]) = 1.
 //lst_match([_;2]) = 2.
+
+//main() =
+//  return = cons(1, 2, [3]).
+
+//main() =
+//  b = [2],
+//  c = [1;2],
+//  cons(a, b, c), //a::[2] = [1;2]
+//  return = a.
+
+//main() =
+//  a = 1,
+//  c = [1;2],
+//  cons(a, b, c),
+//  return = b.
+
+//main() =
+//  cons(fst, snd, tail, [1;2;3]),
+//  print(fst), nl(fst),
+//  print(snd), nl(snd).
+
+//main() =
+//  cons(1, 2, 3, [], lst),
+//  cons(8, lst, return).
+
+//main() =
+//  switch_head([1;2;8], return).
+//
+//switch_head(lst, return) =
+//  cons(next, head, tail, lst),
+//  cons(head, next, tail, return).
+
+//...works/
+//main(lst) =
+//  lst = [1;2;3],
+//  head(lst, h),
+//  tail(lst, t),
+//  print(h),
+//  print(t).
+
+//main() =
+//  lst = [1;2;3],
+//  cons(_, return, lst).
+//
+//head(lst, h) =
+//  cons(h, _, lst).
+//
+//tail(lst, return) =
+//  cons(_, return, lst).
+
+//main() =
+//  cons(1,2,_,_),
+//  return = 3.
+
+//main() =
+//  switch_head([1;2;3]) = return::_.
+//main() =
+//  cons(1, 2, 3, [], myList),
+//  switch_head(myList).
+//
+//switch_head(lst) =
+//  cons(fst, snd, tail, lst),
+//  cons(snd, fst, tail, return).
+
+main(return) =
+  return = _,
+  return = 1.

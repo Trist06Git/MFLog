@@ -33,6 +33,7 @@
     extern fcall fc_integer;
     extern fcall fc_lt;
     extern fcall fc_gt;
+    extern fcall fc_cons;
     extern map* global_symbol_table;
     vector* glob_ps = NULL;
     mf_array* glob_ls = NULL;
@@ -101,6 +102,7 @@
 %token G_PRINT_F
 %token G_NL_F
 %token G_INTEGER_F
+%token G_CONS_F
 %token G_FST_ANS
 %token G_ONE_ANS
 %token G_ALL_ANS
@@ -257,14 +259,14 @@ Expr_list
     : Expr {
         glob_encountered_var = false;
         glob_ls = new_mfarray(sizeof(expr));
-        mfa_push_back(glob_ls, &$1);
+        mfa_push_front(glob_ls, &$1);
         glob_encountered_var |= is_var_e(&$1);
         $$ = glob_ls;
         glob_ls = NULL;
     }
     | Expr G_AND_LIST Expr_list {
         glob_ls = $3;
-        mfa_push_back(glob_ls, &$1);
+        mfa_push_front(glob_ls, &$1);
         glob_encountered_var |= is_var_e(&$1);
         $$ = glob_ls;
         glob_ls = NULL;
@@ -273,6 +275,7 @@ Expr_list
 
 List
     : G_LP_LIST Expr_list G_RP_LIST {
+        //what if list has only vars?
         list l;
         l.has_vars = glob_encountered_var;
         l.type = v_int;
@@ -283,6 +286,7 @@ List
         list l;
         l.has_vars = false;
         l.lst = NULL;//empty list
+        l.type = v_notype;
         $$ = l;
     }
     ;
@@ -421,6 +425,7 @@ Operator : G_PLUS         { $$ = fc_plus;  }
 Builtin_func : G_PRINT_F   { $$ = fc_print;   }
              | G_NL_F      { $$ = fc_nl;      }
              | G_INTEGER_F { $$ = fc_integer; }
+             | G_CONS_F    { $$ = fc_cons;    }
              ;
 
 Answer_count : G_FST_ANS { $$ = rs_first; }

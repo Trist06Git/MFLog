@@ -99,7 +99,7 @@ outcome call(frame_call* frc, frame* prev_frm, frame* next_frm, vector* func_def
     choice_point* f_cp = get_cpoint_na(func_defs_cp, fc.name, vec_size(fc.params));
     //just double check things
     if ((frc->cp_count < 0 && frc->fc.type != f_builtin) ||
-        (frc->cp_count >= vec_size(f_cp->functions) && frc->fc.type != f_builtin))
+        (frc->fc.type != f_builtin && frc->cp_count >= vec_size(f_cp->functions)))
     {
         printf("INTERNAL :: Error, invalid choice point for function %s : %i\n", frc->fc.name, frc->cp_count);
         exit(-1);
@@ -163,7 +163,7 @@ bool incr_cp_counts(frame* frm, vector* func_defs_cp) {
         //if (fc->fc.type == f_builtin) continue;
         int cp_count = get_cp_count(func_defs_cp, &fc->fc);
         if (cp_count == -1) {
-            printf("EXPLOSION!!! Details: %s in %s\n", fc->fc.name, frm->fname);
+            printf("Internal :: Error in incr_cp_counts(). could not find cp for %s in %s\n", fc->fc.name, frm->fname);
             return false;
         }
         if (fc->cp_count < cp_count-1) {
@@ -245,6 +245,7 @@ outcome unify(frame* frm, vector* func_defs_cp, vector* globals, int* call_sequ)
                 } else {
 #ifdef UNIFY_DEBUG
                     printf("DEBUG :: %s-%i : call and consolidation of %s %s\n", frm->fname, frm->call_sequ, frc->fc.name, outcome_to_string(&res));
+                    dump_frame(frm);
 #endif
                 }
             }
@@ -432,18 +433,21 @@ void add_frame_exprs(frame* frm, expr* e, int* call_sequ) {
         vector* params = e->e.f.params;
         for (int i = 0; i < vec_size(params); i++) {
             expr* px = vec_at(params, i);
+            
+            if (is_var_e(px) && !is_global_var_ve(px)) {
+                //prepend_unique_var_e(px, frm->call_sequ);
+                px->e.a.data.vr.symbol.scope = frm->call_sequ;
+            } else if (is_list_e(px) && !is_list_instantiated_e(px)) {
+                list* lst = &px->e.a.data.vl.v.l;
+                scopify_list_vars(lst, frm->call_sequ);
+            }
+
             substitution s;
             s.lhs = malloc(sizeof(expr));
             s.rhs = malloc(sizeof(expr));
            *s.lhs = make_var_e(make_decomp_s(*call_sequ, i));
            *s.rhs = copy_expr(px);
-            if (is_var_e(s.rhs) && !is_global_var_ve(s.rhs)) {
-                //prepend_unique_var_e(s.rhs, frm->call_sequ);
-                s.rhs->e.a.data.vr.symbol.scope = frm->call_sequ;
-            } else if (is_list_e(s.rhs) && !is_list_instantiated_e(s.rhs)) {
-                list* lst = &s.rhs->e.a.data.vl.v.l;
-                scopify_list_vars(lst, frm->call_sequ);
-            }
+            
             vec_push_back(frm->G, &s);
         }
         frame_call f;
@@ -629,7 +633,7 @@ outcome eliminate(frame* frm) {
         swap_substitution(sub);
         expr* sub_var = sub->lhs;
         expr* sub_val = sub->rhs;
-        if (is_wild_e(sub_var) || is_wild_e(sub_val)) {
+        if (is_wild_e(sub_var) /*|| is_wild_e(sub_val)*/) {
             vec_push_back(deletes, &g);
             continue;
         }

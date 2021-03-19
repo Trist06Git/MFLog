@@ -155,6 +155,115 @@ outcome nl_builtin(fcall* fc, frame* frm, int call_sequ) {
     return o_pass;
 }
 
+expr wrap_mfa_e(mf_array* lst, enum v_type type, bool has_vars) {
+    expr ret = {
+        .type = e_atom,
+        .e.a = {
+            .type = a_val,
+            .data.vl = {
+                .type = v_list, .v.l = {
+                    .type = type,
+                    .has_vars = has_vars,
+                    .lst = lst
+                }
+            }
+        }
+    };
+    return ret;
+}
+
+outcome add_to_list(list* lst, expr* ex) {
+    if (lst->type == v_notype && is_val_e(ex)) {
+        lst->type = ex->e.a.data.vl.type;
+    } else if (is_val_e(ex) && ex->e.a.data.vl.type != lst->type) {
+        return o_fail;
+    }
+        
+    if (lst->lst == NULL) {
+        lst->lst = new_mfarray(sizeof(expr));
+    }
+    
+    if (is_var_e(ex)) {
+        lst->has_vars = true;
+    }
+    expr new_ex = copy_expr(ex);
+    mfa_push_front(lst->lst, &new_ex);
+    return o_pass;
+}
+
+//the 2nd last param of fc is always the list to cons to.
+//the first n params of fc are the elements to cons.
+//last param is the return var
+outcome cons_builtin(fcall* fc, frame* frm, int call_sequ) {
+    if (vec_size(fc->params) < 3) {
+        printf("Error. \"::/cons\" requires 3+ operands.\n");
+        return o_fail;
+    }
+    //Next: also: _ gets removed before call, so D_x_1 doesnt exist, resulting in NULL
+    //R for Return, L for List
+    substitution* R = get_sub_frm_i(frm, call_sequ, vec_size(fc->params)-1);
+    substitution* L = get_sub_frm_i(frm, call_sequ, vec_size(fc->params)-2);
+    //expr* ret = get_sub_frm_i(frm, call_sequ, vec_size(fc->params)-1)->rhs;
+    //expr* lst = get_sub_frm_i(frm, call_sequ, vec_size(fc->params)-2)->rhs;
+    
+    if (is_wild_e(L->rhs) && is_wild_e(R->rhs)) {
+        return o_pass;
+    } else if (is_var_e(L->rhs) && is_var_e(R->rhs)) {
+        printf("Error. \"::/cons\" was givven result and list as vars\n");
+        return o_fail;
+    } else if (is_var_e(L->rhs)) {
+        //case for find tail, and confirm head
+        //add subs for first n cons vars
+        //substitution* L = get_sub_frm_i(frm, call_sequ, vec_size(fc->params)-2);
+        list* l_ret = &R->rhs->e.a.data.vl.v.l;
+        int start = vec_size(fc->params)-2;
+        for (int i = 0; i < start && i < mfa_card(l_ret->lst); i++) {
+            substitution* param = get_sub_frm_i(frm, call_sequ, i);
+            if (param == NULL) continue;
+            substitution s = alloc_sub();
+            *s.lhs = copy_expr(param->lhs);
+            *s.rhs = copy_expr(mfa_at(l_ret->lst, i));
+            vec_push_back(frm->G, &s);
+        }
+
+        if (is_wild_e(L->rhs)) {
+            //add sub on L for R's tail
+            mf_array* l_R = R->rhs->e.a.data.vl.v.l.lst;
+            substitution s2 = alloc_sub();
+        *s2.lhs = copy_expr(L->lhs);
+        *s2.rhs = make_list_e();
+            //go backwards
+            for (int i = mfa_card(l_R)-1; i >= start; i--) {
+            //for (int i = start; i < mfa_card(l_R); i++) {
+                add_to_list(&s2.rhs->e.a.data.vl.v.l, mfa_at(l_R, i));
+            }
+            vec_push_back(frm->G, &s2);
+        }
+    } else {
+        //substitution* R = get_sub_frm_i(frm, call_sequ, vec_size(fc->params)-1);
+        substitution s;
+        s.lhs = malloc(sizeof(expr));
+        s.rhs = malloc(sizeof(expr));
+       *s.lhs = copy_expr(R->lhs);
+       *s.rhs = copy_expr(L->rhs);
+        //go backwards..
+        for (int i = vec_size(fc->params)-3; i >= 0; i--) {//-3 = 1 ret var + 1 target list
+        //for (int i = 0; i < vec_size(fc->params)-2; i++) {//-3 = 1 ret var + 1 target list
+            //note, params do not unify... fix latter
+            substitution* param = get_sub_frm_i(frm, call_sequ, i);
+            if (param == NULL) continue;
+            outcome res = add_to_list(&s.rhs->e.a.data.vl.v.l, param->rhs);
+            if (res == o_fail) return o_fail;
+        }
+        vec_push_back(frm->G, &s);
+    }
+#ifdef UNIFY_DEBUG
+    printf("DEBUG :: cons : after\n");
+    dump_frame(frm);
+#endif
+    return o_pass;
+}
+
 //one of the returning bind variables is unneccesary, and is also the wrong call_sequ
 //fix by rewriting and examining the single passed var, then adding sub to it on rhs
 outcome plus_builtin(fcall* fc, frame* frm, int call_sequ) {
@@ -285,6 +394,8 @@ outcome call_builtin(fcall* fc, frame* frm, int call_sequ) {
     } else if (strcmp(fc->name, "plus") == 0) {
         return plus_builtin(fc, frm, call_sequ);
 
+    } else if (strcmp(fc->name, "cons") == 0) {
+        return cons_builtin(fc, frm, call_sequ);
     } else {
         printf("Info. Sorry, builtin function \"%s\" is not yet implemented.\n", fc->name);
         return o_fail;

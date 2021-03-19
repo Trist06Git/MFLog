@@ -36,6 +36,7 @@
     extern fcall fc_integer;
     extern fcall fc_lt;
     extern fcall fc_gt;
+    extern fcall fc_cons;
     vector* ps = NULL;
     mf_array* ls = NULL;
     map* symbol_table = NULL;
@@ -104,6 +105,7 @@
 %token PRINT_F
 %token NL_F
 %token INTEGER_F
+%token CONS_F
 %token FST_ANS
 %token ONE_ANS
 %token ALL_ANS
@@ -245,14 +247,14 @@ Expr_list
     : Expr {
         encountered_var = false;
         ls = new_mfarray(sizeof(expr));
-        mfa_push_back(ls, &$1);
+        mfa_push_front(ls, &$1);
         encountered_var |= is_var_e(&$1);
         $$ = ls;
         ls = NULL;
     }
     | Expr AND_LIST Expr_list {
         ls = $3;
-        mfa_push_back(ls, &$1);
+        mfa_push_front(ls, &$1);
         encountered_var |= is_var_e(&$1);
         $$ = ls;
         ls = NULL;
@@ -261,6 +263,7 @@ Expr_list
 
 List
     : LP_LIST Expr_list RP_LIST {
+        //what if list has only vars??
         list l;
         l.has_vars = encountered_var;
         l.type = v_int;
@@ -271,6 +274,7 @@ List
         list l;
         l.has_vars = false;
         l.lst = NULL;//empty list
+        l.type = v_notype;
         $$ = l;
     }
     ;
@@ -314,7 +318,7 @@ Fcall : WORD LP_ROUND Expr_params RP_ROUND {
     fcall fc;
     fc.res_set = rs_one;
     fc.name = $1;
-    if (strcmp(fc.name, "plus") == 0) {
+    if (strcmp(fc.name, "plus") == 0 || strcmp(fc.name, "cons") == 0) {//truely disgusting, fix this..
         fc.type = f_builtin;
     } else {
         fc.type = f_user;
@@ -447,6 +451,7 @@ Operator : PLUS         { $$ = fc_plus;  }
 Builtin_func : PRINT_F   { $$ = fc_print;   }
              | NL_F      { $$ = fc_nl;      }
              | INTEGER_F { $$ = fc_integer; }
+             | CONS_F    { $$ = fc_cons;    }
              ;
 
 Answer_count : FST_ANS { $$ = rs_first; }
