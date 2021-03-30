@@ -25,6 +25,7 @@ enum v_type {v_int, v_list, v_char, v_notype};
 struct list {
     enum v_type type;
     mf_array* lst;//NULL = empty list, with no type
+    bool reference;
     bool has_vars;
 };
 
@@ -139,7 +140,7 @@ atom make_int_a(int);
 expr make_int_e(int);
 expr make_var_e(symbol_nos);
 expr make_query(atom*);
-expr make_list_e(void);
+expr make_list_e(bool reference);
 equality alloc_sub(void);
 expr wrap_atom(atom);//in an expr
 expr wrap_and_e(and);//in an expr

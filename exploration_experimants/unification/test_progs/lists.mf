@@ -220,13 +220,13 @@
 //  lst = [1;2;3],
 //  head(lst, h),
 //  tail(lst, t),
-//  print(h),
-//  print(t).
+//  printnl(h),
+//  printnl(t).
 
 //main() =
 //  lst = [1;2;3],
 //  cons(_, return, lst).
-//
+
 //head(lst, h) =
 //  cons(h, _, lst).
 //
@@ -247,6 +247,120 @@
 //  cons(fst, snd, tail, lst),
 //  cons(snd, fst, tail, return).
 
-main(return) =
-  return = _,
-  return = 1.
+//main(return) =
+//  return = _,
+//  return = 1.
+
+//main() =
+//  return = x,
+//  return = _,
+//  return = 1,
+//  _ = _.
+
+//main() =
+//  return = get_nth([1;2;3;4;5], 3).
+//
+//get_nth(lst, 0) =
+//  cons(return, _, lst).
+//get_nth(lst, n) =
+//  minus(n, 1, step),
+//  cons(_, tail, lst),
+//  return = get_nth(tail, step).
+
+//main() =
+//  get_nth([1;2;3;4;5], 3).
+//
+//get_nth(lst, 0) =
+//  cons(return, _, lst).
+////not super clear here that getnth returns a value
+//get_nth(lst, n) =
+//  minus(n, 1, step),
+//  cons(_, tail, lst),
+//  get_nth(tail, step).
+
+//main() =
+//  cons(x, [2], [1;2]),
+//  return = x.
+
+//main(y) =
+//  x = [1;2],
+//  x = y.
+
+//f(0, r) = g(1, r).
+//g(x, r) = x = r.
+//main(r) =
+//  f(0, r).
+
+//action1() = 1.
+//action2() = 2.
+//action3() = 3.
+//
+//match(lst) =
+//  head(lst, 1),
+//  action1(return).
+//match(lst) =
+//  head(lst, 3),
+//  action2(return).
+//match(lst) =
+//  head(lst, 5),
+//  action3(return).
+//match(_) = 0.
+//
+//main() =
+//  match([3]).
+
+//f(_) = return = 1.
+//main(return) =
+//  f(1, return).
+
+//l(x, return) = plus(x, 1, return).
+//m(x, return) = return = x.
+//g(y, return) = minus(y, 1, return).
+//h(y, return) = plus(y, 1, return).
+//
+//f_match(1, y) = g(y).
+//f_match(2, y) = h(y).
+//
+//f(a, b) =
+//  l(a, x),
+//  m(b, y),
+//  f_match(x, y).
+//
+//main() =
+//  f(1,2).
+
+//main() =
+//  1::tail = [1;2;3],
+//  return = tail.
+
+//main() =
+//  head::_ = [1;2;3],
+//  return = head.
+
+//not working again, explication broken
+//switch_head(lst) =
+//  lst = fst::snd::tail,
+//  return = snd::fst::tail.
+//main() =
+//   switch_head([1;2;3;4]).
+
+//main(return) =
+//  return = [[1;2];[3;4]],
+//  printnl(return).
+
+////doesnt work yet, needs sub list elimination
+//main() =
+//  [[return;_];[_;_]] = [[1;2];[3;4]].
+
+f(x) =
+  [1;2;x].
+
+main() =
+  [_;_;return] = f(3).
+
+////fix explication and make work with builtins
+//main(return) =
+//  return::_::_::[] = 1::2::3::[].
+//main() =
+//  cons(return, _, _, [], equ),
+//  cons(1, 2, 3, [], equ).

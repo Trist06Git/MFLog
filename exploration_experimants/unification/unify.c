@@ -120,7 +120,7 @@ outcome call(frame_call* frc, frame* prev_frm, frame* next_frm, vector* func_def
         return call_builtin(&fc, prev_frm, frc->call_sequence);//only first answer for now
     } else if (f_cp == NULL) {
         //func not found
-        printf("Error. Could not find function \"%s\" with arity %i\n", fc.name, vec_size(fc.params));
+        printf("Error. Could not find function \"%s\" with arity %li\n", fc.name, vec_size(fc.params));
         return o_fail;
     }
 
@@ -310,7 +310,7 @@ frame* init_frame(function* f, fcall* fc, frame* prev_frm, vector* globals, int*
             //prepend_unique_var_e(call_binds.rhs, frm->call_sequ);
             //bind scope
             call_binds.rhs->e.a.data.vr.symbol.scope = frm->call_sequ;
-        } else if (!is_list_instantiated_e(call_binds.rhs)) {
+        } else if (is_list_e(call_binds.rhs) && !is_list_instantiated_e(call_binds.rhs)) {
             scopify_list_vars(&call_binds.rhs->e.a.data.vl.v.l, frm->call_sequ);
         }
         
@@ -567,6 +567,10 @@ void swap_substitution(substitution* sub) {
         expr* temp = sub->lhs;
         sub->lhs = sub->rhs;
         sub->rhs = temp;
+    } else if (is_wild_e(sub->lhs) && !is_wild_e(sub->rhs)) {
+        expr* temp = sub->lhs;
+        sub->lhs = sub->rhs;
+        sub->rhs = temp;
     }
 }
 
@@ -613,18 +617,6 @@ void equ_eliminate(expr* equ_ch, const expr* var, const expr* val) {
     }
 }
 
-//g's are pushed in order, so if g > el, it was skipped
-bool vec_contains_g(vector* vec, int g) {
-    for (int i = 0; i < vec_size(vec); i++) {
-        int *el = vec_at(vec, i);
-        if (g == *el)
-            return true;
-        else if (g > *el)
-            return false;
-    }
-    return false;
-}
-
 outcome eliminate(frame* frm) {
     //prevents O(n*m) deletes
     vector* deletes = new_vector(0, sizeof(int));
@@ -633,17 +625,19 @@ outcome eliminate(frame* frm) {
         swap_substitution(sub);
         expr* sub_var = sub->lhs;
         expr* sub_val = sub->rhs;
-        if (is_wild_e(sub_var) /*|| is_wild_e(sub_val)*/) {
+        if ((is_wild_e(sub_var) || is_val_e(sub_var)) && is_wild_e(sub_val)) {
             vec_push_back(deletes, &g);
             continue;
         }
-        if (vec_contains_g(deletes, g)) continue;
+        //dont sub a real var with the wild var _
+        if (!is_wild_e(sub_var) && is_wild_e(sub_val)) continue;
+        if (vec_contains(deletes, &g)) continue;
         if (is_var_e(sub_var)) {
             //eliminate in G
             for (int g2 = 0; g2 < vec_size(frm->G); g2++) {
                 if (g2 == g) continue;//skip self
                 substitution* g2_sub = vec_at(frm->G, g2);
-                if (is_wild_e(g2_sub->lhs) || is_wild_e(g2_sub->rhs)) continue;
+                //if (is_wild_e(g2_sub->lhs) || is_wild_e(g2_sub->rhs)) continue;
                 if (is_var_e(g2_sub->lhs) && compare_atoms_e(g2_sub->lhs, sub_var)) {
                     //check for conflict
                     if (is_val_e(sub_val) && is_val_e(g2_sub->rhs)) {
@@ -655,18 +649,22 @@ outcome eliminate(frame* frm) {
                     //they are the same, so substitute
                     free_expr(g2_sub->lhs);
                    *g2_sub->lhs = copy_expr(sub_val);
-                    //early delete
-                    if (compare_atoms_e(g2_sub->lhs, g2_sub->rhs)) {
+                    //check for delete
+                    if (compare_atoms_e(g2_sub->lhs, g2_sub->rhs) || (//same vals/vars
+                          (is_wild_e(g2_sub->lhs) || is_val_e(g2_sub->lhs)) && is_wild_e(g2_sub->rhs)//wild card(s) //check these wilds..
+                          )
+                       ) {
                         //vec_remove_at(frm->G, g2); g2--;//expensive
                         vec_push_back(deletes, &g2);
                     }
                     frm->changes = true;
                 } else if (is_tuple_e(g2_sub->lhs)) {
                     tuple_eliminate(&g2_sub->lhs->e.t, sub_var, sub_val, frm);
-                    //changes
                 } else if (is_list_e(g2_sub->lhs)) {
                     list_eliminate(&g2_sub->lhs->e.a.data.vl.v.l, sub_var, sub_val, frm);
-                    //changes
+                    if (compare_atoms_e(g2_sub->lhs, g2_sub->rhs)) {
+                        vec_push_back(deletes, &g2);
+                    }
                 }
 
                 if (is_var_e(g2_sub->rhs) && compare_atoms_e(g2_sub->rhs, sub_var)) {
@@ -680,7 +678,7 @@ outcome eliminate(frame* frm) {
                     //same, so sub
                     free_expr(g2_sub->rhs);
                    *g2_sub->rhs = copy_expr(sub_val);
-                    //early delete
+                    //check for delete
                     if (compare_atoms_e(g2_sub->lhs, g2_sub->rhs)) {
                         //vec_remove_at(frm->G, g2); g2--;//expensive
                         vec_push_back(deletes, &g2);
@@ -688,10 +686,11 @@ outcome eliminate(frame* frm) {
                     frm->changes = true;
                 } else if (is_tuple_e(g2_sub->rhs)) {
                     tuple_eliminate(&g2_sub->rhs->e.t, sub_var, sub_val, frm);
-                    //changes
                 } else if (is_list_e(g2_sub->rhs)) {
                     list_eliminate(&g2_sub->rhs->e.a.data.vl.v.l, sub_var, sub_val, frm);
-                    //changes
+                    if (compare_atoms_e(g2_sub->lhs, g2_sub->rhs)) {
+                        vec_push_back(deletes, &g2);
+                    }
                 } else if (is_equ_e(g2_sub->rhs) || is_equ_chain_e(g2_sub->rhs)) {
                     printf("Internal :: Error. in eliminate() .. is_equ_*e()");
                 }
@@ -702,6 +701,9 @@ outcome eliminate(frame* frm) {
         {
             outcome res = double_list_eliminate(&sub_var->e.a.data.vl.v.l, &sub_val->e.a.data.vl.v.l, frm);
             if (res == o_fail) return o_fail;
+            if (compare_atoms_e(sub_var, sub_val)) {
+                vec_push_back(deletes, &g);
+            }
         } else if (is_val_e(sub_var) && is_val_e(sub_val)) {
             //conflict
             if (!compare_atoms_e(sub_var, sub_val)) {
@@ -717,22 +719,12 @@ outcome eliminate(frame* frm) {
     
     if (vec_size(deletes) > 0) {
         vector* new_G = new_vector(vec_size(frm->G) - vec_size(deletes), sizeof(substitution));
-        int del_i = 0;
-        int* next_skip = vec_at(deletes, del_i);
         for (int g = 0; g < vec_size(frm->G); g++) {
-            if (g != *next_skip) {
-                //keep
-                substitution* sub = vec_at(frm->G, g);
-                vec_push_back(new_G, sub);
+            if (!vec_contains(deletes, &g)) {
+                vec_push_back(new_G, vec_at(frm->G, g));
             } else {
                 //skip
-                del_i++;
-                if (del_i >= vec_size(deletes)) {
-                    //done
-                    continue;
-                } else {
-                    next_skip = vec_at(deletes, del_i);
-                }
+                free_expr(vec_at(frm->G, g));
             }
         }
         free_vector(frm->G);

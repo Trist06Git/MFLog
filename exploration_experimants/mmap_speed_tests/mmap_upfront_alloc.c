@@ -11,11 +11,14 @@
 #include <stdlib.h>
 #include <errno.h>
 
-#define much 0xBADC0DE
+#define alot(of) 0xBADC0DE
 
 //manually fetched from getrlimit(), see user_vm_space_stats.c for details
 #define ARRAY_SPACE 18446744073709551615
-#define ARRAY_COUNT 100
+#define ARRAY_COUNT 32000
+//32000 seems to be the limit.
+
+#define WARMUP 120
 
 struct timespec diff(struct timespec start, struct timespec end);
 int nth_bit(size_t num);
@@ -24,43 +27,54 @@ size_t align_to_page(size_t target_size, size_t page_size);
 int main(int argc, char** argv) {
     printf("Starting.\n");
     printf("process id: %i\n", getpid());
-    
+#ifdef WARMUP
+    printf("sleeping for %i seconds to let the kernel settle down.\n");
+    sleep(WARMUP);
+    printf("done sleeping.\n");
+#endif
+
     size_t array_size = sqrt(18446744073709551615.0);
+    printf("test size: %li\n", array_size);
     size_t page_size = getpagesize();
     size_t aligned_array_size = align_to_page(array_size, page_size);
     
     printf("%li sized maps aligned to %li, with page size of %li\n", array_size, aligned_array_size, page_size);
 
-    uint8_t** all_arrays = malloc(sizeof(uint8_t*)*ARRAY_COUNT);
-    for (int i = 0; i < ARRAY_COUNT; i++) {
-        all_arrays[i] = mmap(
-            NULL,
-            aligned_array_size,
-            PROT_READ|PROT_WRITE|PROT_EXEC,
-            MAP_ANONYMOUS|MAP_PRIVATE,
-            -1,                              //fd
-            0                                //offset
-        );
-        if (all_arrays[i] == MAP_FAILED) {
-            printf("Error. mmap() faild. Exiting now\n");
-            perror("");
-            for (int j = 0; j < i; j++) {//clean up
-                munmap(all_arrays[j], aligned_array_size);
-            }
+    printf("Timing mmap 4gb upfront...\n");
+    struct timespec start;
+    struct timespec end;
+    clock_gettime(CLOCK_REALTIME, &start);
+    uint8_t* chunk = mmap(
+        NULL,
+        aligned_array_size,
+        PROT_READ|PROT_WRITE|PROT_EXEC,
+        MAP_ANONYMOUS|MAP_PRIVATE,
+        -1,                              //fd
+        0                                //offset
+    );
+    if (chunk == MAP_FAILED) {
+        printf("Error. mmap() faild. Exiting now\n");
+        perror("");
+        exit(EXIT_FAILURE);
+    }
+    clock_gettime(CLOCK_REALTIME, &end);
+    struct timespec duration = diff(start, end);
+    printf("Done, took %li sec, %li n-sec\n", duration.tv_sec, duration.tv_nsec);
+
+    printf("Checking that the addresses are valid...\n");
+    for (size_t i = 0; i < aligned_array_size; i++) {
+        chunk[i] = 7;
+    }
+    for (size_t i = 0; i < aligned_array_size; i++) {
+        if (chunk[i] != 7) {
+            printf("Error... different value read back from first area: %i at index %li.\n", chunk[i], i);
             exit(EXIT_FAILURE);
         }
     }
 
-    printf("Done. Mapped %i arrays at addresses:\n", ARRAY_COUNT);
-    for (int i = 0; i < ARRAY_COUNT; i++) {
-        printf("%i : %p\n", i, all_arrays[i]);
-    }
     printf("Press enter to free pages.\n");
     getc(stdin);
-    for (int i = 0; i < ARRAY_COUNT; i++) {
-        munmap(all_arrays[i], aligned_array_size);
-    }
-    free(all_arrays);
+    munmap(chunk, aligned_array_size);
     printf("Press enter to quit.\n");
     getc(stdin);
 

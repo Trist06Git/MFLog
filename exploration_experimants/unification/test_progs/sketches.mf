@@ -286,3 +286,68 @@ main() =
 main() =
   x = cons([3], [1;2;3]). => a::b::[3] = [1;2;3]
                           => a=1, b=2, x=(a,b)
+
+/////pattern matching within functions
+f(a, b) =
+  x = l(a),
+  y = m(b),
+  | x = 1 -> g(x, y).
+  | y = 2 -> h(x, y).
+    |        |
+    V        V
+//splits into 2 f definitions
+f(a, b) =         f(a, b) =
+  x = l(a),         x = l(a),
+  y = m(b),         y = m(b),
+  x = 1, g(x, y).   x = 2, h(x, y).
+
+//lhs or rhs, and multiple
+f(a, b) =
+  | a = 1, b = 1 -> x = 2, f(x, r).
+  | a = 2        -> b = 2, f(a, r).
+//whats the point of the arrow??
+f(a, b) =
+  | a = 1, b = 1, x = 2, f(x, r).
+  | a = 2, b = 2, f(a, r).
+
+f(a, b) =
+  a = 1, b = 1, x = 2, f(x, r).
+f(a, b) =
+  a = 2, b = 2, f(a, r).
+
+f(a, b) =
+  | a = 1 -> g(b, return).
+  | b = 1 -> h(a, return).
+  |-> return = 1.
+
+f(x, y) =
+  y = 1,
+  | x = 1.
+  | x = 2.
+
+////on to at_index
+l = [1;2;3].
+main() =          =>  main() =
+  return = l[1].  =>    at_index(l, 1, r).
+
+main() =
+  at_index([1;2;3], 1, r).//what is at index r?
+main() =
+  at_index([1;2;3], 1, 2).//is it true that 2 is at index 1?
+main() =
+  at_index([1;2;3], i, 2).//what index is 2 at?
+main() =
+  at_index(lst, 1, 2).  => lst = [_;2].
+
+////list reference??
+main() =
+  lst = ref [1;2;3].
+main() =
+  lst = ref([1;2;3]).
+
+main() =
+  lst = [1;2;3],
+  return = ref lst.
+main() =
+  lst = [1;2;3],
+  return = ref(lst).

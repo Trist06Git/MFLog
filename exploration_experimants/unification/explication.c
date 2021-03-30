@@ -124,7 +124,7 @@ void rec_explic_func_expr(expr* e, int* unique, vector* fc_to_move, vector* sing
             def = get_fdef(func_defs, e->e.f.name);
         }
         if (def == NULL) {
-            printf("Error, unknown function %s with arity %i.\n", e->e.f.name, vec_size(e->e.f.params));
+            printf("Error, unknown function %s with arity %li.\n", e->e.f.name, vec_size(e->e.f.params));
             //return;
         } else {
             explic_func(def, func_defs);//DANGER, if no base case is defined, then infinit loop
@@ -210,7 +210,7 @@ void explic_func_params(fcall* fc, int* unique, vector* fc_to_move, vector* sing
             //maybe get the fdef with the smallest matching arity?
             function* def = get_fdef(func_defs, param.e.f.name);
             if (def == NULL) {
-                printf("Error, unknown function %s with arity %i.\n", e->e.f.name, vec_size(e->e.f.params));
+                printf("Error, unknown function %s with arity %li.\n", e->e.f.name, vec_size(e->e.f.params));
                 return;
             }
             explic_func(def, func_defs);
@@ -255,7 +255,7 @@ void explic_callsite(fcall* fc, int* unique, vector* newly_generated, vector* fu
     //maybe get the fdef with the smallest matching arity?
     function* def = get_fdef(func_defs, fc->name);
     if (def == NULL) {
-        printf("Error, unknown function %s with arity %i.\n", fc->name, vec_size(fc->params));
+        printf("Error, unknown function %s with arity %li.\n", fc->name, vec_size(fc->params));
         return;
     }
     while (vec_size(fc->params) < vec_size(def->params)) {

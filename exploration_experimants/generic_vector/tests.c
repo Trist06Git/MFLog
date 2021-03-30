@@ -561,7 +561,7 @@ test_results modify_duplicated(void) {
 }
 
 void dump_int_vector(vector* vec) {
-    printf("dumping int vector :: count : %i :: alloced : %i\n", vec->count, vec->allocated);
+    printf("dumping int vector :: count : %li :: alloced : %li\n", vec->count, vec->allocated);
     for (int i = 0; i < vec_size(vec); i++) {
         printf("%i : %i\n", i, *(int*)vec_at(vec, i));
     }

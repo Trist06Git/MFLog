@@ -32,6 +32,7 @@ english        [A-Za-z]
 "all"     return ALL_ANS;
 "integer" return INTEGER_F;
 "cons"    return CONS_F;
+"ref"     return REF_F;
 
 {digits}+ {
     funclval.number = atoi(functext);

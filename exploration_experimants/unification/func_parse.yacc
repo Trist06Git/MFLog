@@ -86,8 +86,9 @@
 %type <u_rs> Answer_count
 %type <u_fc> Ocall
 %type <u_fc> Operator
+%type <u_fc> Cons_fcall
 //%type <u_eq> Equation
-%type <u_ex> Atom_left_equ
+//%type <u_ex> Atom_left_equ
 
 %type <vec> Equ_chain
 %type <u_ex> Expr_eq_ch
@@ -106,11 +107,12 @@
 %token NL_F
 %token INTEGER_F
 %token CONS_F
+%token REF_F
 %token FST_ANS
 %token ONE_ANS
 %token ALL_ANS
 %token LP_LIST RP_LIST
-%token CONS_LIST
+%left CONS_LIST
 %token APP_LIST
 %token AND_LIST
 %token WILD_VAR
@@ -234,13 +236,33 @@ Exprs
     }
     ;
 
-Expr : Fcall_ans     { expr ex; ex.type = e_fcall; ex.e.f  = $1; $$ = ex; }
-     | Fbuiltin_ans  { expr ex; ex.type = e_fcall; ex.e.f  = $1; $$ = ex; }
-     | Fcall         { expr ex; ex.type = e_fcall; ex.e.f  = $1; $$ = ex; }
-     | Fbuiltin      { expr ex; ex.type = e_fcall; ex.e.f  = $1; $$ = ex; }
-     | Atom          { expr ex; ex.type = e_atom;  ex.e.a  = $1; $$ = ex; }
-     | Ocall         { expr ex; ex.type = e_fcall; ex.e.f  = $1; $$ = ex; }
-     
+Expr : Fcall_ans     { expr ex; ex.type = e_fcall; ex.e.f = $1; $$ = ex; }
+     | Fbuiltin_ans  { expr ex; ex.type = e_fcall; ex.e.f = $1; $$ = ex; }
+     | Fcall         { expr ex; ex.type = e_fcall; ex.e.f = $1; $$ = ex; }
+     | Fbuiltin      { expr ex; ex.type = e_fcall; ex.e.f = $1; $$ = ex; }
+     | Atom          { expr ex; ex.type = e_atom;  ex.e.a = $1; $$ = ex; }
+     | Ocall         { expr ex; ex.type = e_fcall; ex.e.f = $1; $$ = ex; }
+     | Cons_fcall    {
+         //invent name for return var.
+         if (symbol_table == NULL) {
+            symbol_table = new_map(sizeof(char*), sizeof(int));
+            set_fst_comparator(symbol_table, string_compare);
+            set_snd_comparator(symbol_table, byte_compare);
+         }
+         int num = map_size(symbol_table);
+         char* name = malloc(sizeof(char)+digits(num)+7);
+         sprintf(name, "INTERN_%i", num);
+         map_add(symbol_table, &name, &num);
+         var v;
+         v.symbol.type = s_var;
+         v.symbol.num = num;
+         v.symbol.scope = -1;
+         expr ret_param = {.type = e_atom, .e.a = {.type = a_var, .data.vr = v}};
+         fcall cons = $1;
+         vec_push_back(cons.params, &ret_param);
+         expr ex = {.type = e_fcall, .e.f = cons};
+         $$ = ex;
+     }
      ;
 
 Expr_list
@@ -333,6 +355,24 @@ Fcall_ans : Answer_count Fcall {
     $$ = fc;
 };
 
+Cons_fcall
+    : Expr CONS_LIST Expr {
+        fcall cons;
+        cons.name = strdup("cons");
+        cons.type = f_builtin;
+        cons.res_set = rs_one;
+        cons.params = new_vector(3, sizeof(expr));
+        vec_push_back(cons.params, &$1);
+        vec_push_back(cons.params, &$3);
+        $$ = cons;
+    }
+    | Cons_fcall CONS_LIST Expr {
+        fcall cons = $1;
+        vec_push_back(cons.params, &$3);
+        $$ = cons;
+    }
+    ;
+
 Val
     : NUMBER {
         val v;
@@ -409,28 +449,28 @@ Atom
     }
     ;
 
-Atom_left_equ : Atom EQUAL Equ_chain {
-    if (ps == NULL) ps = new_vector(1, sizeof(expr));
-    ps =  $3;
-    expr at = wrap_atom($1);
-    vec_insert_at(ps, 0, &at);
-    expr res;
-    res.type = e_equ_chain;
-    res.e.ec.equs = ps;
-    
-    $$ = res;
-    ps = NULL;
-    
-    /*
-    expr lhs = wrap_atom($1);
-    expr rhs = $3;
-    equality eq;
-    eq.lhs = malloc(sizeof(expr));
-    eq.rhs = malloc(sizeof(expr));
-    memcpy(eq.lhs, &lhs, sizeof(lhs));
-    memcpy(eq.rhs, &rhs, sizeof(rhs));
-    $$ = eq;*/
-};
+//Atom_left_equ : Atom EQUAL Equ_chain {
+//    if (ps == NULL) ps = new_vector(1, sizeof(expr));
+//    ps =  $3;
+//    expr at = wrap_atom($1);
+//    vec_insert_at(ps, 0, &at);
+//    expr res;
+//    res.type = e_equ_chain;
+//    res.e.ec.equs = ps;
+//    
+//    $$ = res;
+//    ps = NULL;
+//    
+//    /*
+//    expr lhs = wrap_atom($1);
+//    expr rhs = $3;
+//    equality eq;
+//    eq.lhs = malloc(sizeof(expr));
+//    eq.rhs = malloc(sizeof(expr));
+//    memcpy(eq.lhs, &lhs, sizeof(lhs));
+//    memcpy(eq.rhs, &rhs, sizeof(rhs));
+//    $$ = eq;*/
+//};
 
 Ocall : Expr Operator Expr {
     fcall op = $2;

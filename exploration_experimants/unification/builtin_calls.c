@@ -16,7 +16,7 @@ substitution make_uni_sub(int call_sequ, int param_sequ) {
 
 outcome integer_builtin(fcall* fc, frame* frm, int call_sequ) {
     if (vec_size(fc->params) != 1) {
-        printf("Error. Could not find function \"%s\" with arity %i\n", fc->name, vec_size(fc->params));
+        printf("Error. Could not find function \"%s\" with arity %li\n", fc->name, vec_size(fc->params));
         return o_fail;
     }
     expr* param = vec_at(fc->params, 0);
@@ -127,7 +127,7 @@ outcome print_builtin(fcall* fc, frame* frm, int call_sequ) {
         if (!is_list_e(subject)) {
             printf("%i", subject->e.a.data.vl.v.i);
         } else {
-            dump_list(&subject->e.a.data.vl.v.l);
+            dump_list(&subject->e.a.data.vl.v.l, false);
         }
         return o_pass;
     } else {
@@ -191,6 +191,12 @@ outcome add_to_list(list* lst, expr* ex) {
     return o_pass;
 }
 
+outcome at_index_builtin(fcall* fc, frame* frm, int call_sequ) {
+    
+    
+    return o_fail;
+}
+
 //the 2nd last param of fc is always the list to cons to.
 //the first n params of fc are the elements to cons.
 //last param is the return var
@@ -216,22 +222,24 @@ outcome cons_builtin(fcall* fc, frame* frm, int call_sequ) {
         //add subs for first n cons vars
         //substitution* L = get_sub_frm_i(frm, call_sequ, vec_size(fc->params)-2);
         list* l_ret = &R->rhs->e.a.data.vl.v.l;
+        if (l_ret->lst == NULL) return o_fail;//anything cons'ed cannot = []
         int start = vec_size(fc->params)-2;
         for (int i = 0; i < start && i < mfa_card(l_ret->lst); i++) {
             substitution* param = get_sub_frm_i(frm, call_sequ, i);
             if (param == NULL) continue;
             substitution s = alloc_sub();
-            *s.lhs = copy_expr(param->lhs);
-            *s.rhs = copy_expr(mfa_at(l_ret->lst, i));
+           *s.lhs = copy_expr(param->lhs);
+           *s.rhs = copy_expr(mfa_at(l_ret->lst, i));
+            
             vec_push_back(frm->G, &s);
         }
 
-        if (is_wild_e(L->rhs)) {
+        if (is_var_e(L->rhs) || is_wild_e(L->rhs)) {//todo, remove is_wild_e
             //add sub on L for R's tail
             mf_array* l_R = R->rhs->e.a.data.vl.v.l.lst;
             substitution s2 = alloc_sub();
-        *s2.lhs = copy_expr(L->lhs);
-        *s2.rhs = make_list_e();
+           *s2.lhs = copy_expr(L->lhs);
+           *s2.rhs = make_list_e(false);
             //go backwards
             for (int i = mfa_card(l_R)-1; i >= start; i--) {
             //for (int i = start; i < mfa_card(l_R); i++) {
@@ -255,7 +263,12 @@ outcome cons_builtin(fcall* fc, frame* frm, int call_sequ) {
             outcome res = add_to_list(&s.rhs->e.a.data.vl.v.l, param->rhs);
             if (res == o_fail) return o_fail;
         }
-        vec_push_back(frm->G, &s);
+        if (compare_atoms_e(s.lhs, s.rhs)) {
+            free_expr(s.lhs);
+            free_expr(s.rhs);
+        } else {
+            vec_push_back(frm->G, &s);
+        }
     }
 #ifdef UNIFY_DEBUG
     printf("DEBUG :: cons : after\n");
@@ -380,22 +393,19 @@ outcome plus_builtin(fcall* fc, frame* frm, int call_sequ) {
 outcome call_builtin(fcall* fc, frame* frm, int call_sequ) {
     if (strcmp(fc->name, "integer") == 0) {
         return integer_builtin(fc, frm, call_sequ);
-
     } else if (strcmp(fc->name, "less_than") == 0 ||
                strcmp(fc->name, "greater_than") == 0) {
         return ltgt_builtin(fc, frm, call_sequ);
-
     } else if (strcmp(fc->name, "print") == 0) {
         return print_builtin(fc, frm, call_sequ);
-
     } else if (strcmp(fc->name, "nl") == 0) {
         return nl_builtin(fc, frm, call_sequ);
-
     } else if (strcmp(fc->name, "plus") == 0) {
         return plus_builtin(fc, frm, call_sequ);
-
     } else if (strcmp(fc->name, "cons") == 0) {
         return cons_builtin(fc, frm, call_sequ);
+    } else if (strcmp(fc->name, "at_index") == 0) {
+        return at_index_builtin(fc, frm, call_sequ);
     } else {
         printf("Info. Sorry, builtin function \"%s\" is not yet implemented.\n", fc->name);
         return o_fail;

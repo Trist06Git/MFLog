@@ -10,6 +10,7 @@
 #include <errno.h>
 
 #define TEST_SIZE 18
+#define WARMUP 120
 
 extern int errno;
 
@@ -20,8 +21,13 @@ struct timespec diff(struct timespec start, struct timespec end);
 int main(int argc, char** argv) {
     printf("Starting.\n");
     printf("process id: %i\n", getpid());
-    printf("test size: %i\n", TEST_SIZE);
+#ifdef WARMUP
+    printf("sleeping for %i seconds to let the kernel settle down.\n");
+    sleep(WARMUP);
+    printf("done sleeping.\n");
+#endif
 
+    printf("test size: %i\n", TEST_SIZE);
     size_t page_size = getpagesize();
     size_t current_length = 1;
 
@@ -37,9 +43,6 @@ int main(int argc, char** argv) {
         printf("Error. mremap() faild. Exiting now\n");
         perror("");
         exit(EXIT_FAILURE);
-    }
-    for (int j = 0; j < page_size; j++) {
-        chunk[j] = 7;
     }
 
     printf("Timing mremap 2n expansion...\n");
@@ -61,9 +64,6 @@ int main(int argc, char** argv) {
             perror("");
             exit(EXIT_FAILURE);
         }
-        for (int j = 0; j < page_size*old_length; j++) {
-            chunk[(page_size*current_length-(page_size*old_length))+j] = 8;
-        }
     }
 
     clock_gettime(CLOCK_REALTIME, &end);
@@ -71,15 +71,12 @@ int main(int argc, char** argv) {
     printf("Done, took %li sec, %li n-sec\n", duration.tv_sec, duration.tv_nsec);
 
     //double check it actually allocated and wrote..
-    printf("Checking that the stored values are valid...\n");
-    for (int i = 0; i < page_size; i++) {
-        if (chunk[i] != 7) {
-            printf("Error... different value read back from first area: %i at index %i.\n", chunk[i], i);
-            exit(EXIT_FAILURE);
-        }
+    printf("Checking that the addresses are valid...\n");
+    for (int i = 0; i < page_size*current_length; i++) {
+        chunk[i] = 7;
     }
-    for (int i = page_size; i < page_size*current_length; i++) {
-        if (chunk[i] != 8) {
+    for (int i = 0; i < page_size*current_length; i++) {
+        if (chunk[i] != 7) {
             printf("Error... different value read back from expanded area: %i at index %i.\n", chunk[i], i);
             exit(EXIT_FAILURE);
         }

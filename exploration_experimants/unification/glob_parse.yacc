@@ -83,6 +83,7 @@
 %type <u_rs> Answer_count
 %type <u_fc> Ocall
 %type <u_fc> Operator
+%type <u_fc> Cons_fcall
 //%type <u_eq> Equation
 %type <u_ex> Atom_left_equ
 
@@ -252,7 +253,7 @@ Expr : Fcall_ans     { expr ex; ex.type = e_fcall; ex.e.f  = $1; $$ = ex; }
      | Fbuiltin      { expr ex; ex.type = e_fcall; ex.e.f  = $1; $$ = ex; }
      | Atom          { expr ex; ex.type = e_atom;  ex.e.a  = $1; $$ = ex; }
      | Ocall         { expr ex; ex.type = e_fcall; ex.e.f  = $1; $$ = ex; }
-     
+     | Cons_fcall    { expr ex; ex.type = e_fcall; ex.e.f = $1; $$ = ex; }
      ;
 
 Expr_list
@@ -326,6 +327,24 @@ Fcall_ans : Answer_count Fcall {
     fc.res_set = $1;
     $$ = fc;
 }
+
+Cons_fcall
+    : Expr G_CONS_LIST Expr {
+        fcall cons;
+        cons.name = strdup("cons");
+        cons.type = f_builtin;
+        cons.res_set = rs_one;
+        cons.params = new_vector(3, sizeof(expr));
+        vec_push_back(cons.params, &$1);
+        vec_push_back(cons.params, &$3);
+        $$ = cons;
+    }
+    | Cons_fcall G_CONS_LIST Expr {
+        fcall cons = $1;
+        vec_push_back(cons.params, &$3);
+        $$ = cons;
+    }
+    ;
 
 Val
     : G_NUMBER {

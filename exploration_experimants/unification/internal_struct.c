@@ -92,8 +92,13 @@ expr make_query(atom* at) {
     qr.e.q = copy_atom(at);
     return qr;
 }
-expr make_list_e(void) {
-    list lst = {.type = v_notype, .has_vars = false, .lst = NULL};
+expr make_list_e(bool reference) {
+    list lst = {
+        .type = v_notype,
+        .reference = reference,
+        .has_vars = false,
+        .lst = NULL
+    };
     expr ex = {
         .type = e_atom, .e.a = {
             .type = a_val, .data.vl = {
@@ -137,6 +142,8 @@ bool compare_lists_l(const list* l1, const list* l2) {
         return true;
     } else if (l1->lst == NULL || l2->lst == NULL) {
         return false;
+    } else if (l1 == l2) {//same ref
+        return true;
     }
     if (l1->type != l2->type
           ||
@@ -251,8 +258,14 @@ val copy_val(const val* vl) {
         //for now always copying, need to add referencing for non-mutable stuff
         //cow/copy-on-write
         if (vl->v.l.lst != NULL) {
-            ret.v.l.lst = mfa_duplicate(vl->v.l.lst);
+            const list* lst = &vl->v.l;
+            if (lst->reference) {
+                ret.v.l.lst = lst->lst;
+            } else {
+                ret.v.l.lst = mfa_duplicate(vl->v.l.lst);
+            }
         } else {
+            /////WARNING, referencing an empty list is not possible at this time..
             ret.v.l.lst = NULL;
         }
         ret.v.l.type = vl->v.l.type;

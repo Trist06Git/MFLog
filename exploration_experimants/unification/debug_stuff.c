@@ -80,7 +80,9 @@ void dump_expr(expr e, bool indent) {
         case e_query : {
             printf("%s%s", in, "?query?");
         }
-        default: return;
+        default : {
+            printf("Internal :: Error. dump_expr(), unknown type\n");
+        };
     }
 }
 
@@ -119,7 +121,7 @@ void dump_tuple(expr* e) {
     printf(")");
 }
 
-void dump_list(list* l) {
+void dump_list(list* l, bool with_meta) {
     printf("[");
     if (l->lst != NULL) for (int i = 0; i < mfa_card(l->lst); i++) {
         expr* ei = mfa_at(l->lst, i);
@@ -127,6 +129,7 @@ void dump_list(list* l) {
         if (i < mfa_card(l->lst)-1) printf(";");
     }
     printf("]");
+    if (!with_meta) return;
     if (l->has_vars) printf("v");
     else             printf("i");
 }
@@ -135,7 +138,7 @@ void dump_val(val* vl) {
     if (vl->type == v_int) {
         printf("%i", vl->v.i);
     } else if (vl->type == v_list) {
-        dump_list(&vl->v.l);
+        dump_list(&vl->v.l, true);
     }
 }
 
@@ -150,10 +153,10 @@ void dump_symbol(symbol_nos s) {
     } else {
         prefix = "?_";
     }
-    if (s.scope == -1) {
-        printf("%s%i", prefix, s.num);
-    } else if (s.type == s_wild) {
+    if (s.type == s_wild) {
         printf("_");
+    } else if (s.scope == -1) {
+        printf("%s%i", prefix, s.num);
     } else {
         printf("%s%i_%i", prefix, s.scope, s.num);
     }

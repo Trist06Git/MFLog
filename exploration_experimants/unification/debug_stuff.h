@@ -10,7 +10,7 @@ void dump_cp(choice_point*);
 void dump_expr(expr, bool);
 void dump_func_call(fcall, bool);
 void dump_tuple(expr*);
-void dump_list(list*);
+void dump_list(list*, bool with_meta);
 void dump_val(val*);
 void dump_atom(atom*);
 void rec_dump_tuple(and*);
