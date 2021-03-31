@@ -45,7 +45,7 @@ bool mfa_remove_front(mf_array* arr) {
 //false\0 is failure//maybe make it -1??
 //also consider removing from front > count_pos.
 //"set" is in reference to "setting" the current index to val..
-bool mfa_set(mf_array* arr, int i, void* element) {
+bool mfa_set(mf_array* arr, long int i, void* element) {
     if (i < -1 || i > arr->count_pos+arr->count_neg) {
         return false;
     } else if (i == -1) {//push front
@@ -57,10 +57,10 @@ bool mfa_set(mf_array* arr, int i, void* element) {
         arr->count_neg++;
         return true;
 
-    } else if (i == arr->count_pos+arr->alloced_neg) {//push back
+    } else if (i == arr->count_pos+arr->count_neg) {//push back//was alloced_neg
         for (int j = 0; j < arr->el_size; j++) {
             uint8_t* sized_el = element;
-            arr->store_pos[((arr->count_pos + i)*arr->el_size) + j] = sized_el[j];
+            arr->store_pos[(arr->count_pos*arr->el_size) + j] = sized_el[j];//why way this + i??
         }
         arr->count_pos++;
         return true;
@@ -73,14 +73,14 @@ bool mfa_set(mf_array* arr, int i, void* element) {
                 uint8_t* sized_el = element;
                 arr->store_neg[(real_i*arr->el_size) + j] = sized_el[j];
             }
-            arr->count_neg++;
+            //arr->count_neg++;//Not expanding
             return true;
         } else {//pos
             for (int j = 0; j < arr->el_size; j++) {
                 uint8_t* sized_el = element;
                 arr->store_pos[(real_i*arr->el_size) + j] = sized_el[j];
             }
-            arr->count_pos++;
+            //arr->count_pos++;//Not expanding
             return true;
         }
     }
@@ -89,11 +89,11 @@ bool mfa_set(mf_array* arr, int i, void* element) {
 
 //at returns a pointer to the underlying data item in the array
 //NULL is fail//looks kind of nasty, refactor?
-void* mfa_at(mf_array* arr, int i) {
+void* mfa_at(mf_array* arr, long int i) {
     if (i < 0 || i > arr->count_neg + arr->count_pos - 1) {
         return NULL;
     } else {
-        int real_i = i - arr->count_neg;
+        long int real_i = i - arr->count_neg;
         if (real_i < 0) {//in neg
             real_i++;
             real_i = abs(real_i);
@@ -112,11 +112,11 @@ void* mfa_at(mf_array* arr, int i) {
     }
 }
 
-bool mfa_remove_at(mf_array* arr, int i) {
+bool mfa_remove_at(mf_array* arr, long int i) {
     if (i < 0 || i > arr->count_neg + arr->count_pos - 1) {
         return false;
     } else {
-        int real_i = i - arr->count_neg;
+        long int real_i = i - arr->count_neg;
         if (real_i < 0) {//in neg
             real_i++;
             real_i = abs(real_i);
@@ -158,6 +158,7 @@ size_t mfa_card(mf_array* arr) {
     return arr->count_neg + arr->count_pos;
 }
 
+//this needs to be replaced with COW/copy on write
 mf_array* mfa_duplicate(mf_array* arr) {
     mf_array* ret = new_mfarray(arr->el_size);
     for (int i = 0; i < arr->count_pos; i++) {
@@ -184,24 +185,20 @@ bool mfa_compare(mf_array* arr1, mf_array* arr2) {
     if (arr1->el_size != arr2->el_size
           ||
         mfa_card(arr1) != mfa_card(arr2)
-    ) {
-        printf("card or el_size comparrison failed.\n");
-        return false;
-    }
-    
+    ) return false;
 
     for (int i = 0; i < mfa_card(arr1); i++) {
         uint8_t* el1 = mfa_at(arr1, i);
         uint8_t* el2 = mfa_at(arr2, i);
         for (int j = 0; j < arr1->el_size; j++) {
-            if (el1[j] != el2[j]) {
-                printf("byte comparrison failed.\n");
-                return false;
-            }
-            
+            if (el1[j] != el2[j]) return false;
         }
     }
     return true;
+}
+
+void mfa_set_comparator(mf_array* arr, int (*comp)(const void*, const void*, int)) {
+    arr->comparator = comp;
 }
 
 //NULL is failure

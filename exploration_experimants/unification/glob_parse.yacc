@@ -212,6 +212,7 @@ Expr_skip
     | Fbuiltin      { /*whatever...*/ }
     | Atom_skip     { }
     | Ocall         { /*whatever...*/ }
+    | List_at_index { /*whatever...*/ }
 
 Equ_chain_skip
     : Expr_skip {
@@ -253,7 +254,7 @@ Expr : Fcall_ans     { expr ex; ex.type = e_fcall; ex.e.f  = $1; $$ = ex; }
      | Fbuiltin      { expr ex; ex.type = e_fcall; ex.e.f  = $1; $$ = ex; }
      | Atom          { expr ex; ex.type = e_atom;  ex.e.a  = $1; $$ = ex; }
      | Ocall         { expr ex; ex.type = e_fcall; ex.e.f  = $1; $$ = ex; }
-     | Cons_fcall    { expr ex; ex.type = e_fcall; ex.e.f = $1; $$ = ex; }
+     | Cons_fcall    { expr ex; ex.type = e_fcall; ex.e.f = $1; $$ = ex;  }
      ;
 
 Expr_list
@@ -383,9 +384,13 @@ Var : G_WORD {
     } else {
         v.symbol.num = *symbol_no;
     }
-
     $$ = v;
 };
+
+List_at_index
+    : Expr_skip G_LP_LIST G_NUMBER G_RP_LIST {
+        //skip
+    };
 
 Atom
     : Var {

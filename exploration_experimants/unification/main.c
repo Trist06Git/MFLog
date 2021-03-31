@@ -39,6 +39,9 @@ fcall fc_integer;
 fcall fc_lt;
 fcall fc_gt;
 fcall fc_cons;
+fcall fc_ref;
+fcall fc_at_index;
+fcall fc_at_set;
 function f_div;
 function f_mul;
 function f_plus;
@@ -47,6 +50,9 @@ function f_print;
 function f_nl;
 function f_less_than;
 function f_cons;
+function f_ref;
+function f_at_index;
+function f_at_set;
 //slight hack for calling main
 fcall fc_main;
 
@@ -166,57 +172,69 @@ void init(void) {
     set_fst_comparator(global_symbol_table, string_compare);
     set_snd_comparator(global_symbol_table, byte_compare);
 
-    fc_div.name     = "div";
-    fc_mul.name     = "mul";
-    fc_plus.name    = "plus";
-    fc_minus.name   = "minus";
-    fc_print.name   = "print";
-    fc_nl.name      = "nl";
-    fc_integer.name = "integer";
-    fc_lt.name      = "less_than";
-    fc_gt.name      = "greater_than";
-    fc_cons.name    = "cons";
-    fc_div.res_set   = fc_mul.res_set  = fc_plus.res_set =
+    fc_div.name      = strdup("div");
+    fc_mul.name      = strdup("mul");
+    fc_plus.name     = strdup("plus");
+    fc_minus.name    = strdup("minus");
+    fc_print.name    = strdup("print");
+    fc_nl.name       = strdup("nl");
+    fc_integer.name  = strdup("integer");
+    fc_lt.name       = strdup("less_than");
+    fc_gt.name       = strdup("greater_than");
+    fc_cons.name     = strdup("cons");
+    fc_ref.name      = strdup("ref");
+    fc_at_index.name = strdup("at");
+    fc_div.res_set   = fc_mul.res_set  = fc_plus.res_set = rs_one;
     fc_minus.res_set = fc_plus.res_set = fc_cons.res_set = rs_one;
-    fc_lt.res_set    = fc_gt.res_set   = rs_one;
+    fc_lt.res_set    = fc_gt.res_set   = fc_ref.res_set  = rs_one;
+    fc_at_index.res_set = fc_at_set.res_set = rs_one;
 
-    fc_print.type = fc_nl.type = fc_integer.type = fc_lt.type =
-    fc_cons.type  = f_builtin;
+    fc_print.type = fc_nl.type  = fc_integer.type = fc_lt.type = f_builtin;
+    fc_cons.type  = fc_ref.type = fc_at_index.type = fc_at_set.type = f_builtin;
 
-    fc_main.name = "main";
+    fc_main.name = strdup("main");
     fc_main.params = new_vector(1, sizeof(expr));
     fc_main.type = f_user;
 
     ///TODO: remove aaaaall of this
-    f_div.name   = malloc(sizeof(char)*3+1); sprintf(f_div.name, "div");
-    f_mul.name   = malloc(sizeof(char)*3+1); sprintf(f_mul.name, "mul");
-    f_plus.name  = malloc(sizeof(char)*4+1); sprintf(f_plus.name, "plus");
-    f_minus.name = malloc(sizeof(char)*5+1); sprintf(f_minus.name, "minus");
-    f_print.name = malloc(sizeof(char)*5+1); sprintf(f_print.name, "print");
-    f_nl.name    = malloc(sizeof(char)*2+1); sprintf(f_nl.name, "nl");
-    f_less_than.name = malloc(sizeof(char)*9+1); sprintf(f_less_than.name, "less_than");
-    f_cons.name  = malloc(sizeof(char)*4+1); sprintf(f_cons.name, "cons");
+    f_div.name   = strdup("div");
+    f_mul.name   = strdup("mul");
+    f_plus.name  = strdup("plus");
+    f_minus.name = strdup("minus");
+    f_print.name = strdup("print");
+    f_nl.name    = strdup("nl");
+    f_less_than.name = strdup("less_than");
+    f_cons.name  = strdup("cons");
+    f_ref.name   = strdup("ref");
+    f_at_index.name = strdup("at_index");
+    f_at_set.name   = strdup("at_set");
     f_div.params   = new_vector(3, sizeof(atom));
     f_mul.params   = new_vector(3, sizeof(atom));
     f_plus.params  = new_vector(3, sizeof(atom));
     f_minus.params = new_vector(3, sizeof(atom));
     f_print.params = new_vector(1, sizeof(atom));
-    f_nl.params = new_vector(1, sizeof(atom));
+    f_nl.params    = new_vector(1, sizeof(atom));
     f_less_than.params = new_vector(2, sizeof(atom));
-    f_cons.params = new_vector(0, 1);
+    f_cons.params  = new_vector(0, 1);
+    f_ref.params   = new_vector(2, sizeof(atom));
+    f_at_index.params = new_vector(3, sizeof(atom));
+    f_at_set.params   = new_vector(3, sizeof(atom));
     f_div.fully_defined  = f_mul.fully_defined   =
     f_plus.fully_defined = f_minus.fully_defined = true;//needs work
     f_div.e.type   = f_mul.e.type       =
     f_plus.e.type  = f_minus.e.type     = 
     f_print.e.type = f_less_than.e.type =
-    f_nl.e.type    = f_cons.e.type      = e_builtin;
+    f_nl.e.type    = f_cons.e.type      =
+    f_ref.e.type   = f_at_index.e.type  =
+    f_at_set.e.type = e_builtin;
     f_div.type   = f_mul.type       =
     f_plus.type  = f_minus.type     =
     f_print.type = f_less_than.type = 
-    f_nl.type    = f_cons.type      = fd_func;
+    f_nl.type    = f_cons.type      =
+    f_ref.type   = f_at_index.type  =
+    f_at_set.type = fd_func;
 
     atom v = {.type = a_var, .data.vr = {.symbol = {.type = s_var, .scope = -1, .num = 0}}};
-    //v.data.vr.symbol = malloc(sizeof(char)*2); sprintf(v.data.vr.symbol, "X");
     vec_push_back(f_div.params, &v);
     vec_push_back(f_mul.params, &v);
     vec_push_back(f_plus.params, &v);
@@ -224,19 +242,25 @@ void init(void) {
     vec_push_back(f_print.params, &v);
     vec_push_back(f_nl.params, &v);
     vec_push_back(f_less_than.params, &v);
-    //v.data.vr.symbol = malloc(sizeof(char)*2); sprintf(v.data.vr.symbol, "Y");
+    vec_push_back(f_ref.params, &v);
+    vec_push_back(f_at_index.params, &v);
+    vec_push_back(f_at_set.params, &v);
     v.data.vr.symbol.num++;
     vec_push_back(f_div.params, &v);
     vec_push_back(f_mul.params, &v);
     vec_push_back(f_plus.params, &v);
     vec_push_back(f_minus.params, &v);
     vec_push_back(f_less_than.params, &v);
-    //v.data.vr.symbol = malloc(sizeof(char)*2); sprintf(v.data.vr.symbol, "R");
+    vec_push_back(f_ref.params, &v);
+    vec_push_back(f_at_index.params, &v);
+    vec_push_back(f_at_set.params, &v);
     v.data.vr.symbol.num++;
     vec_push_back(f_div.params, &v);
     vec_push_back(f_mul.params, &v);
     vec_push_back(f_plus.params, &v);
     vec_push_back(f_minus.params, &v);
+    vec_push_back(f_at_index.params, &v);
+    vec_push_back(f_at_set.params, &v);
 
     //NOTE
     expr ev = {.type = e_atom, .e.a = v};
@@ -250,6 +274,9 @@ void init(void) {
     vec_push_back(func_defs, &f_nl);
     vec_push_back(func_defs, &f_less_than);
     vec_push_back(func_defs, &f_cons);
+    vec_push_back(func_defs, &f_ref);
+    vec_push_back(func_defs, &f_at_index);
+    vec_push_back(func_defs, &f_at_set);
 
     choice_point c_div;
     c_div.functions = new_vector(1, sizeof(function));
@@ -285,6 +312,21 @@ void init(void) {
     c_cons.functions = new_vector(1, sizeof(function));
     vec_push_back(c_cons.functions, &f_cons);
     vec_push_back(func_defs_cp, &c_cons);
+
+    choice_point c_ref;
+    c_ref.functions = new_vector(1, sizeof(function));
+    vec_push_back(c_ref.functions, &f_ref);
+    vec_push_back(func_defs_cp, &c_ref);
+
+    choice_point c_at_index;
+    c_at_index.functions = new_vector(1, sizeof(function));
+    vec_push_back(c_at_index.functions, &f_at_index);
+    vec_push_back(func_defs_cp, &c_at_index);
+
+    choice_point c_at_set;
+    c_at_set.functions = new_vector(1, sizeof(function));
+    vec_push_back(c_at_set.functions, &f_at_set);
+    vec_push_back(func_defs_cp, &c_at_set);
 }
 
 void print_help(void) {

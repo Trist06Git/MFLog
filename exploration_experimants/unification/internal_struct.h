@@ -163,6 +163,7 @@ and copy_and(const and*);
 tuple copy_tuple(const tuple*);
 equality copy_equ(const equality*);
 equality_chain copy_equ_chain(const equality_chain*);
+expr reference_list(const list* lst);
 val copy_val(const val*);
 var copy_var(const var*);
 

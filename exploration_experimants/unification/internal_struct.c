@@ -249,6 +249,22 @@ fcall copy_fcall(const fcall* fc) {
     return ret;
 }
 
+//just shallow copying done
+expr reference_list(const list* lst) {
+    expr ret = {
+        .type = e_atom,
+        .e.a = {
+            .type = a_val,
+            .data.vl = {
+                .type = v_list,
+                .v.l = *lst
+            }
+        }
+    };
+    ret.e.a.data.vl.v.l.reference = true;
+    return ret;
+}
+
 val copy_val(const val* vl) {
     val ret = *vl;
     if (vl->type == v_int) {
@@ -266,6 +282,7 @@ val copy_val(const val* vl) {
             }
         } else {
             /////WARNING, referencing an empty list is not possible at this time..
+            if (vl->v.l.reference) printf("Warning! :: Referencing empty lists is not possible at this time.\n");
             ret.v.l.lst = NULL;
         }
         ret.v.l.type = vl->v.l.type;
@@ -401,7 +418,8 @@ void free_val(val* vl) {
     if (vl->type == v_int) {
         return;
     } else if (vl->type == v_list && vl->v.l.lst != NULL) {
-        free_mfarray(vl->v.l.lst);
+        if (!vl->v.l.reference) free_mfarray(vl->v.l.lst);
+        ////NOT GOOD, need a ref count...
         return;
     }
 }

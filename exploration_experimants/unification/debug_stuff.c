@@ -130,8 +130,10 @@ void dump_list(list* l, bool with_meta) {
     }
     printf("]");
     if (!with_meta) return;
-    if (l->has_vars) printf("v");
-    else             printf("i");
+    if (l->has_vars)  printf("v");
+    else              printf("i");
+    if (l->reference) printf("r");
+    else              printf("c");
 }
 
 void dump_val(val* vl) {

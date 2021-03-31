@@ -54,6 +54,9 @@ english        [A-Za-z]
 "::" return CONS_LIST;
 "++" return APP_LIST;
 [;] return AND_LIST;
+":=" return SET_LEFT;
+"=:" return SET_RIGHT;
+":=:" return SWAP;
 
 [,] return AND;
 [=] return EQUAL;

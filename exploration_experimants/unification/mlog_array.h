@@ -20,13 +20,14 @@ static bool inited = false;
 //neg for negative
 typedef struct {
     size_t el_size;
+    int (*comparator)(const void*, const void*, int);
     
-    int count_pos;//will be used in negative comparison
+    long int count_pos;//will be used in negative comparison
     size_t alloced_pos;//needed for munmap
     size_t precalc_alloced_pos;//save on a division each insert
     uint8_t* store_pos;
     
-    int count_neg;
+    long int count_neg;
     size_t alloced_neg;
     size_t precalc_alloced_neg;
     uint8_t* store_neg;
@@ -38,12 +39,13 @@ bool mfa_push_back(mf_array*, void* element);
 bool mfa_push_front(mf_array*, void* element);
 bool mfa_remove_back(mf_array*);
 bool mfa_remove_front(mf_array*);
-bool mfa_set(mf_array*, int i, void* element);
-void* mfa_at(mf_array*, int i);
-bool mfa_remove_at(mf_array*, int i);
+bool mfa_set(mf_array*, long int i, void* element);
+void* mfa_at(mf_array*, long int i);
+bool mfa_remove_at(mf_array*, long int i);
 size_t mfa_card(mf_array*);
 mf_array* mfa_duplicate(mf_array*);
 bool mfa_compare(mf_array*, mf_array*);
+void mfa_set_comparator(mf_array*, int (*)(const void*, const void*, int));
 
 mf_array* new_mfarray(size_t el_size);
 void free_mfarray(mf_array*);

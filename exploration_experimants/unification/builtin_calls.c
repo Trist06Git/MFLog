@@ -1,5 +1,6 @@
 
 #include <string.h>
+#include <stdbool.h>
 
 #include "builtin_calls.h"
 #include "internal_struct.h"
@@ -192,9 +193,93 @@ outcome add_to_list(list* lst, expr* ex) {
 }
 
 outcome at_index_builtin(fcall* fc, frame* frm, int call_sequ) {
-    
-    
+    if (vec_size(fc->params) < 3) {
+        printf("Error. \"[]/at_index\" requires 3+ operands.\n");
+        return o_fail;
+    }
+    substitution* L = get_sub_frm_i(frm, call_sequ, 0);
+    substitution* I = get_sub_frm_i(frm, call_sequ, 1);
+    substitution* R = get_sub_frm_i(frm, call_sequ, 2);
+    if (is_var_e(L->rhs)) {
+        printf("Error. :: List cannot be variable.\n");
+        return o_fail;
+    } else if (is_var_e(I->rhs)) {
+        printf("Error. :: Index query not yet implemented.");
+        return o_fail;
+    } else if (is_list_e(L->rhs) && is_int_e(I->rhs)) {//list is val, index is val, result is val/var
+        int index = I->rhs->e.a.data.vl.v.i;
+        mf_array* arr = L->rhs->e.a.data.vl.v.l.lst;
+        substitution new_R = make_uni_sub(call_sequ, 2);
+        expr* ex = mfa_at(arr, index);
+        if (ex == NULL) return o_pass;//not within bounds
+       *new_R.rhs = copy_expr(ex);
+        vec_push_back(frm->G, &new_R);
+        return o_pass;
+    }
+
     return o_fail;
+}
+
+outcome at_set_builtin(fcall* fc, frame* frm, int call_sequ) {
+    if (vec_size(fc->params) < 3) {
+        printf("Error. \":=/at_set\" requires 3+ operands.\n");
+        return o_fail;
+    }
+    substitution* L = get_sub_frm_i(frm, call_sequ, 0);
+    substitution* I = get_sub_frm_i(frm, call_sequ, 1);
+    substitution* E = get_sub_frm_i(frm, call_sequ, 2);
+    if (is_var_e(L->rhs) || is_var_e(I->rhs)) {
+        printf("Error :: List or Index cannot be variable.\n");
+        return o_fail;
+    } else if (E == NULL) {
+        printf("Internal :: Element for at_set() is NULL.\n");
+    } else if (is_int_e(I->rhs) && is_list_e(L->rhs)) {
+        int index = I->rhs->e.a.data.vl.v.i;
+        mf_array* arr = L->rhs->e.a.data.vl.v.l.lst;
+        expr* old_el = mfa_at(arr, index);
+        if (old_el != NULL) {//NULL may mean push front/back
+            free_expr(old_el);
+        }
+        expr new_el = copy_expr(E->rhs);
+        if (mfa_set(arr, index, &new_el) == false) {
+            //bad index
+            free_expr(&new_el);
+            return o_fail;
+        } else {
+            return o_pass;
+        }
+    }
+
+    return o_fail;
+}
+
+outcome ref_builtin(fcall* fc, frame* frm, int call_sequ) {
+    if (vec_size(fc->params) < 2) {//maybe no point to this
+        printf("Error. \"::/cons\" requires 3+ operands.\n");
+        return o_fail;
+    }
+    substitution* L = get_sub_frm_i(frm, call_sequ, 0);
+    substitution* R = get_sub_frm_i(frm, call_sequ, 1);
+    expr* P1 = vec_at(fc->params, 0);
+    if (is_var_e(L->rhs)) {
+        //should be undet, then put on the backburner and retried once vars
+        //are instantiated.
+        return o_fail;
+    } else if (is_list_e(L->rhs)) {
+        substitution new_R = make_uni_sub(call_sequ, 1);
+       *new_R.rhs = reference_list(&L->rhs->e.a.data.vl.v.l);
+        vec_push_back(frm->G, &new_R);
+        return o_pass;
+    } else if (is_list_e(P1)) {
+        substitution new_R = make_uni_sub(call_sequ, 1);
+       *new_R.rhs = reference_list(&P1->e.a.data.vl.v.l);
+        vec_push_back(frm->G, &new_R);
+        return o_pass;
+    } else {
+        //not list/other fails
+        return o_fail;
+    }
+
 }
 
 //the 2nd last param of fc is always the list to cons to.
@@ -404,8 +489,12 @@ outcome call_builtin(fcall* fc, frame* frm, int call_sequ) {
         return plus_builtin(fc, frm, call_sequ);
     } else if (strcmp(fc->name, "cons") == 0) {
         return cons_builtin(fc, frm, call_sequ);
-    } else if (strcmp(fc->name, "at_index") == 0) {
+    } else if (strcmp(fc->name, "at_index") == 0) {////NOT FINISHED YET...
         return at_index_builtin(fc, frm, call_sequ);
+    } else if (strcmp(fc->name, "at_set") == 0) {//also not finished yet
+        return at_set_builtin(fc, frm, call_sequ);
+    } else if (strcmp(fc->name, "ref") == 0) {
+        return ref_builtin(fc, frm, call_sequ);
     } else {
         printf("Info. Sorry, builtin function \"%s\" is not yet implemented.\n", fc->name);
         return o_fail;

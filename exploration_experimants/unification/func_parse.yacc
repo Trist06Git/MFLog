@@ -37,6 +37,8 @@
     extern fcall fc_lt;
     extern fcall fc_gt;
     extern fcall fc_cons;
+    extern fcall fc_ref;
+    extern fcall fc_at_index;
     vector* ps = NULL;
     mf_array* ls = NULL;
     map* symbol_table = NULL;
@@ -87,6 +89,8 @@
 %type <u_fc> Ocall
 %type <u_fc> Operator
 %type <u_fc> Cons_fcall
+%type <u_fc> List_at_index
+%type <u_fc> List_at_set
 //%type <u_eq> Equation
 //%type <u_ex> Atom_left_equ
 
@@ -99,6 +103,7 @@
 %left DIV
 %token LP_ROUND RP_ROUND
 %token END
+%left SET_LEFT SET_RIGHT SWAP
 %left EQUAL
 %left LESS_THAN
 %left GREATER_THAN
@@ -263,6 +268,8 @@ Expr : Fcall_ans     { expr ex; ex.type = e_fcall; ex.e.f = $1; $$ = ex; }
          expr ex = {.type = e_fcall, .e.f = cons};
          $$ = ex;
      }
+     | List_at_index { expr ex; ex.type = e_fcall; ex.e.f = $1; $$ = ex; }
+     | List_at_set   { expr ex; ex.type = e_fcall; ex.e.f = $1; $$ = ex; }
      ;
 
 Expr_list
@@ -287,6 +294,7 @@ List
     : LP_LIST Expr_list RP_LIST {
         //what if list has only vars??
         list l;
+        l.reference = false;
         l.has_vars = encountered_var;
         l.type = v_int;
         l.lst = $2;
@@ -294,6 +302,7 @@ List
     }
     | LP_LIST RP_LIST {
         list l;
+        l.reference = false;
         l.has_vars = false;
         l.lst = NULL;//empty list
         l.type = v_notype;
@@ -434,6 +443,57 @@ Var
     }
     ;
 
+List_at_index
+    : Expr LP_LIST NUMBER RP_LIST {
+        fcall ret = {
+            .type = f_builtin,
+            .name = strdup("at_index"),
+            .params = new_vector(3, sizeof(expr)),
+            .res_set = rs_one,
+            .rs_index = -1
+        };
+        expr list_var = copy_expr(&$1);
+        vec_push_back(ret.params, &list_var);
+        expr index = make_int_e($3);
+        vec_push_back(ret.params, &index);
+        $$ = ret;
+    };
+
+List_at_set
+    : Expr LP_LIST NUMBER RP_LIST SET_LEFT Expr { //lst[5] := 1
+        fcall ret = {
+            .type = f_builtin,
+            .name = strdup("at_set"),
+            .params = new_vector(3, sizeof(expr)),
+            .res_set = rs_one,
+            .rs_index = -1
+        };
+        expr target_list = copy_expr(&$1);
+        vec_push_back(ret.params, &target_list);
+        expr index = make_int_e($3);
+        vec_push_back(ret.params, &index);
+        expr target_val = copy_expr(&$6);
+        vec_push_back(ret.params, &target_val);
+        $$ = ret;
+    }
+    | Expr SET_RIGHT Expr LP_LIST NUMBER RP_LIST {//1 =: lst[5]
+        fcall ret = {
+            .type = f_builtin,
+            .name = strdup("at_set"),
+            .params = new_vector(3, sizeof(expr)),
+            .res_set = rs_one,
+            .rs_index = -1
+        };
+        expr target_list = copy_expr(&$3);
+        vec_push_back(ret.params, &target_list);
+        expr index = make_int_e($5);
+        vec_push_back(ret.params, &index);
+        expr target_val = copy_expr(&$1);
+        vec_push_back(ret.params, &target_val);
+        $$ = ret;
+    }
+    ;
+
 Atom
     : Var {
         atom at;
@@ -492,6 +552,7 @@ Builtin_func : PRINT_F   { $$ = fc_print;   }
              | NL_F      { $$ = fc_nl;      }
              | INTEGER_F { $$ = fc_integer; }
              | CONS_F    { $$ = fc_cons;    }
+             | REF_F     { $$ = fc_ref;     }
              ;
 
 Answer_count : FST_ANS { $$ = rs_first; }

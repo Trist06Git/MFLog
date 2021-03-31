@@ -351,3 +351,35 @@ main() =
 main() =
   lst = [1;2;3],
   return = ref(lst).
+
+main() =
+  x = do_stuff(),
+  y = do_more(x),
+  z = ref(y),
+  do_others(z).
+
+main() =
+  lst = [1;1;1],
+  lst[0] := 2,
+  return = lst.
+
+main() =
+  lst = [1;1;1],
+  lr = f(ref(lst)),
+  lr[1] := 2,       <-- mutate lst at 1
+  return = lst.
+
+
+///Note. at_set vs at_index
+main() =
+  lst = [1;1;1],
+  at_set(lst, 1, 2),
+  return = lst.
+
+at_index([1;2], 1, R)  =>  R = [1;2][1]
+
+at_index([1;2], 1)  =>  [1;2][1]
+        |
+        V
+at_index([1;2], 1, U_0), U_0. <-- after explication
+

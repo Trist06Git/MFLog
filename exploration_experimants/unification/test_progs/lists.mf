@@ -352,15 +352,53 @@
 //main() =
 //  [[return;_];[_;_]] = [[1;2];[3;4]].
 
-f(x) =
-  [1;2;x].
+//f(x) =
+//  [1;2;x].
+//
+//main() =
+//  [_;_;return] = f(3).
 
-main() =
-  [_;_;return] = f(3).
-
-////fix explication and make work with builtins
+//fix explication and make work with builtins
 //main(return) =
 //  return::_::_::[] = 1::2::3::[].
 //main() =
 //  cons(return, _, _, [], equ),
 //  cons(1, 2, 3, [], equ).
+
+////testing ref()
+//main() =
+//  return = ref([1;2;3]).
+
+//main() =
+//  lst = [1;2;3],
+//  return = ref(lst).
+
+////works, but the original referenc is being ditched
+//f(x, r) = r = [x;x;x].
+//g(lst, r) =
+//  lst = [a;b;c],
+//  r = [a2;b2;c2],
+//  plus(a, 1, a2),
+//  plus(b, 1, b2),
+//  plus(c, 1, c2).
+//
+//main() =
+//  f(1, l1),
+//  ref(l1, l2),
+//  g(l2, _),
+//  return = l1.
+
+//g(a, b) =
+//  a = 1, b = 2.
+//
+//f(lst, return) =
+//  return = lst[1].
+
+//main() =
+//  lst = [1;2;3],
+//  return = lst[1].
+
+main() =
+  ref([1;1;1], lst),
+  lst[1] := 2,
+  return = lst.

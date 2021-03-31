@@ -13,6 +13,7 @@ void dump_tuple(expr*);
 void dump_list(list*, bool with_meta);
 void dump_val(val*);
 void dump_atom(atom*);
+void dump_symbol(symbol_nos);
 void rec_dump_tuple(and*);
 void dump_expr_vec(vector*);
 
