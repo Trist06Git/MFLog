@@ -253,9 +253,39 @@ outcome at_set_builtin(fcall* fc, frame* frm, int call_sequ) {
     return o_fail;
 }
 
+outcome card_builtin(fcall* fc, frame* frm, int call_sequ) {
+    if (vec_size(fc->params) < 2) {//maybe no point to this
+        printf("Error. \"card\" requires 2+ operands.\n");
+        return o_fail;
+    }
+    substitution* L = get_sub_frm_i(frm, call_sequ, 0);
+    substitution* R = get_sub_frm_i(frm, call_sequ, 1);
+    expr* P1 = vec_at(fc->params, 0);
+    if (L != NULL && is_list_e(L->rhs) && R != NULL && is_int_e(R->rhs)) {
+        list* lst = &L->rhs->e.a.data.vl.v.l;
+        int card = R->rhs->e.a.data.vl.v.i;
+        if (lst->lst != NULL && mfa_card(lst->lst) == card) {
+            return o_pass;
+        } else if (lst->lst == NULL && card == 0) {
+            return o_pass;
+        } else {
+            return o_fail;
+        }
+    } else if (L != NULL && is_list_e(L->rhs)) {
+        list* lst = &L->rhs->e.a.data.vl.v.l;
+        substitution new_R = make_uni_sub(call_sequ, 1);
+       *new_R.rhs = make_int_e(mfa_card(lst->lst));
+        vec_push_back(frm->G, &new_R);
+        return o_pass;
+    } else if ((L == NULL || (L != NULL && is_var_e(L->rhs))) && (R != NULL && is_var_e(R->rhs))) {
+        printf("Error :: card : Many there are many lists with the cardinality %i\n", R->rhs->e.a.data.vl.v.i);
+    }
+    return o_fail;
+}
+
 outcome ref_builtin(fcall* fc, frame* frm, int call_sequ) {
     if (vec_size(fc->params) < 2) {//maybe no point to this
-        printf("Error. \"::/cons\" requires 3+ operands.\n");
+        printf("Error. \"::/cons\" requires 2+ operands.\n");
         return o_fail;
     }
     substitution* L = get_sub_frm_i(frm, call_sequ, 0);
@@ -386,8 +416,8 @@ outcome plus_builtin(fcall* fc, frame* frm, int call_sequ) {
     }
 #endif
 
-
-    if (is_int_e(sX->rhs) && is_int_e(sY->rhs) && is_int_e(sR->rhs)) {
+    //pretty bad
+    if (is_numeric_e(sX->rhs) && is_numeric_e(sY->rhs) && is_numeric_e(sR->rhs)) {
         //check
 #ifdef UNIFY_DEBUG
                 printf("DEBUG :: plus : checking:\n");
@@ -406,7 +436,7 @@ outcome plus_builtin(fcall* fc, frame* frm, int call_sequ) {
 #endif
         return o_fail;
 
-    } else if (is_int_e(sX->rhs) && is_int_e(sY->rhs) && is_var_e(sR->rhs)) {
+    } else if (is_numeric_e(sX->rhs) && is_numeric_e(sY->rhs) && is_var_e(sR->rhs)) {
         ///regular x + y = r
         //result var
         substitution s;
@@ -423,7 +453,7 @@ outcome plus_builtin(fcall* fc, frame* frm, int call_sequ) {
 #endif
         return o_pass;
 
-    } else if (is_int_e(sX->rhs) && is_var_e(sY->rhs) && is_int_e(sR->rhs)) {
+    } else if (is_numeric_e(sX->rhs) && is_var_e(sY->rhs) && is_numeric_e(sR->rhs)) {
         ///subtraction y = r - x
         //result var
         substitution s;
@@ -440,7 +470,7 @@ outcome plus_builtin(fcall* fc, frame* frm, int call_sequ) {
 #endif
         return o_pass;
 
-    } else if (is_var_e(sX->rhs) && is_int_e(sY->rhs) && is_int_e(sR->rhs)) {
+    } else if (is_var_e(sX->rhs) && is_numeric_e(sY->rhs) && is_numeric_e(sR->rhs)) {
         ///subtraction x = r - y
         //result var 
         substitution s;
@@ -489,12 +519,14 @@ outcome call_builtin(fcall* fc, frame* frm, int call_sequ) {
         return plus_builtin(fc, frm, call_sequ);
     } else if (strcmp(fc->name, "cons") == 0) {
         return cons_builtin(fc, frm, call_sequ);
-    } else if (strcmp(fc->name, "at_index") == 0) {////NOT FINISHED YET...
+    } else if (strcmp(fc->name, "at_index") == 0) {
         return at_index_builtin(fc, frm, call_sequ);
-    } else if (strcmp(fc->name, "at_set") == 0) {//also not finished yet
+    } else if (strcmp(fc->name, "at_set") == 0) {
         return at_set_builtin(fc, frm, call_sequ);
     } else if (strcmp(fc->name, "ref") == 0) {
         return ref_builtin(fc, frm, call_sequ);
+    } else if (strcmp(fc->name, "card") == 0) {
+        return card_builtin(fc, frm, call_sequ);
     } else {
         printf("Info. Sorry, builtin function \"%s\" is not yet implemented.\n", fc->name);
         return o_fail;

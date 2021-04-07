@@ -222,12 +222,15 @@ outcome unify(frame* frm, vector* func_defs_cp, vector* globals, int* call_sequ)
             if (res == o_fail) {
 #ifdef UNIFY_DEBUG
                 printf("DEBUG :: %s-%i : call() failed, trying next cp perm\n", frm->fname, frm->call_sequ);
+                dump_frame(frm);
 #endif
                 //try next perm
                 free_frame(next_frm);
                 //NOTE, may not need to clean G here.. seems faster if we do clean.. have you tried since enabling optimisations??
                 free_G(frm->G);
                 frm->G = duplicate_G(frm->G_clean);
+                //need an initial elim after fresh clean???
+                eliminate(frm);
                 break;
             } else {//WARN, o_undet
                 //try and consolidate
@@ -237,10 +240,12 @@ outcome unify(frame* frm, vector* func_defs_cp, vector* globals, int* call_sequ)
                 if (res == o_fail) {
 #ifdef UNIFY_DEBUG
                     printf("DEBUG :: %s-%i : consolidation of successful call failed,\ncleaning G and trying next cp perm\n", frm->fname, frm->call_sequ);
+                    dump_frame(frm);
 #endif
                     //clean G, try next perm
                     free_G(frm->G);
                     frm->G = duplicate_G(frm->G_clean);
+                    eliminate(frm);
                     break;
                 } else {
 #ifdef UNIFY_DEBUG
@@ -261,6 +266,9 @@ outcome unify(frame* frm, vector* func_defs_cp, vector* globals, int* call_sequ)
 #endif
         }
     }
+#ifdef UNIFY_DEBUG
+    printf("DEBUG :: %s-%i : Returning as %s\n", frm->fname, frm->call_sequ, outcome_to_string(&res));
+#endif
     return res;
 }
 

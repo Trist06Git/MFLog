@@ -383,3 +383,14 @@ at_index([1;2], 1)  =>  [1;2][1]
         V
 at_index([1;2], 1, U_0), U_0. <-- after explication
 
+f(1, 1).
+f(1, 2).
+f(1, 3).
+
+////all answers
+main() =
+  return = all f(1).
+
+////strings
+main() =
+  return = "hello world.".

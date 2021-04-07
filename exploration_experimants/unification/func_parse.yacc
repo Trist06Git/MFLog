@@ -38,6 +38,7 @@
     extern fcall fc_gt;
     extern fcall fc_cons;
     extern fcall fc_ref;
+    extern fcall fc_card;
     extern fcall fc_at_index;
     vector* ps = NULL;
     mf_array* ls = NULL;
@@ -68,11 +69,13 @@
 
 %token <number> NUMBER
 %token <string> WORD
+%token <string> STRING_L
 
 %type <u_at> Atom
 %type <u_val> Val
 %type <u_var> Var
 %type <u_fn> Func_head
+%type <u_fn> Func_head_arity
 %type <vec> Atom_params
 %type <vec> Expr_params
 %type <u_ex> Expr
@@ -113,6 +116,7 @@
 %token INTEGER_F
 %token CONS_F
 %token REF_F
+%token CARD_F
 %token FST_ANS
 %token ONE_ANS
 %token ALL_ANS
@@ -121,6 +125,7 @@
 %token APP_LIST
 %token AND_LIST
 %token WILD_VAR
+%token COLON
 
 %%
 
@@ -135,7 +140,7 @@ Program : Func_def
 //    //skip
 //};
 
-Func_def : Func_head Exprs END {
+Func_def : Func_head_arity Exprs END {
     //reset symbol_table for local scope
     if (symbol_table != NULL) {
         for (int i = 0; i < map_size(symbol_table); i++) {
@@ -154,14 +159,25 @@ Func_def : Func_head Exprs END {
     vec_push_back(func_defs, &f);
 };
 
+Func_head_arity
+    : Func_head COLON NUMBER EQUAL {
+        //not actually taking into account the arity here
+        function f = $1;
+        f.fully_defined = true;
+        $$ = f;
+    }
+    | Func_head EQUAL {
+        $$ = $1;
+    }
+
 Func_head
-    : WORD LP_ROUND Atom_params RP_ROUND EQUAL {
+    : WORD LP_ROUND Atom_params RP_ROUND {
         function f;
         f.name = $1;
         f.params = $3;
         $$ = f;
     }
-    | WORD LP_ROUND RP_ROUND EQUAL {/*no params*/
+    | WORD LP_ROUND RP_ROUND {/*no params*/
         function f;
         f.name = $1;
         f.params = new_vector(0, sizeof(expr));
@@ -401,6 +417,29 @@ Val
         v.v.l = $1;
         $$ = v;
     }
+    | STRING_L {
+        mf_array* str;
+        if (strlen($1)-2 > 0) {
+            str = new_mfarray(sizeof(expr));
+            for (int i = 1; i < strlen($1); i++) {
+                if (i == strlen($1)-1) break;//chop off the quotes
+                expr c = make_char_e($1[i]);
+                mfa_push_back(str, &c);
+            }
+        }
+        free($1);
+        
+        val v = {
+            .type = v_list,
+            .v.l = {
+                .type = v_char,
+                .lst = str,
+                .reference = false,
+                .has_vars = false
+            }
+        };
+        $$ = v;
+    }
     ;
 
 Var
@@ -444,7 +483,7 @@ Var
     ;
 
 List_at_index
-    : Expr LP_LIST NUMBER RP_LIST {
+    : Expr LP_LIST Expr RP_LIST {
         fcall ret = {
             .type = f_builtin,
             .name = strdup("at_index"),
@@ -454,13 +493,13 @@ List_at_index
         };
         expr list_var = copy_expr(&$1);
         vec_push_back(ret.params, &list_var);
-        expr index = make_int_e($3);
+        expr index = copy_expr(&$3);
         vec_push_back(ret.params, &index);
         $$ = ret;
     };
 
 List_at_set
-    : Expr LP_LIST NUMBER RP_LIST SET_LEFT Expr { //lst[5] := 1
+    : Expr LP_LIST Expr RP_LIST SET_LEFT Expr { //lst[5] := 1
         fcall ret = {
             .type = f_builtin,
             .name = strdup("at_set"),
@@ -470,13 +509,13 @@ List_at_set
         };
         expr target_list = copy_expr(&$1);
         vec_push_back(ret.params, &target_list);
-        expr index = make_int_e($3);
+        expr index = copy_expr(&$3);
         vec_push_back(ret.params, &index);
         expr target_val = copy_expr(&$6);
         vec_push_back(ret.params, &target_val);
         $$ = ret;
     }
-    | Expr SET_RIGHT Expr LP_LIST NUMBER RP_LIST {//1 =: lst[5]
+    | Expr SET_RIGHT Expr LP_LIST Expr RP_LIST {//1 =: lst[5]
         fcall ret = {
             .type = f_builtin,
             .name = strdup("at_set"),
@@ -486,7 +525,7 @@ List_at_set
         };
         expr target_list = copy_expr(&$3);
         vec_push_back(ret.params, &target_list);
-        expr index = make_int_e($5);
+        expr index = copy_expr(&$5);
         vec_push_back(ret.params, &index);
         expr target_val = copy_expr(&$1);
         vec_push_back(ret.params, &target_val);
@@ -553,6 +592,7 @@ Builtin_func : PRINT_F   { $$ = fc_print;   }
              | INTEGER_F { $$ = fc_integer; }
              | CONS_F    { $$ = fc_cons;    }
              | REF_F     { $$ = fc_ref;     }
+             | CARD_F    { $$ = fc_card;    }
              ;
 
 Answer_count : FST_ANS { $$ = rs_first; }

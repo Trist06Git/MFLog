@@ -122,13 +122,27 @@ void dump_tuple(expr* e) {
 }
 
 void dump_list(list* l, bool with_meta) {
-    printf("[");
-    if (l->lst != NULL) for (int i = 0; i < mfa_card(l->lst); i++) {
-        expr* ei = mfa_at(l->lst, i);
-        dump_expr(*ei, false);
-        if (i < mfa_card(l->lst)-1) printf(";");
+    if (l->type != v_char) {
+        printf("[");
+        if (l->lst != NULL) for (int i = 0; i < mfa_card(l->lst); i++) {
+            expr* ei = mfa_at(l->lst, i);
+            dump_expr(*ei, false);
+            if (i < mfa_card(l->lst)-1) printf(";");
+        }
+        printf("]");
+    } else {
+        if (with_meta) printf("\"");
+        if (l->lst != NULL) for (int i = 0; i < mfa_card(l->lst); i++) {
+            expr* ei = mfa_at(l->lst, i);
+            if (is_var_e(ei)) {
+                printf("?");
+            } else {
+                printf("%c", ei->e.a.data.vl.v.i);
+            }
+        }
+        if (with_meta) printf("\"");
     }
-    printf("]");
+    
     if (!with_meta) return;
     if (l->has_vars)  printf("v");
     else              printf("i");

@@ -33,6 +33,7 @@ english        [A-Za-z]
 "integer" return INTEGER_F;
 "cons"    return CONS_F;
 "ref"     return REF_F;
+"card"    return CARD_F;
 
 {digits}+ {
     funclval.number = atoi(functext);
@@ -44,6 +45,11 @@ english        [A-Za-z]
     return WORD;
 }
 
+\"(\\.|[^"\\])*\" {
+    funclval.string = strdup(functext);
+    return STRING_L;
+}
+
 [_] return WILD_VAR;
 
 [(] return LP_ROUND;
@@ -51,12 +57,13 @@ english        [A-Za-z]
 [[] return LP_LIST;
 []] return RP_LIST;
 
-"::" return CONS_LIST;
-"++" return APP_LIST;
-[;] return AND_LIST;
-":=" return SET_LEFT;
-"=:" return SET_RIGHT;
+"::"  return CONS_LIST;
+"++"  return APP_LIST;
+[;]   return AND_LIST;
+":="  return SET_LEFT;
+"=:"  return SET_RIGHT;
 ":=:" return SWAP;
+[:]   return COLON;
 
 [,] return AND;
 [=] return EQUAL;

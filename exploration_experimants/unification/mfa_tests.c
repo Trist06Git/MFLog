@@ -21,6 +21,7 @@ test_results push_back_single(void);
 test_results push_front_single(void);
 test_results at_front_5(void);
 test_results push_back_front_10(void);
+test_results push_back_front_2(void);
 test_results remove_at_mid_back(void);
 test_results remove_at_mid_front(void);
 test_results remove_all_back_front(void);
@@ -33,6 +34,7 @@ test_results pop_front_wrapper(void);
 test_results duplicate_front(void);
 test_results duplicate_front_back(void);
 test_results compare_arrays(void);
+test_results at_set_no_expansion(void);
 
 //do tests for fail
 
@@ -43,6 +45,7 @@ int main(int argc, char** argv) {
     print_results(push_front_single());
     print_results(at_front_5());
     print_results(push_back_front_10());
+    print_results(push_back_front_2());
     print_results(remove_at_mid_back());
     print_results(remove_at_mid_front());
     print_results(remove_all_back_front());
@@ -55,6 +58,7 @@ int main(int argc, char** argv) {
     print_results(duplicate_front());
     print_results(duplicate_front_back());
     print_results(compare_arrays());
+    print_results(at_set_no_expansion());
 
     printf(":: Done ::\n");
 }
@@ -119,6 +123,28 @@ test_results at_front_5(void) {
             res.result = false;
             return res;
         }
+        res.result &= *val == i;
+    }
+    
+    free_mfarray(arr);
+    return res;
+}
+
+test_results push_back_front_2(void) {
+    test_results res;
+    res.name = "push back and front 2";
+    res.result = true;
+    
+    mf_array* arr = new_mfarray(sizeof(int));
+    for (int i = 0; i < 2; i++) {
+        int val = i+2;
+        res.result &= mfa_set(arr, i, &val);
+    }
+    for (int i = 1; i >= 0; i--) {
+        res.result &= mfa_set(arr, -1, &i);
+    }
+    for (int i = 0; i < mfa_card(arr); i++) {
+        int* val = mfa_at(arr, i);
         res.result &= *val == i;
     }
     
@@ -459,5 +485,27 @@ test_results compare_arrays(void) {
 
     free_mfarray(arr1);
     free_mfarray(arr2);
+    return res;
+}
+
+test_results at_set_no_expansion(void) {
+    test_results res;
+    res.name = "set in middle of array";
+    res.result = true;
+    
+    mf_array* arr = new_mfarray(sizeof(int));
+    int one = 1;
+    mfa_push_back(arr, &one);
+    mfa_push_back(arr, &one);
+    mfa_push_back(arr, &one);
+
+    int two = 2;
+    mfa_set(arr, 1, &two);
+
+    res.result &= mfa_card(arr) == 3;
+    int* changed = mfa_at(arr, 1);
+    res.result &= *changed == 2;
+
+    free_mfarray(arr);
     return res;
 }

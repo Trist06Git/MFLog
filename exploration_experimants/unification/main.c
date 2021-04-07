@@ -16,9 +16,14 @@
 #include "glob.tab.h"
 #include "debug_stuff.h"
 
+#define alot(of) 0xBadC0de
+
 int extern errno;
 extern FILE* funcin;
 extern FILE* globin;
+
+extern int func_line_number;
+extern int glob_line_number;
 
 int flag;
 int verbose = 0;
@@ -42,6 +47,7 @@ fcall fc_cons;
 fcall fc_ref;
 fcall fc_at_index;
 fcall fc_at_set;
+fcall fc_card;
 function f_div;
 function f_mul;
 function f_plus;
@@ -53,6 +59,7 @@ function f_cons;
 function f_ref;
 function f_at_index;
 function f_at_set;
+function f_card;
 //slight hack for calling main
 fcall fc_main;
 
@@ -95,10 +102,12 @@ int main(int argc, char** argv) {
             }
             if (verbose > 0) printf("Parsing/Lexing: %s\n", *filename);
             globin = file;
+            glob_line_number = 1;
             globparse();
             rewind(file);
 
             funcin = file;
+            func_line_number = 1;
             funcparse();
             
             fclose(file);
@@ -184,13 +193,16 @@ void init(void) {
     fc_cons.name     = strdup("cons");
     fc_ref.name      = strdup("ref");
     fc_at_index.name = strdup("at");
+    fc_card.name     = strdup("card");
     fc_div.res_set   = fc_mul.res_set  = fc_plus.res_set = rs_one;
     fc_minus.res_set = fc_plus.res_set = fc_cons.res_set = rs_one;
     fc_lt.res_set    = fc_gt.res_set   = fc_ref.res_set  = rs_one;
-    fc_at_index.res_set = fc_at_set.res_set = rs_one;
+    fc_at_index.res_set = fc_at_set.res_set = fc_card.res_set = rs_one;
 
+    fc_minus.type = f_user;
     fc_print.type = fc_nl.type  = fc_integer.type = fc_lt.type = f_builtin;
     fc_cons.type  = fc_ref.type = fc_at_index.type = fc_at_set.type = f_builtin;
+    fc_card.type  = f_builtin;
 
     fc_main.name = strdup("main");
     fc_main.params = new_vector(1, sizeof(expr));
@@ -208,6 +220,7 @@ void init(void) {
     f_ref.name   = strdup("ref");
     f_at_index.name = strdup("at_index");
     f_at_set.name   = strdup("at_set");
+    f_card.name  = strdup("card");
     f_div.params   = new_vector(3, sizeof(atom));
     f_mul.params   = new_vector(3, sizeof(atom));
     f_plus.params  = new_vector(3, sizeof(atom));
@@ -219,6 +232,7 @@ void init(void) {
     f_ref.params   = new_vector(2, sizeof(atom));
     f_at_index.params = new_vector(3, sizeof(atom));
     f_at_set.params   = new_vector(3, sizeof(atom));
+    f_card.params  = new_vector(2, sizeof(atom));
     f_div.fully_defined  = f_mul.fully_defined   =
     f_plus.fully_defined = f_minus.fully_defined = true;//needs work
     f_div.e.type   = f_mul.e.type       =
@@ -226,13 +240,13 @@ void init(void) {
     f_print.e.type = f_less_than.e.type =
     f_nl.e.type    = f_cons.e.type      =
     f_ref.e.type   = f_at_index.e.type  =
-    f_at_set.e.type = e_builtin;
+    f_at_set.e.type = f_card.e.type = e_builtin;
     f_div.type   = f_mul.type       =
     f_plus.type  = f_minus.type     =
     f_print.type = f_less_than.type = 
     f_nl.type    = f_cons.type      =
     f_ref.type   = f_at_index.type  =
-    f_at_set.type = fd_func;
+    f_at_set.type = f_card.type     = fd_func;
 
     atom v = {.type = a_var, .data.vr = {.symbol = {.type = s_var, .scope = -1, .num = 0}}};
     vec_push_back(f_div.params, &v);
@@ -245,6 +259,7 @@ void init(void) {
     vec_push_back(f_ref.params, &v);
     vec_push_back(f_at_index.params, &v);
     vec_push_back(f_at_set.params, &v);
+    vec_push_back(f_card.params, &v);
     v.data.vr.symbol.num++;
     vec_push_back(f_div.params, &v);
     vec_push_back(f_mul.params, &v);
@@ -254,6 +269,7 @@ void init(void) {
     vec_push_back(f_ref.params, &v);
     vec_push_back(f_at_index.params, &v);
     vec_push_back(f_at_set.params, &v);
+    vec_push_back(f_card.params, &v);
     v.data.vr.symbol.num++;
     vec_push_back(f_div.params, &v);
     vec_push_back(f_mul.params, &v);
@@ -277,6 +293,7 @@ void init(void) {
     vec_push_back(func_defs, &f_ref);
     vec_push_back(func_defs, &f_at_index);
     vec_push_back(func_defs, &f_at_set);
+    vec_push_back(func_defs, &f_card);
 
     choice_point c_div;
     c_div.functions = new_vector(1, sizeof(function));
@@ -327,6 +344,11 @@ void init(void) {
     c_at_set.functions = new_vector(1, sizeof(function));
     vec_push_back(c_at_set.functions, &f_at_set);
     vec_push_back(func_defs_cp, &c_at_set);
+
+    choice_point c_card;
+    c_card.functions = new_vector(1, sizeof(function));
+    vec_push_back(c_card.functions, &f_card);
+    vec_push_back(func_defs_cp, &c_card);
 }
 
 void print_help(void) {

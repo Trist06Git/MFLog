@@ -21,7 +21,9 @@ typedef struct function function;
 typedef struct choice_point choice_point;
 
 //char list is a string
-enum v_type {v_int, v_list, v_char, v_notype};
+//char is a char casted int
+//val as type v_string is alias for char list
+enum v_type {v_int, v_list, v_string, v_char, v_notype};
 struct list {
     enum v_type type;
     mf_array* lst;//NULL = empty list, with no type
@@ -103,7 +105,7 @@ struct function {
     char* name;
     vector* params;//as raw atoms
     expr e;
-    bool fully_defined;
+    bool fully_defined;//know arity
     enum e_type type;
 };
 
@@ -131,6 +133,10 @@ bool is_equ_e(const expr*);
 bool is_equ_chain_e(const expr*);
 bool is_int_a(const atom*);
 bool is_int_e(const expr*);
+bool is_char_a(const atom*);
+bool is_char_e(const expr*);
+bool is_numeric_a(const atom*);
+bool is_numeric_e(const expr*);
 bool is_generated_var(const expr*);
 bool is_list_instantiated_e(expr*);
 int tuple_size_e(const expr*);
@@ -138,6 +144,8 @@ int tuple_size_e(const expr*);
 //expr make_var_e(char*);
 atom make_int_a(int);
 expr make_int_e(int);
+atom make_char_a(char);
+expr make_char_e(char);
 expr make_var_e(symbol_nos);
 expr make_query(atom*);
 expr make_list_e(bool reference);
@@ -163,7 +171,7 @@ and copy_and(const and*);
 tuple copy_tuple(const tuple*);
 equality copy_equ(const equality*);
 equality_chain copy_equ_chain(const equality_chain*);
-expr reference_list(const list* lst);
+expr reference_list(list* lst);
 val copy_val(const val*);
 var copy_var(const var*);
 

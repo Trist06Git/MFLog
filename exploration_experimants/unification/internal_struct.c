@@ -37,6 +37,10 @@ bool is_equ_e(const expr* e)         { return e->type == e_equ;   }
 bool is_equ_chain_e(const expr* e)   { return e->type == e_equ_chain; }
 bool is_int_a(const atom* a)         { return is_val_a(a) && a->data.vl.type == v_int; }
 bool is_int_e(const expr* e)         { return is_atom_e(e) && is_int_a(&e->e.a); }
+bool is_char_a(const atom* a)        { return is_val_a(a) && a->data.vl.type == v_char; }
+bool is_char_e(const expr* e)        { return is_atom_e(e) && is_char_a(&e->e.a); }
+bool is_numeric_a(const atom* a)     { return is_int_a(a) || is_char_a(a); }
+bool is_numeric_e(const expr* e)     { return is_val_e(e) && is_numeric_a(&e->e.a); }
 bool is_generated_var(const expr* e) {
     if (e->type != e_atom || e->e.a.type != a_var) return false;
     //return strstr(e->e.a.data.vr.symbol, "U_") != NULL;
@@ -75,6 +79,14 @@ atom make_int_a(int n) {
 expr make_int_e(int n) {
     expr new_int = {e_atom, .e.a = make_int_a(n)};
     return new_int;
+}
+atom make_char_a(char c) {
+    atom new_char = {.type = a_val, .data.vl = {.type = v_char, .v.i = c}};
+    return new_char;
+}
+expr make_char_e(char c) {
+    expr new_char = {e_atom, .e.a = make_char_a(c)};
+    return new_char;
 }
 expr make_var_e(symbol_nos s) {
     expr res = {
@@ -175,7 +187,12 @@ bool compare_atoms_a(const atom* a1, const atom* a2) {
                 return a1->data.vl.v.i == a2->data.vl.v.i;
             } else if (a1->data.vl.type == v_list) {
                 return compare_lists_l(&a1->data.vl.v.l, &a2->data.vl.v.l);
-            }//else other types
+            } else if (a1->data.vl.type == v_char) {
+                return a1->data.vl.v.i == a2->data.vl.v.i;
+            } else {
+                printf("Internal :: Unknown type in compare_atoms_a()\n");
+                return false;
+            }
         }
     } else if (a1->type == a_var && a2->type == a_var) {
         return compare_symbols_s(&a1->data.vr.symbol, &a2->data.vr.symbol);
@@ -250,7 +267,7 @@ fcall copy_fcall(const fcall* fc) {
 }
 
 //just shallow copying done
-expr reference_list(const list* lst) {
+expr reference_list(list* lst) {
     expr ret = {
         .type = e_atom,
         .e.a = {
@@ -262,12 +279,16 @@ expr reference_list(const list* lst) {
         }
     };
     ret.e.a.data.vl.v.l.reference = true;
+    lst->reference = true;//they both refer to the same thing
     return ret;
 }
 
 val copy_val(const val* vl) {
     val ret = *vl;
     if (vl->type == v_int) {
+        ret.v.i = vl->v.i;
+        ret.type = vl->type;
+    } else if (vl->type == v_char) {
         ret.v.i = vl->v.i;
         ret.type = vl->type;
     } else if  (vl->type == v_list) {

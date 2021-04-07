@@ -398,7 +398,138 @@
 //  lst = [1;2;3],
 //  return = lst[1].
 
-main() =
-  ref([1;1;1], lst),
-  lst[1] := 2,
-  return = lst.
+//main() =
+//  ref([1;1;1], lst),
+//  lst[1] := 2,
+//  return = lst.
+
+//transform(lst, 0) =
+//  lst[0] := f(lst[0]).
+
+//f(x) = plus(x, 1).
+//
+//transform(_, -1).
+//transform(lst, n) =
+//  step = minus(n, 1),
+//  transform(lst, step),
+//  lst[n] := f(lst[n]).
+//
+//main() =
+//  lst = ref([7;7;7]),
+//  transform(lst, 2),
+//  return = lst.
+
+//mutate(lst, 0) = lst[0] := 0.
+//mutate(lst, n) =
+//  minus(n, 1, step),
+//  lst[n] := 0,
+//  mutate(lst, step).
+  
+//main() =
+//  ref([1;2;3;4], lst),
+//  mutate(lst, 3),
+//  return = lst.
+
+//simple_mutate(lst) =
+//  lst[0] := 0.
+//main() =
+//  ref([1;2;3], lst),
+//  simple_mutate(lst),
+//  return = lst.
+
+//g(1) = 1.
+//h(1) = 2.
+//i(1) = 3.
+//
+//f(x) =
+//  g(h(i(x))).//,
+//  //r2 = i(h(g(x))).
+//
+//main() =
+//  return = f(1).
+
+//f(0) = "false".
+//f(_) = "true".
+
+//g(0) = [1;2].
+
+//main(0) =
+//  printnl("Hello World!!").
+
+//f(x) = x + 3.
+//ceaser(_, -1).
+//ceaser(str, n) =
+//  step = minus(n, 1),
+//  ceaser(str, step),
+//  str[n] := f(str[n]).
+//
+//main() =
+//  str = ref("hello"),
+//  ceaser(str, 4),
+//  return = str.
+
+//f(x) = x + 3.
+//transform(lst, -1).
+//transform(lst, n) =
+//  step + 1 = n,
+//  transform(lst, step),
+//  lst[n] := f(lst[n]).
+//
+//main() =
+//  lst = ref([1;2;3]),
+//  size = card(lst) - 1,
+//  transform(lst, size),
+//  return = lst.
+
+//count(100).
+//count(number) =
+//  plus(number, 1, step),
+//  count(step).
+//
+//main() =
+//  count(0),
+//  return = 1.
+
+//main() =
+//  lst = [1;2;3],
+//  return = card(lst).
+
+//f(x) = x + 1.
+//g(x, y) = x + y.
+//
+//main() =
+//  return = g(f(1), 1).
+
+//f(x) = x + 3.
+//ceaser(_, -1).
+//ceaser(str, n) =
+//  ceaser(str, n-1),
+//  str[n] := f(str[n]).
+//
+//main() =
+//  str = ref("hello"),
+//  ceaser(str, 4),
+//  return = str.
+
+////with arity signature
+//m_loop(n):1 =
+//  n < 3,
+//  step = n + 1,
+//  printnl(n),
+//  m_loop(step).
+//
+//main() =
+//  m_loop(0),
+//  return = 3.
+
+//works, but need not() so as not to fail main
+//f(x) = x + 3.
+//ceaser(str, n):2 =
+//  str[n] := f(str[n]),
+//  //printnl(str),
+//  ceaser(str, n-1).
+//
+//main() =
+//  str = ref("hello"),
+//  ceaser(str, 4),
+//  return = str.

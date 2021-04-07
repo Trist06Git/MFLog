@@ -3,7 +3,7 @@ CC = gcc
 LL = lex
 YY = yacc
 WARNS = -Wreturn-type
-DEBUG_FLAGS = -DUNIFY_DEBUG
+DEBUG_FLAGS = #-DUNIFY_DEBUG
 OPTIMISATIONS = -O3
 C_LIBS = glob.tab.c lex.glob.c func.tab.c lex.func.c internal_struct.c generic_vector.c generic_map.c\
          mlog_array.c utils.c explication.c unify.c builtin_calls.c debug_stuff.c

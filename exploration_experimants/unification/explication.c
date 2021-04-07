@@ -11,8 +11,8 @@
 #include "debug_stuff.h"
 
 void explic_func(function* f, vector* func_defs) {
-    if (f->fully_defined || f->e.type == e_builtin) return;//this may be old and not needed anymore??
-    
+    if (/*f->fully_defined || */f->e.type == e_builtin) return;//this may be old and not needed anymore??
+
     if (f->type == fd_func) {
         decompose_equs(f);//doing decomp equs first, not sure what the implications are yet.
         explic_func_expr(f, func_defs);
@@ -76,7 +76,7 @@ void expand_fact(function* f) {
 void explic_func_expr(function* f, vector* func_defs) {
     int unique = 0;
     vector* moved_fcalls = new_vector(10, sizeof(expr));
-    vector* singletons = get_var_singles(f, true);
+    vector* singletons = get_var_singles(f, NULL, true);
     rec_explic_func_expr(&f->e, &unique, moved_fcalls, singletons, func_defs, f);
     //and append moved fcalls
     for (int i = 0; i < vec_size(moved_fcalls); i++) {
@@ -100,7 +100,8 @@ expr make_unnamed_var_e(int number) {
     return res;
 }
 
-void rec_explic_func_expr(expr* e, int* unique, vector* fc_to_move, vector* singletons, vector* func_defs, function* root) {
+//returns true if the func needs to be removed in situ
+bool rec_explic_func_expr(expr* e, int* unique, vector* fc_to_move, vector* singletons, vector* func_defs, function* root) {
     if (is_val_e(e)) {
         //replace with equality and unique var
         //expr new_left  = make_var_e(unique_name_incr(unique));
@@ -114,7 +115,12 @@ void rec_explic_func_expr(expr* e, int* unique, vector* fc_to_move, vector* sing
     } else if (is_and_e(e)) {
         vector* ands = e->e.n.ands;
         for (int i = 0; i < vec_size(ands); i++) {
-            rec_explic_func_expr(vec_at(ands, i), unique, fc_to_move, singletons, func_defs, root);
+            bool move = rec_explic_func_expr(vec_at(ands, i), unique, fc_to_move, singletons, func_defs, root);
+            if (move) {
+                vec_push_back(fc_to_move, vec_at(ands, i));
+                vec_remove_at(ands, i);
+                i--;
+            }
         }
     } else if (is_fcall_e(e)) {
         //if (e->e.f.type == f_builtin) return;// <-- this should be deleted..
@@ -126,12 +132,14 @@ void rec_explic_func_expr(expr* e, int* unique, vector* fc_to_move, vector* sing
         if (def == NULL) {
             printf("Error, unknown function %s with arity %li.\n", e->e.f.name, vec_size(e->e.f.params));
             //return;
-        } else {
+        } else if (!def->fully_defined) {
             explic_func(def, func_defs);//DANGER, if no base case is defined, then infinit loop
             //this really needs to be fixed.. maybe declare name/arity before the definition eg: f/2 \nl f(x,y) = ...
         }
         explic_func_params(&e->e.f, unique, fc_to_move, singletons, func_defs, root);
         explic_callsite(&e->e.f, unique, NULL, func_defs);
+        //move fc out so that all fcs remain in order
+        return true;//truely horrific..
     } else if (is_equ_e(e)) {
         rec_explic_func_equ(e, unique, fc_to_move, singletons, func_defs, root);
     } else if (is_equ_chain_e(e)) {
@@ -140,6 +148,7 @@ void rec_explic_func_expr(expr* e, int* unique, vector* fc_to_move, vector* sing
             rec_explic_func_expr(vec_at(equs, i), unique, fc_to_move, singletons, func_defs, root);
         }
     }
+    return false;
 }
 
 //this is truly horrific and needs to be redone, badly..
@@ -159,12 +168,23 @@ void rec_explic_func_equ(expr* e, int* unique, vector* fc_to_move, vector* singl
 
         //move fcall out
         vec_push_back(fc_to_move, e);
-        //get new singles from root def
-        vector* new_singles = get_var_singles(root, true);
         
+        //terrible
+        function dummy = {
+            .type = f_user,
+            .e = {
+                .type = e_and,
+                .e.n.ands = fc_to_move
+            },
+            .params = new_vector(0, 1)
+        };
+
+        //get new singles from root def
+        vector* new_singles = get_var_singles(root, fc_to_move, true);
         expr unbounds = tuplise_params(e->e.f.params, new_singles);
         if (unbounds.type == e_builtin) {
             //there were no unbounds to tupilise...
+            printf("Internal :: There were no unbound variables to return.\n");
         } else {
             *e = copy_expr(&unbounds);
         }
@@ -213,7 +233,7 @@ void explic_func_params(fcall* fc, int* unique, vector* fc_to_move, vector* sing
                 printf("Error, unknown function %s with arity %li.\n", e->e.f.name, vec_size(e->e.f.params));
                 return;
             }
-            explic_func(def, func_defs);
+            if (!def->fully_defined) explic_func(def, func_defs);
             explic_func_params(&param.e.f, unique, fc_to_move, singletons, func_defs, root);
             vector* newly_generated = new_vector(0, sizeof(expr));
             explic_callsite(&param.e.f, unique, newly_generated, func_defs);
@@ -260,7 +280,7 @@ void explic_callsite(fcall* fc, int* unique, vector* newly_generated, vector* fu
     }
     while (vec_size(fc->params) < vec_size(def->params)) {
         //expr new_name = make_var_e(unique_name_incr(unique));
-        expr new_name = make_unnamed_var_e(*unique); unique++;
+        expr new_name = make_unnamed_var_e(*unique); (*unique)++;
         vec_push_back(fc->params, &new_name);
         if (newly_generated != NULL) {
             vec_push_back(newly_generated, &new_name);
@@ -269,7 +289,7 @@ void explic_callsite(fcall* fc, int* unique, vector* newly_generated, vector* fu
 }
 
 void explic_func_head(function* f) {
-    vector* f_singles = get_var_singles(f, false);
+    vector* f_singles = get_var_singles(f, NULL, false);
     for (int i = 0; i < vec_size(f_singles); i++) {
         symbol_nos* s = vec_at(f_singles, i);
         atom new_param = {.type = a_var, .data.vr.symbol = *s};
@@ -312,17 +332,26 @@ void free_var_singles(vector* vec) {
     free_vector(vec);
 }
 
-vector* get_var_singles(function* f, bool globals) {
+vector* get_var_singles(function* f, vector* fc_to_move, bool globals) {
     //varname, count
     map* mp = new_map(sizeof(symbol_nos), sizeof(int));
     mp->el1_comparator = byte_compare;
     mp->el2_comparator = byte_compare;
-    rec_get_var_singles_e(&f->e, mp);
+    
+    //if (fc_to_move != NULL) add_new_singles(fc_to_move, mp);
+    
+    rec_get_var_singles_e(&f->e, fc_to_move, mp);
+    
     ////cheating by using global externs...
     if (globals) for (int i = 0; i < vec_size(global_defs); i++) {
-        rec_get_var_singles_e(vec_at(global_defs, i), mp);
+        rec_get_var_singles_e(vec_at(global_defs, i), NULL, mp);
     }
     ////end cheat
+
+    if (fc_to_move != NULL) for (int i = 0; i < vec_size(fc_to_move); i++) {
+        expr* fci = vec_at(fc_to_move, i);
+        rec_get_var_singles_e(fci, NULL, mp);
+    }
 
     check_var_singles_params(f->params, mp);
     vector* singles = extract_singles_map(mp);
@@ -338,7 +367,6 @@ vector* get_var_singles(function* f, bool globals) {
             vec_remove_at(singles, i); i--;
         }
     }
-    
     return singles;
 }
 
@@ -348,7 +376,7 @@ vector* get_var_singles_e(expr* ex) {
     //varname, count
     map* mp = new_map(sizeof(symbol_nos), sizeof(int));
     mp->el1_comparator = byte_compare;
-    rec_get_var_singles_e(ex, mp);
+    rec_get_var_singles_e(ex, NULL, mp);
     return extract_singles_map(mp);
 }
 
@@ -365,7 +393,7 @@ vector* extract_singles_map(map* mp) {
     return singletons;
 }
 
-void rec_get_var_singles_e(expr* e, map* mp) {
+void rec_get_var_singles_e(expr* e, vector* fc_to_move, map* mp) {
     if (is_var_e(e) && !is_wild_e(e)) {
         symbol_nos v_name = e->e.a.data.vr.symbol;
         if (map_contains_key(mp, &v_name)) {
@@ -377,25 +405,33 @@ void rec_get_var_singles_e(expr* e, map* mp) {
     } else if (is_and_e(e)) {
         vector* ands = e->e.n.ands;
         for (int i = 0; i < vec_size(ands); i++) {
-            rec_get_var_singles_e(vec_at(ands, i), mp);
+            rec_get_var_singles_e(vec_at(ands, i), fc_to_move, mp);
         }
     } else if (is_equ_e(e)) {
-        rec_get_var_singles_e(e->e.e.lhs, mp);
-        rec_get_var_singles_e(e->e.e.rhs, mp);
+        rec_get_var_singles_e(e->e.e.lhs, fc_to_move, mp);
+        rec_get_var_singles_e(e->e.e.rhs, fc_to_move, mp);
     } else if (is_equ_chain_e(e)) {
         vector* equs = e->e.ec.equs;
         for (int i = 0; i < vec_size(equs); i++) {
-            rec_get_var_singles_e(vec_at(equs, i), mp);
+            rec_get_var_singles_e(vec_at(equs, i), fc_to_move, mp);
         }
     } else if (is_fcall_e(e)) {
+        if (fc_to_move != NULL) for (int i = 0; i < vec_size(fc_to_move); i++) {
+            expr* fci = vec_at(fc_to_move, i);
+            if (strcmp(e->e.f.name, fci->e.f.name) == 0) {
+                printf("##### found duplicate in fc_to_move:\n");
+                dump_expr(*e, true);nl;
+                return;
+            }
+        }
         vector* ps = e->e.f.params;
         for (int i = 0; i < vec_size(ps); i++) {
-            rec_get_var_singles_e(vec_at(ps, i), mp);
+            rec_get_var_singles_e(vec_at(ps, i), fc_to_move, mp);
         }
     } else if (is_tuple_e(e)) {
         vector* tps = e->e.t.n.ands;
         for (int i = 0; i < vec_size(tps); i++) {
-            rec_get_var_singles_e(vec_at(tps, i), mp);
+            rec_get_var_singles_e(vec_at(tps, i), fc_to_move, mp);
         }
     } else if (is_list_e(e)) {
         mf_array* lst = e->e.a.data.vl.v.l.lst;
@@ -404,9 +440,25 @@ void rec_get_var_singles_e(expr* e, map* mp) {
             return;
         }
         for (int i = 0; i < mfa_card(lst); i++) {
-            rec_get_var_singles_e(mfa_at(lst, i), mp);
+            rec_get_var_singles_e(mfa_at(lst, i), fc_to_move, mp);
         }
         //printf("Info. Checking for variable singles in lists is not yet implemented.\n");
+    }
+}
+
+//only adds news, doesnt increment olds
+void add_new_singles(vector* exprs, map* mp) {
+    for (int i = 0; i < vec_size(exprs); i++) {
+        expr* ex = vec_at(exprs, i);
+        if (is_var_e(ex)) {
+            symbol_nos v_name = ex->e.a.data.vr.symbol;
+            if (!map_contains_key(mp, &v_name)) {
+                int one = 1;
+                map_add(mp, &v_name, &one);
+            }
+        } else if (is_list_e(ex)) {
+            printf("Internal :: Lists not added yet in add_new_sinlges().\n");
+        }
     }
 }
 

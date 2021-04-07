@@ -430,12 +430,8 @@ Atom_left_equ : Atom G_EQUAL Equ_chain {
     $$ = eq;*/
 };
 
-Ocall : Expr Operator Expr {
-    fcall op = $2;
-    op.params = new_vector(2, sizeof(expr));
-    vec_push_back(op.params, &$1);
-    vec_push_back(op.params, &$3);
-    $$ = op;
+Ocall : Expr_skip Operator Expr_skip {
+    //skip
 };
 
 Operator : G_PLUS         { $$ = fc_plus;  }
