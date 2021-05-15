@@ -128,6 +128,8 @@ bool is_and_e(const expr*);
 bool is_tuple_e(const expr*);
 bool is_list_e(const expr*);
 bool is_list_a(const atom*);
+bool is_non_list_e(const expr*);//val but not list
+bool is_non_list_a(const atom*);//val but not list
 bool is_fcall_e(const expr*);
 bool is_equ_e(const expr*);
 bool is_equ_chain_e(const expr*);

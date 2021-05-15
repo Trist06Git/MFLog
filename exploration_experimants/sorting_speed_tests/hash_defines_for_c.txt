@@ -1,0 +1,8 @@
+./a.out 1 10000000 1
+takes 154 seconds
+
+-DTEST_SIZE 10000000
+-DREPEATE_COUNT 25
+-DSTORAGE_MFA or -DSTORAGE_VEC
+
+25 repeate count should run for ~about 1 hour

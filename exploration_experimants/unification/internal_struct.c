@@ -29,6 +29,8 @@ bool is_wild_e(const expr* e)        { return is_var_e(e) && e->e.a.data.vr.symb
 bool is_global_var_ve(const expr* e) { return e->e.a.data.vr.symbol.scope == 0; }
 bool is_list_e(const expr* e)        { return is_atom_e(e) && is_list_a(&e->e.a); } 
 bool is_list_a(const atom* a)        { return is_val_a(a)  && a->data.vl.type == v_list; }
+bool is_non_list_e(const expr* e)    { return is_atom_e(e) && is_non_list_a(&e->e.a); }
+bool is_non_list_a(const atom* a)    { return is_val_a(a) && !is_list_a(a); }
 bool is_atom_e(const expr* e)        { return e->type == e_atom;  }
 bool is_and_e(const expr* e)         { return e->type == e_and;   }
 bool is_tuple_e(const expr* e)       { return e->type == e_tuple; }
@@ -157,8 +159,8 @@ bool compare_lists_l(const list* l1, const list* l2) {
     } else if (l1 == l2) {//same ref
         return true;
     }
-    if (l1->type != l2->type
-          ||
+    if (//l1->type != l2->type
+        //  ||
         mfa_card(l1->lst) != mfa_card(l2->lst)
     ) return false;
     
@@ -186,13 +188,16 @@ bool compare_atoms_a(const atom* a1, const atom* a2) {
             if (a1->data.vl.type == v_int) {
                 return a1->data.vl.v.i == a2->data.vl.v.i;
             } else if (a1->data.vl.type == v_list) {
-                return compare_lists_l(&a1->data.vl.v.l, &a2->data.vl.v.l);
+                return compare_lists_l(&a1->data.vl.v.l, &a2->data.vl.v.l);//what about string=list?
             } else if (a1->data.vl.type == v_char) {
                 return a1->data.vl.v.i == a2->data.vl.v.i;
             } else {
                 printf("Internal :: Unknown type in compare_atoms_a()\n");
                 return false;
             }
+        } else if ((a1->data.vl.type == v_list || a1->data.vl.type == v_string) &&
+                   (a2->data.vl.type == v_list || a2->data.vl.type == v_string)) {
+                       return compare_lists_l(&a1->data.vl.v.l, &a2->data.vl.v.l);
         }
     } else if (a1->type == a_var && a2->type == a_var) {
         return compare_symbols_s(&a1->data.vr.symbol, &a2->data.vr.symbol);

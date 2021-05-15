@@ -1,0 +1,24 @@
+
+f(x) = x + 3.
+
+ceaser(_, -1).
+ceaser(str, i) =
+  str[i] := f(str[i]),
+  ceaser(str, i-1).
+
+main(str) =
+  str = ref("hello"),
+  ceaser(str, card(str)-1),
+  printnl(str).
+
+f(x) = x + 3.
+
+ceaser([]) = [].
+ceaser(str) =
+  h :: t = str,
+  f(h) :: ceaser(t).
+
+main(res) =
+  str = "hello",
+  res = ceaser(str),
+  printnl(res).

@@ -90,6 +90,78 @@ void consolidate_frames(frame* prev_frm, frame* next_frm) {
     }
 }
 
+//bad, i know..
+bool is_dummy(expr* ex) {
+    return
+        is_var_e(ex) &&
+        ex->e.a.data.vr.symbol.num   == -1 &&
+        ex->e.a.data.vr.symbol.scope == -1 &&
+        ex->e.a.data.vr.symbol.type  == -1
+    ;
+}
+
+//answers_n is the set of answers from choice point n
+vector* get_answers(frame_call* fc, frame* prev_frame, frame* next_frame) {
+    vector* answers_n = new_vector(vec_size(fc->fc.params), sizeof(expr));
+    for (int i = 0; i < vec_size(fc->fc.params); i++) {
+        expr* p_passed = vec_at(fc->fc.params, i);
+        substitution* e_passed = get_sub_frm_i(prev_frame, next_frame->call_sequ, i);
+        if ( !(is_val_e(p_passed) || is_list_e(p_passed)) &&
+             (e_passed != NULL && !is_val_e(e_passed->rhs) || is_list_e(e_passed->rhs))
+           ) {//was not a passed val, so we want the answer. list is also okay.
+            
+            substitution* s = get_sub_frm_i(next_frame, next_frame->call_sequ, i);
+            expr* ans;
+            if (s == NULL) {//no answer specified, so for now just add the var
+               *ans = make_var_e(make_decomp_s(next_frame->call_sequ, i));
+            } else {
+                ans = s->rhs;
+            }
+            expr new_ans = copy_expr(ans);
+            vec_push_back(answers_n, &new_ans);
+            if (s == NULL) free_expr(ans);
+        } else {
+            symbol_nos dummy_sym = {.num = -1, .scope = -1, .type = -1};
+            expr dummy_var = make_var_e(dummy_sym);
+            vec_push_back(answers_n, &dummy_var);
+        }
+    }
+    return answers_n;
+}
+
+outcome consolidate_answers(frame_call* fc, frame* prev_frame, frame* next_frame) {
+    vector* answers = get_answers(fc, prev_frame, next_frame);
+    for (int i = 0; i < vec_size(answers); i++) {
+        expr* ans = vec_at(answers, i);
+        if (is_dummy(ans)) {
+            continue;
+        } else {
+            substitution* s = get_sub_frm_i(prev_frame, next_frame->call_sequ, i);
+            if (s == NULL) {//probably dead code
+                s = malloc(sizeof(substitution));
+               *s = make_uni_sub(next_frame->call_sequ, i);
+               *s->rhs = make_list_e(false);
+                vec_push_back(prev_frame->G, s);
+            } else if (is_non_list_e(s->rhs)) {
+                printf("Internal :: Error : an answer was requested when it shouldn't have been.\n");
+                return o_fail;
+            } else if (is_var_e(s->rhs)) {
+                substitution new_s = alloc_sub();
+               *new_s.lhs = copy_expr(s->rhs);
+               *new_s.rhs = make_list_e(false);
+                vec_push_back(prev_frame->G, &new_s);
+                s = &new_s;
+            }
+            list* lst = &s->rhs->e.a.data.vl.v.l;
+            if (lst->lst == NULL) {
+                lst->lst = new_mfarray(sizeof(expr));
+            }
+            mfa_push_back(lst->lst, ans);
+        }
+    }
+    return o_pass;
+}
+
 outcome call(frame_call* frc, frame* prev_frm, frame* next_frm, vector* func_defs_cp, vector* globals, int* call_sequ) {
 #ifdef UNIFY_DEBUG
     printf("DEBUG :: Calling frame for \"%s\" at choice point %i\n", frc->fc.name, frc->cp_count);
@@ -132,6 +204,7 @@ outcome call(frame_call* frc, frame* prev_frm, frame* next_frm, vector* func_def
     return unify(next_frm, func_defs_cp, globals, call_sequ);
 }
 
+//old, nolonger userd...
 outcome unify_substitutions(frame* frm) {
     //reset changes
     frm->changes = false;
@@ -193,18 +266,226 @@ void reset_determined(frame* frm) {
 }
 
 outcome unify(frame* frm, vector* func_defs_cp, vector* globals, int* call_sequ) {
+    outcome res = eliminate(frm);
+    #ifdef UNIFY_DEBUG
+    printf("DEBUG :: %s-%i : after first eliminate()\n", frm->fname, frm->call_sequ);
+    dump_frame(frm);
+    #endif    
+    if (res == o_fail) return o_fail;
+
+    //hack to keep the while loop, which i think is more clearer
+    if (vec_size(frm->next_calls) > 0) {
+        frame_call* fc = vec_at(frm->next_calls, 0);
+        /*if (fc->fc.type != f_builtin)*/ fc->cp_count = -1;
+    }
+    bool multi_answer = false;
+    //while there are still cp perms
+    while (incr_cp_counts(frm, func_defs_cp)) {
+        //for each of the calls in this choice point
+        for (int i = 0; i < vec_size(frm->next_calls); i++) {
+            frame_call* frc = vec_at(frm->next_calls, i);
+            frame* next_frm = malloc(sizeof(frame));
+            res = call(frc, frm, next_frm, func_defs_cp, globals, call_sequ);
+            
+            if (frc->fc.res_set == rs_all) {
+                multi_answer = true;
+                if (res == o_fail) {
+                    #ifdef UNIFY_DEBUG
+                    printf("DEBUG :: %s-%i : all call() failed, trying next cp perm\n", frm->fname, frm->call_sequ);
+                    dump_frame(frm);
+                    #endif
+                    //try next perm
+                    free_frame(next_frm);
+                    //NOTE, may not need to clean G here.. seems faster if we do clean.. have you tried since enabling optimisations?? no not yet sorry.
+                    free_G(frm->G);
+                    frm->G = duplicate_G(frm->G_clean);
+                    //need an initial elim after fresh clean??? why not do initial elim before making a clean G?
+                    eliminate(frm);
+                    break;//next cp
+                } else {
+                    outcome res_c = consolidate_answers(frc, frm, next_frm);
+                    free_frame(next_frm);
+                    //res = eliminate(frm);
+                    eliminate(frm);
+                    if (res == o_fail || res_c == o_fail) {
+                        #ifdef UNIFY_DEBUG
+                        printf("DEBUG :: %s-%i : consolidation of successful all call failed,\ncleaning G and trying next cp perm\n", frm->fname, frm->call_sequ);
+                        dump_frame(frm);
+                        #endif
+                        //clean G, try next perm
+                        free_G(frm->G);
+                        frm->G = duplicate_G(frm->G_clean);
+                        eliminate(frm);
+                        break;//next cp
+                    } else {
+                        #ifdef UNIFY_DEBUG
+                        printf("DEBUG :: %s-%i : call and consolidation of %s %s\n", frm->fname, frm->call_sequ, frc->fc.name, outcome_to_string(&res));
+                        #endif
+                        //found an answer, try next function in this cp
+                    }
+
+                }
+            } else {//else one answer
+                if (res == o_fail) {
+                    #ifdef UNIFY_DEBUG
+                    printf("DEBUG :: %s-%i : call() failed, trying next cp perm\n", frm->fname, frm->call_sequ);
+                    dump_frame(frm);
+                    #endif
+                    //try next perm
+                    free_frame(next_frm);
+                    //NOTE, may not need to clean G here.. seems faster if we do clean.. have you tried since enabling optimisations?? no not yet sorry.
+                    free_G(frm->G);
+                    frm->G = duplicate_G(frm->G_clean);
+                    //need an initial elim after fresh clean??? why not do initial elim before making a clean G?
+                    eliminate(frm);
+                    break;//next cp
+                    
+                    //////failed, so continue cps like normal
+                } else {//WARN, o_undet
+                    //////if answers = all
+                    //consolidate_frames_all
+                    //if (failed), clean current answers, incr cps
+                    //if (passed), add current answers, incr cps
+
+                    //try and consolidate
+                    consolidate_frames(frm, next_frm);
+                    free_frame(next_frm);
+                    res = eliminate(frm);
+                    if (res == o_fail) {
+                        #ifdef UNIFY_DEBUG
+                        printf("DEBUG :: %s-%i : consolidation of successful call failed,\ncleaning G and trying next cp perm\n", frm->fname, frm->call_sequ);
+                        dump_frame(frm);
+                        #endif
+                        //clean G, try next perm
+                        free_G(frm->G);
+                        frm->G = duplicate_G(frm->G_clean);
+                        eliminate(frm);
+                        break;//next cp
+                        
+                        //////
+                    } else if (res == o_pass) {
+                        #ifdef UNIFY_DEBUG
+                        printf("DEBUG :: %s-%i : call and consolidation of %s %s\n", frm->fname, frm->call_sequ, frc->fc.name, outcome_to_string(&res));
+                        #endif
+                        //found an answer, try next function
+
+                        //////
+                    } else {//other..?
+                        #ifdef UNIFY_DEBUG
+                        printf("DEBUG :: %s-%i : call and consolidation of %s %s\n", frm->fname, frm->call_sequ, frc->fc.name, outcome_to_string(&res));
+                        dump_frame(frm);
+                        #endif
+                        break;//failed or undet, next cp
+                    }
+                }
+            }
+        }
+        //all calls passed, so return pass
+        if (multi_answer == false && res == o_pass) {
+            return res;
+        } else if (multi_answer == true) {
+            //G thus far is good
+            free_G(frm->G_clean);
+            frm->G_clean = duplicate_G(frm->G);
+        }
+        //unless we are after more answers
+
+    }
+    //all cp points exhausted, and none of them passed?
+    //////if there were no answers, we return [] and still pass,
+    //////else we return all the answers
+    if (multi_answer == true) {
+        return o_pass;
+    } else {
+        return res;
+    }
+}
+
+//after cleanup backup
+/*outcome unify(frame* frm, vector* func_defs_cp, vector* globals, int* call_sequ) {
+    outcome res = eliminate(frm);
+    #ifdef UNIFY_DEBUG
+    printf("DEBUG :: %s-%i : after first eliminate()\n", frm->fname, frm->call_sequ);
+    dump_frame(frm);
+    #endif    
+    if (res == o_fail) return o_fail;
+
+    //hack to keep the while loop, which i think is more clearer
+    if (vec_size(frm->next_calls) > 0) {
+        frame_call* fc = vec_at(frm->next_calls, 0);
+        //if (fc->fc.type != f_builtin)
+        fc->cp_count = -1;
+    }
+    //while there are still cp perms
+    while (incr_cp_counts(frm, func_defs_cp)) {
+        //for each of the calls in this choice point
+        for (int i = 0; i < vec_size(frm->next_calls); i++) {
+            frame_call* frc = vec_at(frm->next_calls, i);
+            frame* next_frm = malloc(sizeof(frame));
+            res = call(frc, frm, next_frm, func_defs_cp, globals, call_sequ);
+            if (res == o_fail) {
+                #ifdef UNIFY_DEBUG
+                printf("DEBUG :: %s-%i : call() failed, trying next cp perm\n", frm->fname, frm->call_sequ);
+                dump_frame(frm);
+                #endif
+                //try next perm
+                free_frame(next_frm);
+                //NOTE, may not need to clean G here.. seems faster if we do clean.. have you tried since enabling optimisations?? no not yet sorry.
+                free_G(frm->G);
+                frm->G = duplicate_G(frm->G_clean);
+                //need an initial elim after fresh clean??? why not do initial elim before making a clean G?
+                eliminate(frm);
+                break;//next cp
+            } else {//WARN, o_undet
+                //try and consolidate
+                consolidate_frames(frm, next_frm);
+                free_frame(next_frm);
+                res = eliminate(frm);
+                if (res == o_fail) {
+                    #ifdef UNIFY_DEBUG
+                    printf("DEBUG :: %s-%i : consolidation of successful call failed,\ncleaning G and trying next cp perm\n", frm->fname, frm->call_sequ);
+                    dump_frame(frm);
+                    #endif
+                    //clean G, try next perm
+                    free_G(frm->G);
+                    frm->G = duplicate_G(frm->G_clean);
+                    eliminate(frm);
+                    break;//next cp
+                } else if (res == o_pass) {
+                    #ifdef UNIFY_DEBUG
+                    printf("DEBUG :: %s-%i : Found answer, returning success\n", frm->fname, frm->call_sequ);
+                    #endif
+                    //continue;//found an answer, try next function
+                } else {//other..?
+                    #ifdef UNIFY_DEBUG
+                    printf("DEBUG :: %s-%i : call and consolidation of %s %s\n", frm->fname, frm->call_sequ, frc->fc.name, outcome_to_string(&res));
+                    dump_frame(frm);
+                    #endif
+                    break;//failed or undet, next cp
+                }
+            }
+        }
+        //all calls passed, so return pass
+        if (res == o_pass) return res;
+        //else next cp
+    }
+    //all cp points exhausted, and none of them passed
+    return res;
+}*/
+
+outcome unify_old(frame* frm, vector* func_defs_cp, vector* globals, int* call_sequ) {
     //printf("DEBUG :: %s : Before first unify\n", frm->fname);
     //dump_frame(frm);
     outcome res = eliminate(frm);
-#ifdef UNIFY_DEBUG
+    #ifdef UNIFY_DEBUG
     printf("DEBUG :: %s-%i : after first eliminate()\n", frm->fname, frm->call_sequ);
     dump_frame(frm);
-#endif    
+    #endif    
     if (res == o_fail) {
-#ifdef UNIFY_DEBUG
+        #ifdef UNIFY_DEBUG
         printf("DEBUG :: %s-%i : eliminate() failed in unify()\n", frm->fname, frm->call_sequ);
         dump_frame(frm);
-#endif
+        #endif
         return o_fail;
     }
     //hack to keep the while loop, which i think is more clearer
@@ -214,56 +495,56 @@ outcome unify(frame* frm, vector* func_defs_cp, vector* globals, int* call_sequ)
     }
     //while there are still cp perms
     while (incr_cp_counts(frm, func_defs_cp)) {
-        //call f, g
+        //for each of the calls in this choice point
         for (int i = 0; i < vec_size(frm->next_calls); i++) {
             frame_call* frc = vec_at(frm->next_calls, i);
             frame* next_frm = malloc(sizeof(frame));
             res = call(frc, frm, next_frm, func_defs_cp, globals, call_sequ);
             if (res == o_fail) {
-#ifdef UNIFY_DEBUG
+                #ifdef UNIFY_DEBUG
                 printf("DEBUG :: %s-%i : call() failed, trying next cp perm\n", frm->fname, frm->call_sequ);
                 dump_frame(frm);
-#endif
+                #endif
                 //try next perm
                 free_frame(next_frm);
-                //NOTE, may not need to clean G here.. seems faster if we do clean.. have you tried since enabling optimisations??
+                //NOTE, may not need to clean G here.. seems faster if we do clean.. have you tried since enabling optimisations?? no not yet sorry.
                 free_G(frm->G);
                 frm->G = duplicate_G(frm->G_clean);
-                //need an initial elim after fresh clean???
+                //need an initial elim after fresh clean??? why not do initial elim before making a clean G?
                 eliminate(frm);
-                break;
+                break;//next cp
             } else {//WARN, o_undet
                 //try and consolidate
                 consolidate_frames(frm, next_frm);
                 free_frame(next_frm);
                 res = eliminate(frm);
                 if (res == o_fail) {
-#ifdef UNIFY_DEBUG
+                    #ifdef UNIFY_DEBUG
                     printf("DEBUG :: %s-%i : consolidation of successful call failed,\ncleaning G and trying next cp perm\n", frm->fname, frm->call_sequ);
                     dump_frame(frm);
-#endif
+                    #endif
                     //clean G, try next perm
                     free_G(frm->G);
                     frm->G = duplicate_G(frm->G_clean);
                     eliminate(frm);
-                    break;
+                    break;//next cp
                 } else {
-#ifdef UNIFY_DEBUG
+                    #ifdef UNIFY_DEBUG
                     printf("DEBUG :: %s-%i : call and consolidation of %s %s\n", frm->fname, frm->call_sequ, frc->fc.name, outcome_to_string(&res));
                     dump_frame(frm);
-#endif
+                    #endif
                 }
             }
         }
         if (res != o_fail) {
-#ifdef UNIFY_DEBUG
+            #ifdef UNIFY_DEBUG
             printf("DEBUG :: %s-%i : Found answer, returning success\n", frm->fname, frm->call_sequ);
-#endif
+            #endif
             break;//found an answer
         } else {
-#ifdef UNIFY_DEBUG
+            #ifdef UNIFY_DEBUG
             printf("DEBIG :: incrementing cp_counts\n");
-#endif
+            #endif
         }
     }
 #ifdef UNIFY_DEBUG
@@ -830,6 +1111,14 @@ vector* head_results(frame* frm, function* f) {
         }
     }
     return res;
+}
+
+substitution make_uni_sub(int call_sequ, int param_sequ) {
+    substitution s;
+    s.lhs = malloc(sizeof(expr));
+   *s.lhs = make_var_e(make_decomp_s(call_sequ, param_sequ));
+    s.rhs = malloc(sizeof(expr));
+    return s;
 }
 
 char* outcome_to_string(const outcome* o) {

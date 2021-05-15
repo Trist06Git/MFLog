@@ -531,5 +531,80 @@
 //
 //main() =
 //  str = ref("hello"),
-//  ceaser(str, 4),
+//  not(ceaser(str, 4)),
 //  return = str.
+
+//main() =
+//  return = [1;[2];[2;[3]]].
+
+//main() =
+//  return = [1;2;3][1].
+
+//f(x) = x + 3.
+//ceaser(_, -1).
+//ceaser(str, n) =
+//  ceaser(str, n-1),
+//  str[n] := f(str[n]).
+//
+//main() =
+//  str = ref("hello"),
+//  ceaser(str, card(str)-1),
+//  return = str.
+
+//safe_mut(arr, n, x) =
+//  arr[n] := x.
+//safe_mut(_, _, _).
+//
+//main(lst) =
+//  lst = ref([1;2;3;4]),
+//  safe_mut(lst, 2, 2),
+//  safe_mut(lst, 10, 2),
+//  printnl(lst).
+
+sum_arr_imp(_, -1) = 0.
+sum_arr_imp(arr, i) =
+  arr[i] + sum_arr_imp(arr, i-1).
+
+//[] = NULL in implementation, not checking for NULL
+sum_arr_fnc(lst) =
+  lst = [],
+  0.
+sum_arr_fnc(lst) =
+  h::t = lst,
+  h + sum_arr_fnc(t).
+
+//main(res) =
+//  lst = [1;2;3;4],
+//  //res = sum_arr_imp(lst, card(lst)-1),
+//  res = sum_arr_fnc(lst),
+//  printnl(res).
+
+first_two(lst) =
+  cons(returnA, returnB, _, lst).
+
+//main(0) =
+//  first_two([1;2;3;4], a, b),
+//  printnl(a),
+//  printnl(b).
+
+//switch(lst) = lst = [ ], return = [ ].
+//switch(lst) = lst = [x], return = [x].
+//switch(lst) =
+//  cons(a, b, tail, lst),
+//  res = switch(tail),
+//  cons(b, a, res, return).
+//
+//main(0) =
+//  res = switch([1;2;3;4]),
+//  printnl(res).
+
+f(x) = x + 3.
+ceaser(arr, i):2 =
+  arr[i] := f(arr[i]),
+  ceaser(arr, i+1).
+ceaser(_, _).
+
+main(0) =
+  str = ref("hello"),
+  ceaser(str, 0),
+  printnl(str).

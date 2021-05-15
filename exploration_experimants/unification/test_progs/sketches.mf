@@ -394,3 +394,11 @@ main() =
 ////strings
 main() =
   return = "hello world.".
+
+h(x) = ...
+f(x) =
+  return = g(x),
+  h(return).
+f(x) =
+  y = h(),
+  return = p(y).

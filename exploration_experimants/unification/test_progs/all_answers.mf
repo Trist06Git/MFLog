@@ -1,0 +1,16 @@
+
+//f(2, 1). //dont add y=1 to the answers, beacuse x=2 failed
+f(1, 2).
+f(1, 3).
+
+//all answers
+main() =
+  all f(1, return).
+
+//g(1, 2).
+//g(1, 1).
+//
+//////all answers for only 1 func
+//main() =
+//  return = all f(1),
+//  g(1, 1).

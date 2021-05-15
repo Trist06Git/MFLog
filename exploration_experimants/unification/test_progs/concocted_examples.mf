@@ -1,0 +1,9 @@
+
+ceaser(str, n) =
+  str[n] := str[n] -3,
+  ceaser(str, n+1).
+
+main() =
+  str = ref("hello"),
+  all ceaser(str, 0),
+  return = str.

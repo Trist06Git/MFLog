@@ -419,7 +419,7 @@ void rec_get_var_singles_e(expr* e, vector* fc_to_move, map* mp) {
         if (fc_to_move != NULL) for (int i = 0; i < vec_size(fc_to_move); i++) {
             expr* fci = vec_at(fc_to_move, i);
             if (strcmp(e->e.f.name, fci->e.f.name) == 0) {
-                printf("##### found duplicate in fc_to_move:\n");
+                //printf("##### found duplicate in fc_to_move:\n");
                 dump_expr(*e, true);nl;
                 return;
             }
@@ -436,7 +436,7 @@ void rec_get_var_singles_e(expr* e, vector* fc_to_move, map* mp) {
     } else if (is_list_e(e)) {
         mf_array* lst = e->e.a.data.vl.v.l.lst;
         if (lst == NULL) {
-            printf("An empty list contains no vars...\n");
+            //printf("An empty list contains no vars...\n");
             return;
         }
         for (int i = 0; i < mfa_card(lst); i++) {

@@ -7,14 +7,6 @@
 #include "utils.h"
 #include "debug_stuff.h"
 
-substitution make_uni_sub(int call_sequ, int param_sequ) {
-    substitution s;
-    s.lhs = malloc(sizeof(expr));
-   *s.lhs = make_var_e(make_decomp_s(call_sequ, param_sequ));
-    s.rhs = malloc(sizeof(expr));
-    return s;
-}
-
 outcome integer_builtin(fcall* fc, frame* frm, int call_sequ) {
     if (vec_size(fc->params) != 1) {
         printf("Error. Could not find function \"%s\" with arity %li\n", fc->name, vec_size(fc->params));
@@ -211,7 +203,12 @@ outcome at_index_builtin(fcall* fc, frame* frm, int call_sequ) {
         mf_array* arr = L->rhs->e.a.data.vl.v.l.lst;
         substitution new_R = make_uni_sub(call_sequ, 2);
         expr* ex = mfa_at(arr, index);
-        if (ex == NULL) return o_pass;//not within bounds
+        if (ex == NULL) {
+            #ifdef UNIFY_DEBUG
+            printf("ERROR :: []/at_index : Bad index requested at %i in ", index);dump_expr(*L->rhs, false);nl;
+            #endif
+            return o_fail;//not within bounds
+        }
        *new_R.rhs = copy_expr(ex);
         vec_push_back(frm->G, &new_R);
         return o_pass;
@@ -245,6 +242,9 @@ outcome at_set_builtin(fcall* fc, frame* frm, int call_sequ) {
             //bad index
             free_expr(&new_el);
             return o_fail;
+            #ifdef UNIFY_DEBUG
+            printf("ERROR :: :=/at_set : Bad index requested at %i in ", index);dump_expr(*L->rhs, false);nl;
+            #endif
         } else {
             return o_pass;
         }
@@ -371,7 +371,6 @@ outcome cons_builtin(fcall* fc, frame* frm, int call_sequ) {
        *s.rhs = copy_expr(L->rhs);
         //go backwards..
         for (int i = vec_size(fc->params)-3; i >= 0; i--) {//-3 = 1 ret var + 1 target list
-        //for (int i = 0; i < vec_size(fc->params)-2; i++) {//-3 = 1 ret var + 1 target list
             //note, params do not unify... fix latter
             substitution* param = get_sub_frm_i(frm, call_sequ, i);
             if (param == NULL) continue;
@@ -404,7 +403,7 @@ outcome plus_builtin(fcall* fc, frame* frm, int call_sequ) {
     substitution* sY = get_sub_frm_i(frm, call_sequ, 1);
     substitution* sR = get_sub_frm_i(frm, call_sequ, 2);
 #ifdef UNIFY_DEBUG
-    printf("DEBUG :: plus : print called with:\n");
+    printf("DEBUG :: plus : plus called with:\n");
     if (sX != NULL) {
         dump_expr(*sX->lhs, false);printf(" = ");dump_expr(*sX->rhs, false);nl;
     }

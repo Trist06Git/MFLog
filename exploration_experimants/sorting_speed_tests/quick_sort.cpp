@@ -12,6 +12,7 @@
 #include "generic_vector.hpp"
 #include "mlog_array.hpp"
 #include "csv_append.hpp"
+#include "self_reboot.h"
 
 //This is mostly taken from the c implementation. Thats why it
 //does lots in the c style. eg. printf vs cout
@@ -76,10 +77,6 @@ void mfa_quick_sort_entry(mf_array* arr) {
     int* end = start + arr->count_pos-1;
     vec_quick_sort(start, end);
 }
-
-//int int_comparator(const void* a, const void* b, int size) {
-//    return *(int*)a - *(int*)b;
-//}
 
 template<typename T>
 bool check_vector(std::vector<T> vec) {
@@ -255,10 +252,15 @@ void args_help(char* prog_name) {
 int main(int argc, char** argv) {
     printf("Starting.\n");
 
+    int warm_up = 15;
+    std::cout << "Sleeping for " << warm_up << " to let the kernel settle down." << std::endl;
+    std::chrono::seconds dura(warm_up);
+    std::this_thread::sleep_for(dura);
+
     time_t t;
     srand(time(&t));
     if (argc < 3) {
-        quick_sort_tests(TEST_SIZE, REPEATE_COUNT, 0);
+        quick_sort_tests(TEST_SIZE, REPEATE_COUNT, STORAGE_TYPE);
     } else {
         int size = 0;
         int repeat = 0;
@@ -291,6 +293,8 @@ int main(int argc, char** argv) {
         printf("Running %i tests on %i items.\n", repeat, size);
         quick_sort_tests(size, repeat, test);
     }
+
+    self_reboot();
     
     printf("Done.\n");
     return 0;

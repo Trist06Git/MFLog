@@ -55,6 +55,7 @@ void tuple_eliminate(tuple*, const expr* var, const expr* val, frame*);
 //void rec_tuple_eliminate(and*, const expr* var, const expr* val);
 outcome query(expr*);
 vector* head_results(frame*, function*);
+substitution make_uni_sub(int call_sequ, int param_sequ);
 
 char* outcome_to_string(const outcome*);
 

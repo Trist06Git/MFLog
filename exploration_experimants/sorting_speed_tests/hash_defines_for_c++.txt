@@ -3,6 +3,8 @@ takes 154 seconds
 
 -DTEST_SIZE 10000000
 -DREPEATE_COUNT 25
--DSTORAGE_TYPE ...
+-DSTORAGE_TYPE 0 for mfa
+-DSTORAGE_TYPE 1 for cvec
+-DSTORAGE_TYPE 2 for std::vec<>
 
 25 repeate count should run for ~about 1 hour

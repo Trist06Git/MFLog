@@ -10,10 +10,13 @@
 #include <errno.h>
 
 #include "mlog_array.h"
+#include "self_reboot.h"
 
 //#define TEST_SIZE 4294967000
-  #define TEST_SIZE 2000000000
-#define WARMUP 120
+//#define TEST_SIZE 2000000000
+#define TEST_SIZE 100000000
+//#define WARMUP 120
+#define WARMUP 15
 
 extern int errno;
 
@@ -23,7 +26,7 @@ int main(int argc, char** argv) {
     printf("Starting.\n");
     printf("process id: %i\n", getpid());
 #ifdef WARMUP
-    printf("sleeping for %i seconds to let the kernel settle down.\n");
+    printf("sleeping for %i seconds to let the kernel settle down.\n", WARMUP);
     sleep(WARMUP);
     printf("done sleeping.\n");
 #endif

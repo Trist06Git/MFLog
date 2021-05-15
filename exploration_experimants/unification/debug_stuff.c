@@ -153,6 +153,8 @@ void dump_list(list* l, bool with_meta) {
 void dump_val(val* vl) {
     if (vl->type == v_int) {
         printf("%i", vl->v.i);
+    } else if (vl->type == v_char) {
+        printf("\'%c\'", (char)vl->v.i);
     } else if (vl->type == v_list) {
         dump_list(&vl->v.l, true);
     }

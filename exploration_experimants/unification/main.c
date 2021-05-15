@@ -113,22 +113,10 @@ int main(int argc, char** argv) {
             fclose(file);
         }
         
-    } else if (verbose > 0) {
-        printf("Entering inspection mode\n");
+    } else {
+        printf("Error :: No input files\n");
+        exit(EXIT_FAILURE);
     }
-
-    /*if (filename_path != NULL) {
-        if (verbose > 0) printf("Loading file : %s\n", filename_path);
-        FILE* file = fopen(filename_path, "r");
-        if (file == NULL) {
-            printf("Error, could not open file %s:\n  %s\n", filename_path, strerror(errno));
-            return EXIT_FAILURE;
-        }
-        yyin = file;
-        //WARN. file not closed yet.
-    } else if (verbose > 0) {
-        printf("Entering inspection mode\n");
-    }*/
 
     //decomposing equs in globals
     //pretty bad, needs rewrite

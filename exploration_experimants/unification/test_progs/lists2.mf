@@ -1,9 +1,0 @@
-
-loop(n):1 =
-  n < 3,
-  loop(n+1),
-  printnl(n).
-
-main() =
-  loop(0),
-  return = 3.

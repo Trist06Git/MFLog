@@ -31,7 +31,7 @@ j(3, 4, V) :- write(V), nl.
 
 age(whiskey, 6).
 age(tristan, 31).
-age(X, -1). /*X is same as _*/
+age(_, -1). /*X is same as _*/
 
 print_age(Person, Age) :-
     write(Person),
@@ -68,3 +68,11 @@ bad_loop(X) :-
 main(R) :-
     R = 0,
     bad_loop(R).
+
+i(1).
+i(2).
+
+j(3).
+j(4).
+
+/*:- use_module(library(clpfd)).*/

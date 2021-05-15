@@ -35,8 +35,8 @@
 //  y = x = 1,
 //  y = 2.
 
-main(r) =
-  one o(3, r).
+//main(r) =
+//  o(3, r).
 
 o(a, b) = a = b = 1.
 o(a, b) = a = b = 3.
@@ -76,3 +76,10 @@ failure(a) =
   a = 2,
   b = 1,
   a = b.
+
+p(_) =
+  str = "herro!",
+  printnl(str).
+
+main(0) =
+  p(0).

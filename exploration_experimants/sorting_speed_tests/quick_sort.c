@@ -2,13 +2,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <string.h>
 
 #include "generic_vector.h"
 #include "mlog_array.h"
 #include "csv_append.h"
+#include "proc_self.h"
+#include "self_reboot.h"
 
-#define TEST_SIZE 1000000
-#define REPEATE_COUNT 4
+//#define TEST_SIZE 1000000
+//#define TEST_SIZE 10000000
+//#define REPEATE_COUNT 25
+//#define STORAGE_VEC
+//#define STORAGE_MFA
 
 void swap(int* a, int* b) {
     int temp = *a;
@@ -177,6 +185,23 @@ int digits(int num) {
     return res;
 }
 
+int save_page_faults(char* filecode) {
+    proc_self ps;
+    ps.comm = malloc(sizeof(char)*50);
+    cat_proc_self(&ps);
+    char* filename = malloc(sizeof(char) * (strlen(filecode) + strlen(".faults") + 1));
+    sprintf(filename, "%s.faults", filecode);
+    FILE* file = fopen(filename, "a+");
+    if (file == NULL) {
+        perror("Error :: file %s could not be opended");
+        return -1;
+    }
+    fprintf(file, "Major faults : %lu\n", ps.majflt);
+    fprintf(file, "Minor faults : %lu\n", ps.minflt);
+    fclose(file);
+    return 0;
+}
+
 void quick_sort_vec_test(int elements, int repeats) {
     printf("Vector quick sort test.\n");
     
@@ -228,7 +253,7 @@ void quick_sort_vec_test(int elements, int repeats) {
         int temp = n;
         vector* times = new_vector(3, sizeof(int));
         vec_push_back(times, &temp);
-        vec_push_back(times, (temp = duration.tv_sec, &temp));
+        vec_push_back(times, (temp = duration.tv_sec,  &temp));
         vec_push_back(times, (temp = duration.tv_nsec, &temp));
         
         if(!append_csv(filename, times, NULL)) {
@@ -236,6 +261,7 @@ void quick_sort_vec_test(int elements, int repeats) {
         }
         free_vector(times);
     }
+    save_page_faults(filename);
     free(filename);
 }
 
@@ -300,17 +326,26 @@ void quick_sort_mfa_test(int elements, int repeats) {
         }
         free_vector(times);
     }
+    save_page_faults(filename);
     free(filename);
 }
 
 int main(int argc, char** argv) {
     printf("Starting.\n");
 
+    int warm_up = 10;
+    printf("Sleeping for %i seconds to let the kernel settle down.\n", warm_up);
+    sleep(warm_up);
+
     time_t t;
     srand(time(&t));
     if (argc < 3) {
-        //quick_sort_vec_test(TEST_SIZE, REPEATE_COUNT);
+        printf("Running %i tests on %i items.\n", REPEATE_COUNT, TEST_SIZE);
+        #ifdef STORAGE_VEC
+        quick_sort_vec_test(TEST_SIZE, REPEATE_COUNT);
+        #elif defined STORAGE_MFA
         quick_sort_mfa_test(TEST_SIZE, REPEATE_COUNT);
+        #endif
     } else {
         int size = 0;
         int repeat = 0;
@@ -323,10 +358,15 @@ int main(int argc, char** argv) {
             exit(EXIT_FAILURE);
         }
         printf("Running %i tests on %i items.\n", repeat, size);
-        //quick_sort_vec_test(size, repeat);
+        #ifdef STORAGE_VEC
+        quick_sort_vec_test(size, repeat);
+        #elif defined STORAGE_MFA
         quick_sort_mfa_test(size, repeat);
+        #endif
     }
     
+    self_reboot();
+
     printf("Done.\n");
     return 0;
 }

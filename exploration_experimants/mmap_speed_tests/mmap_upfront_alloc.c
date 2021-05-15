@@ -11,24 +11,20 @@
 #include <stdlib.h>
 #include <errno.h>
 
-#define alot(of) 0xBADC0DE
+#include "common.h"
+#include "csv_append.h"
+#include "self_reboot.h"
 
 //manually fetched from getrlimit(), see user_vm_space_stats.c for details
-#define ARRAY_SPACE 18446744073709551615
-#define ARRAY_COUNT 32000
-//32000 seems to be the limit.
+//#define ARRAY_SPACE 18446744073709551615
 
-#define WARMUP 120
-
-struct timespec diff(struct timespec start, struct timespec end);
-int nth_bit(size_t num);
-size_t align_to_page(size_t target_size, size_t page_size);
+//#define WARMUP 1
 
 int main(int argc, char** argv) {
     printf("Starting.\n");
     printf("process id: %i\n", getpid());
 #ifdef WARMUP
-    printf("sleeping for %i seconds to let the kernel settle down.\n");
+    printf("sleeping for %i seconds to let the kernel settle down.\n", WARMUP);
     sleep(WARMUP);
     printf("done sleeping.\n");
 #endif
@@ -40,10 +36,19 @@ int main(int argc, char** argv) {
     
     printf("%li sized maps aligned to %li, with page size of %li\n", array_size, aligned_array_size, page_size);
 
+    //label the file with the start time
+    struct timespec file_time;
+    int res = clock_gettime(CLOCK_REALTIME, &file_time);
+    clock_error_check(res);
+    char* filename = malloc(sizeof(char)*(13+digits(file_time.tv_sec)+4+1));//upfrontmmap_tXXX.csv\0
+    sprintf(filename, "upfrontmmap_t%i.csv", (int)file_time.tv_sec);
+
     printf("Timing mmap 4gb upfront...\n");
     struct timespec start;
     struct timespec end;
-    clock_gettime(CLOCK_REALTIME, &start);
+    //start clock
+    res = clock_gettime(CLOCK_REALTIME, &start);
+    clock_error_check(res);
     uint8_t* chunk = mmap(
         NULL,
         aligned_array_size,
@@ -57,9 +62,16 @@ int main(int argc, char** argv) {
         perror("");
         exit(EXIT_FAILURE);
     }
-    clock_gettime(CLOCK_REALTIME, &end);
+
+    //stop clock
+    res = clock_gettime(CLOCK_REALTIME, &end);
+    clock_error_check(res);
     struct timespec duration = diff(start, end);
     printf("Done, took %li sec, %li n-sec\n", duration.tv_sec, duration.tv_nsec);
+
+    //we're only concerned with the allocation and not insertion at this point,
+    //so we'll save the page faults here
+    save_page_faults(filename);
 
     printf("Checking that the addresses are valid...\n");
     for (size_t i = 0; i < aligned_array_size; i++) {
@@ -71,130 +83,28 @@ int main(int argc, char** argv) {
             exit(EXIT_FAILURE);
         }
     }
-
-    printf("Press enter to free pages.\n");
-    getc(stdin);
     munmap(chunk, aligned_array_size);
-    printf("Press enter to quit.\n");
-    getc(stdin);
+    
+    //we are only interested in runs that are successful so we save its results after checking
+    int temp = 0;
+    vector* times = new_vector(3, sizeof(int));
+    vec_push_back(times, &temp);
+    vec_push_back(times, (temp = duration.tv_sec,  &temp));
+    vec_push_back(times, (temp = duration.tv_nsec, &temp));
+
+    if(!append_csv(filename, times, NULL)) {
+        exit(EXIT_FAILURE);
+    }
+    free_vector(times);
+    free(filename);
+
+    //printf("Press enter to free pages.\n");
+    //getc(stdin);    
+    //printf("Press enter to quit.\n");
+    //getc(stdin);
+
+    self_reboot();
+    printf("Done.\n");
 
     return EXIT_SUCCESS;
 }
-
-int main2(int argc, char** argv) {
-    printf("Starting.\n");
-    printf("process id: %i\n", getpid());
-    //printf("test size: %i\n", TEST_SIZE);
-
-    size_t page_size = getpagesize();
-    size_t current_length = 1;
-
-    uint8_t* chunk = mmap(
-        NULL,
-        page_size*current_length,
-        PROT_READ|PROT_WRITE|PROT_EXEC,
-        MAP_ANONYMOUS|MAP_PRIVATE,
-        -1,                              //fd
-        0                                //offset
-    );
-    if (chunk == MAP_FAILED) {
-        printf("Error. mremap() faild. Exiting now\n");
-        perror("");
-        exit(EXIT_FAILURE);
-    }
-    for (int j = 0; j < page_size; j++) {
-        chunk[j] = 7;
-    }
-
-    printf("Timing mremap 2n expansion...\n");
-    struct timespec start;
-    struct timespec end;
-    clock_gettime(CLOCK_REALTIME, &start);
-
-    for (int i = 0; i < 1; i++) {
-        size_t old_length = current_length;
-        current_length *= 2;
-        /*chunk = mremap(
-            chunk,                           //old addr
-            page_size*old_length,           //old size
-            page_size*current_length,      //new size
-            MREMAP_MAYMOVE
-        );*/
-        if (chunk == MAP_FAILED) {
-            printf("Error. mremap() faild on iteration %i. Exiting now\n", i);
-            perror("");
-            exit(EXIT_FAILURE);
-        }
-        for (int j = 0; j < page_size*old_length; j++) {
-            chunk[(page_size*current_length-(page_size*old_length))+j] = 8;
-        }
-    }
-
-    clock_gettime(CLOCK_REALTIME, &end);
-    struct timespec duration = diff(start, end);
-    printf("Done, took %li sec, %li n-sec\n", duration.tv_sec, duration.tv_nsec);
-
-    //double check it actually allocated and wrote..
-    printf("Checking that the stored values are valid...\n");
-    for (int i = 0; i < page_size; i++) {
-        if (chunk[i] != 7) {
-            printf("Error... different value read back from first area: %i at index %i.\n", chunk[i], i);
-            exit(EXIT_FAILURE);
-        }
-    }
-    for (int i = page_size; i < page_size*current_length; i++) {
-        if (chunk[i] != 8) {
-            printf("Error... different value read back from expanded area: %i at index %i.\n", chunk[i], i);
-            exit(EXIT_FAILURE);
-        }
-    }
-
-    printf("Done. Press enter to free memory.\n");
-    getc(stdin);
-    munmap(chunk, page_size*current_length);
-    printf("Press enter to quit.\n");
-    getc(stdin);
-    return 0;
-}
-
-//only for positives
-//returns the amount of lower zero bits in a row
-int nth_bit(size_t num) {
-    uint64_t n = 1;
-    int res = 0;
-    while (!(n & num) || res == 63) {
-        n <<= 1;
-        res++;
-    }
-    return res;
-}
-
-size_t align_to_page(size_t target_size, size_t page_size) {
-    int bits_to_clear = nth_bit(page_size);
-    uint64_t mask = 0xffffffffffffffff;
-    uint64_t clear_mask = 1;
-    bool incr = false;
-    while (bits_to_clear) {
-        if (target_size & clear_mask) incr = true;
-        mask ^= clear_mask;
-        clear_mask <<= 1;
-        bits_to_clear--;
-    }
-    target_size &= mask;
-    if (incr) target_size += page_size;
-    return target_size;
-}
-
-//taken from stack overflow...
-struct timespec diff(struct timespec start, struct timespec end) {
-	struct timespec temp;
-	if ((end.tv_nsec-start.tv_nsec) < 0) {
-		temp.tv_sec = end.tv_sec-start.tv_sec-1;
-		temp.tv_nsec = 1000000000+end.tv_nsec-start.tv_nsec;
-	} else {
-		temp.tv_sec = end.tv_sec-start.tv_sec;
-		temp.tv_nsec = end.tv_nsec-start.tv_nsec;
-	}
-	return temp;
-}
-
