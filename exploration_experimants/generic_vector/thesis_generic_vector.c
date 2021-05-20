@@ -6,9 +6,11 @@
 #include <string.h>
 #include <stdbool.h>
 
+extern int errno;
+
 void vec_push_back(vector* vec, void* element) {
     if (vec->allocated == 0) {
-        vec->store = malloc(vec->el_size*2);//init with 2 to allow insert shuffle
+        vec->store = malloc(vec->el_size*2);
         vec->allocated = 2;
     } else if (vec->allocated == vec->count) {
         vec->store = realloc(vec->store, vec->el_size*vec->allocated*2);
@@ -29,7 +31,7 @@ void* vec_at(vector* vec, long int i) {
 
 int vec_remove_at(vector* vec, long int i) {
     if (vec == NULL || i >= vec->count) return -1;
-    for (long int j = i+1; j < vec->count; j++) {
+    for (int j = i+1; j < vec->count; j++) {
         memcpy((char*)vec->store + vec->el_size*(j-1), (char*)vec->store + vec->el_size*(j), vec->el_size);
     }
     vec->count--;
@@ -40,7 +42,7 @@ int vec_remove_at(vector* vec, long int i) {
 int vec_insert_at(vector* vec, long int i, void* element) {
     if (vec->allocated == 0) {
         vec->store = malloc(vec->el_size*2);//init with 2 to allow insert shuffle
-        vec->allocated = 2;
+        vec->allocated = 2;//should be 2??
     } else if (vec->allocated == vec->count) {
         vec->store = realloc(vec->store, vec->el_size*vec->allocated*2);
         if (vec->store == NULL) {
@@ -90,7 +92,7 @@ bool vec_contains(vector* vec, void* item) {
 
 bool vec_contains_string(vector* vec, const char* str) {
     for (long int i = 0; i < vec_size(vec); i++) {
-        char** element = (char**)vec_at(vec, i);
+        char** element = vec_at(vec, i);
         if (strcmp(*element, str) == 0) return true;
     }
     return false;
@@ -114,7 +116,7 @@ void append_vector(vector* vec1, vector* vec2) {
 
 //copies orig_vec into a newly allocated vector
 vector* duplicate_vector(const vector* orig_vec) {
-    vector* new_vec = (vector*)malloc(sizeof(vector));
+    vector* new_vec = malloc(sizeof(vector));
     new_vec->count     = orig_vec->count;
     new_vec->allocated = orig_vec->allocated;
     new_vec->el_size   = orig_vec->el_size;
@@ -124,7 +126,7 @@ vector* duplicate_vector(const vector* orig_vec) {
 }
 
 vector* new_vector(long int init_size, int el_size) {
-    vector* res = (vector*)malloc(sizeof(vector));
+    vector* res = malloc(sizeof(vector));
     res->el_size = el_size;
     res->count = 0;
     res->comparator = vec_byte_compare;
@@ -152,8 +154,8 @@ void vec_set_comparator(vector* vec, int (*comp)(const void*, const void*, int))
 }
 
 int vec_byte_compare(const void* e1, const void* e2, int bytes) {
-    const char* c_lhs = (const char*)e1;
-    const char* c_rhs = (const char*)e2;
+    const char* c_lhs = e1;
+    const char* c_rhs = e2;
     for (int i = 0; i < bytes; i++) {
         //if (*(char*)e1 != *(char*)e2) return false;
         if (c_lhs[i] != c_rhs[i]) return 1;

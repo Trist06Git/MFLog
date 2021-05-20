@@ -57,10 +57,10 @@ bool mfa_set(mf_array* arr, long int i, void* element) {
         arr->count_neg++;
         return true;
 
-    } else if (i == arr->count_pos+arr->alloced_neg) {//push back
+    } else if (i == arr->count_pos+arr->count_neg) {//push back//was alloced_neg
         for (int j = 0; j < arr->el_size; j++) {
             uint8_t* sized_el = element;
-            arr->store_pos[((arr->count_pos + i)*arr->el_size) + j] = sized_el[j];
+            arr->store_pos[(arr->count_pos*arr->el_size) + j] = sized_el[j];//why way this + i??
         }
         arr->count_pos++;
         return true;
@@ -73,14 +73,14 @@ bool mfa_set(mf_array* arr, long int i, void* element) {
                 uint8_t* sized_el = element;
                 arr->store_neg[(real_i*arr->el_size) + j] = sized_el[j];
             }
-            arr->count_neg++;
+            //arr->count_neg++;//Not expanding
             return true;
         } else {//pos
             for (int j = 0; j < arr->el_size; j++) {
                 uint8_t* sized_el = element;
                 arr->store_pos[(real_i*arr->el_size) + j] = sized_el[j];
             }
-            arr->count_pos++;
+            //arr->count_pos++;//Not expanding
             return true;
         }
     }
@@ -197,11 +197,18 @@ bool mfa_compare(mf_array* arr1, mf_array* arr2) {
     return true;
 }
 
+void mfa_set_comparator(mf_array* arr, int (*comp)(const void*, const void*, int)) {
+    arr->comparator = comp;
+}
+
+#define TEST_MAX 4294967296*2
+
 //NULL is failure
 mf_array* new_mfarray(size_t el_size) {
     if (!inited) init_mfarrays();
     mf_array* arr = malloc(sizeof(mf_array));
-    size_t aligned = align_to_page(init_array_size, page_size);
+    //size_t aligned = align_to_page(init_array_size, page_size);
+    size_t aligned = align_to_page(TEST_MAX, page_size);
     arr->store_pos = new_store(aligned);
     if (arr->store_pos == NULL) {
         printf("Error, new_store() pos failed.\n");

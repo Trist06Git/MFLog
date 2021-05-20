@@ -1,10 +1,11 @@
 
 #include <iostream>
+#include <deque>
 #include <time.h>
 #include <unistd.h>
 #include <sstream>
+#include <random>
 
-#include "mlog_array.h"
 #include "common.h"
 #include "csv_append.h"
 #include "generic_vector.h"
@@ -21,7 +22,14 @@ int main(int argc, char** argv) {
     sleep(WARMUP);
     std::cout << "done sleeping." << std::endl;
 #endif
-    
+
+    std::default_random_engine generator;
+    //we use the same seed for random indexing into
+    //mf_array and c++ dequeue so that its fair
+    long int same_seed = 0xDEADBEEFCAFE;
+    generator.seed(same_seed);
+    std::uniform_int_distribution<long int> distribution(0,TEST_SIZE);
+
     std::cout << "test size: " << TEST_SIZE << std::endl;
 
     //label the file with the start time
@@ -29,20 +37,33 @@ int main(int argc, char** argv) {
     int res = clock_gettime(CLOCK_REALTIME, &file_time);
     clock_error_check(res);
     std::stringstream filename;
-    filename << "c++mfarray_e" << TEST_SIZE << "_t" << (int)file_time.tv_sec << ".csv";
+    filename << "c++stddeque_randi_e" << TEST_SIZE << "_t" << (int)file_time.tv_sec << ".csv";
+
+    std::cout << "Filling dequeue" << std::endl;
+    std::deque<uint8_t> deq;
+    for (long int i = 0; i < TEST_SIZE; i++) {
+        deq.push_back(7);
+    }
 
     //start timer
-    printf("\nTiming mfarray expansion...\n");
+    printf("\nTiming C++ dequeue random access...\n");
     struct timespec start;
     struct timespec end;
     res = clock_gettime(CLOCK_REALTIME, &start);
     clock_error_check(res);
 
-    mf_array* mfa = new_mfarray(sizeof(uint8_t));
-    while (mfa_card(mfa) < TEST_SIZE) {
-        int seven = 7;
-        mfa_push_back(mfa, &seven);
+    long int test_max = TEST_SIZE/8;
+    for (long int i = 0; i < test_max; i++) {
+        if (i == test_max/2) printf("50%% done.\n");
+        long int index = distribution(generator);
+        uint8_t val = deq.at(index);
+        if (val != 7) {
+            std::cout << "Error... different value read back: "<<val<<" at index "<<i<<"." << std::endl;
+            exit(EXIT_FAILURE);
+        }
     }
+    printf("100%% done.\n");
+    save_page_faults(filename.str().c_str());
 
     //stop timer
     res = clock_gettime(CLOCK_REALTIME, &end);
@@ -50,20 +71,8 @@ int main(int argc, char** argv) {
     struct timespec duration = diff(start, end);
     std::cout << "Done, took "<<duration.tv_sec<<" sec, "<<duration.tv_nsec<<" n-sec" << std::endl;
 
-    save_page_faults(filename.str().c_str());
-
-    //double check it actually allocated and wrote..
-    std::cout << "Checking that the values are valid..." << std::endl;
-    for (long int i = 0; i < TEST_SIZE; i++) {
-        uint8_t* val = (uint8_t*)mfa_at(mfa, i);
-        //uint8_t val = vec.at(i);
-        //if (val != 7) {
-        if (*val != 7) {
-            std::cout << "Error... different value read back from first area: "<<*val<<" at index "<<i<<"." << std::endl;
-            exit(EXIT_FAILURE);
-        }
-    }
-    free_mfarray(mfa);
+    deq.clear();
+    deq.shrink_to_fit();
 
     //we are only interested in runs that are successful so we save its results after checking
     int temp = 0;

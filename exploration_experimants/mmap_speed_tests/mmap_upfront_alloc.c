@@ -12,11 +12,14 @@
 #include <errno.h>
 
 #include "common.h"
+#include "generic_vector.h"
 #include "csv_append.h"
 #include "self_reboot.h"
 
 //manually fetched from getrlimit(), see user_vm_space_stats.c for details
 //#define ARRAY_SPACE 18446744073709551615
+
+#define TEST_SIZE 4294967296*2
 
 //#define WARMUP 1
 
@@ -29,10 +32,11 @@ int main(int argc, char** argv) {
     printf("done sleeping.\n");
 #endif
 
-    size_t array_size = sqrt(18446744073709551615.0);
-    printf("test size: %li\n", array_size);
+    //size_t array_size = sqrt(18446744073709551615.0);
+    size_t array_size = TEST_SIZE;
     size_t page_size = getpagesize();
     size_t aligned_array_size = align_to_page(array_size, page_size);
+    printf("test size: %li\n", aligned_array_size);
     
     printf("%li sized maps aligned to %li, with page size of %li\n", array_size, aligned_array_size, page_size);
 
@@ -40,10 +44,10 @@ int main(int argc, char** argv) {
     struct timespec file_time;
     int res = clock_gettime(CLOCK_REALTIME, &file_time);
     clock_error_check(res);
-    char* filename = malloc(sizeof(char)*(13+digits(file_time.tv_sec)+4+1));//upfrontmmap_tXXX.csv\0
+    char* filename = malloc(sizeof(char)*(13+digits(file_time.tv_sec)+4+1));//upfrontmmap_tTTT.csv\0
     sprintf(filename, "upfrontmmap_t%i.csv", (int)file_time.tv_sec);
 
-    printf("Timing mmap 4gb upfront...\n");
+    printf("Timing mmap upfront...\n");
     struct timespec start;
     struct timespec end;
     //start clock

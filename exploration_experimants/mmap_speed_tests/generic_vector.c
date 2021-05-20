@@ -9,7 +9,7 @@
 void vec_push_back(vector* vec, void* element) {
     if (vec->allocated == 0) {
         vec->store = malloc(vec->el_size*2);//init with 2 to allow insert shuffle
-        vec->allocated = 2;//should be 2??
+        vec->allocated = 2;
     } else if (vec->allocated == vec->count) {
         vec->store = realloc(vec->store, vec->el_size*vec->allocated*2);
         if (vec->store == NULL) printf("Error! something went wrong with realloc\n");
@@ -29,7 +29,7 @@ void* vec_at(vector* vec, long int i) {
 
 int vec_remove_at(vector* vec, long int i) {
     if (vec == NULL || i >= vec->count) return -1;
-    for (int j = i+1; j < vec->count; j++) {
+    for (long int j = i+1; j < vec->count; j++) {
         memcpy((char*)vec->store + vec->el_size*(j-1), (char*)vec->store + vec->el_size*(j), vec->el_size);
     }
     vec->count--;
@@ -40,7 +40,7 @@ int vec_remove_at(vector* vec, long int i) {
 int vec_insert_at(vector* vec, long int i, void* element) {
     if (vec->allocated == 0) {
         vec->store = malloc(vec->el_size*2);//init with 2 to allow insert shuffle
-        vec->allocated = 2;//should be 2??
+        vec->allocated = 2;
     } else if (vec->allocated == vec->count) {
         vec->store = realloc(vec->store, vec->el_size*vec->allocated*2);
         if (vec->store == NULL) {

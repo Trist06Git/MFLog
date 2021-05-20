@@ -7,7 +7,7 @@
 
 #include "proc_self.h"
 
-int save_page_faults(char* filecode);
+int save_page_faults(const char* filecode);
 struct timespec diff(struct timespec start, struct timespec end);
 int digits(long int num);
 int nth_bit_common(size_t num);

@@ -1,0 +1,23 @@
+
+f(x) =
+  x = 1.
+g(y) =
+  y = 2.
+g(y) =
+  y < 5,
+  y > 2.
+
+main(0) =
+  f(1),
+  g(3).
+
+//assuming arr is an even length
+//loop(i, arr) =
+//  arr[i] := expensive_f(arr[i]),
+//  arr[i+1] := expensive_f(arr[i]),
+//  loop(i-2, arr).
+//loop(_, _).
+//
+//main(0) =
+//  big_arr = [...],
+//  loop(card(big_arr), big_arr).

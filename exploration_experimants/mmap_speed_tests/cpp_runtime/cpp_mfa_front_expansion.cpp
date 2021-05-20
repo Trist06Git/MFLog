@@ -2,14 +2,16 @@
 #include <iostream>
 #include <time.h>
 #include <unistd.h>
+#include <sstream>
 
 #include "mlog_array.h"
+#include "common.h"
+#include "csv_append.h"
+#include "generic_vector.h"
+#include "self_reboot.h"
 
-//#define TEST_SIZE 4294967000
-  #define TEST_SIZE 2000000000
+#define TEST_SIZE 4294967296*2
 //#define WARMUP 120
-
-struct timespec diff(struct timespec start, struct timespec end);
 
 int main(int argc, char** argv) {
     std::cout << "Starting.\n" << std::endl;
@@ -22,55 +24,66 @@ int main(int argc, char** argv) {
     
     std::cout << "test size: " << TEST_SIZE << std::endl;
 
-    mf_array* mfa = new_mfarray(sizeof(uint8_t));
-    if (mfa == NULL) {
-        std::cout << "Error. new_mfarray() failed." << std::endl;
-        exit(EXIT_FAILURE);
-    }
+    //label the file with the start time
+    struct timespec file_time;
+    int res = clock_gettime(CLOCK_REALTIME, &file_time);
+    clock_error_check(res);
+    std::stringstream filename;
+    filename << "c++mfarrayfront_e" << TEST_SIZE << "_t" << (int)file_time.tv_sec << ".csv";
 
-    std::cout << "\nTiming MFA front array expansion in C++..." << std::endl;
+    //start timer
+    printf("\nTiming mfarray front expansion...\n");
     struct timespec start;
     struct timespec end;
-    int res = clock_gettime(CLOCK_REALTIME, &start);
-    if (res < 0) std::cout << "Error. with clock_gettime()." << std::endl;
+    res = clock_gettime(CLOCK_REALTIME, &start);
+    clock_error_check(res);
 
-    for (long int i = 0; i < TEST_SIZE; i++) {
-        uint8_t seven = 7;
+    mf_array* mfa = new_mfarray(sizeof(uint8_t));
+    while (mfa_card(mfa) < TEST_SIZE) {
+        int seven = 7;
         mfa_push_front(mfa, &seven);
     }
 
+    //stop timer
     res = clock_gettime(CLOCK_REALTIME, &end);
-    if (res < 0) std::cout << "Error. with clock_gettime()." << std::endl;
+    clock_error_check(res);
     struct timespec duration = diff(start, end);
     std::cout << "Done, took "<<duration.tv_sec<<" sec, "<<duration.tv_nsec<<" n-sec" << std::endl;
+
+    save_page_faults(filename.str().c_str());
 
     //double check it actually allocated and wrote..
     std::cout << "Checking that the values are valid..." << std::endl;
     for (long int i = 0; i < TEST_SIZE; i++) {
         uint8_t* val = (uint8_t*)mfa_at(mfa, i);
+        //uint8_t val = vec.at(i);
+        //if (val != 7) {
         if (*val != 7) {
             std::cout << "Error... different value read back from first area: "<<*val<<" at index "<<i<<"." << std::endl;
             exit(EXIT_FAILURE);
         }
     }
-
-    std::cout << "Done. Press enter to free memory." << std::endl;
-    std::getc(stdin);
     free_mfarray(mfa);
-    std::cout << "Press enter to quit." << std::endl;
-    std::getc(stdin);
-    return 0;
-}
 
-//taken from stack overflow...
-struct timespec diff(struct timespec start, struct timespec end) {
-	struct timespec temp;
-	if ((end.tv_nsec-start.tv_nsec) < 0) {
-		temp.tv_sec = end.tv_sec-start.tv_sec-1;
-		temp.tv_nsec = 1000000000+end.tv_nsec-start.tv_nsec;
-	} else {
-		temp.tv_sec = end.tv_sec-start.tv_sec;
-		temp.tv_nsec = end.tv_nsec-start.tv_nsec;
-	}
-	return temp;
+    //we are only interested in runs that are successful so we save its results after checking
+    int temp = 0;
+    vector* times = new_vector(3, sizeof(int));
+    vec_push_back(times, &temp);
+    vec_push_back(times, (temp = duration.tv_sec,  &temp));
+    vec_push_back(times, (temp = duration.tv_nsec, &temp));
+
+    if(!append_csv(filename.str().c_str(), times, NULL)) {
+        exit(EXIT_FAILURE);
+    }
+    free_vector(times);
+
+    //std::cout << "Done. Press enter to free memory." << std::endl;
+    //std::getc(stdin);
+    //std::cout << "Press enter to quit." << std::endl;
+    //std::getc(stdin);
+
+    self_reboot();
+    std::cout << "Done." << std::endl;
+
+    return EXIT_SUCCESS;
 }

@@ -127,11 +127,13 @@ int main(int argc, char** argv) {
     f.e = gands;
     decompose_equs(&f);
 
-    //printf("Post parse, pre-preproc:\n");
-    //for (int i = 0; i < vec_size(func_defs); i++) {
-    //    function* f = vec_at(func_defs, i);
-    //    dump_func(*f); nl;
-    //}
+    if (verbose > 1) {
+        printf("Post parse, pre-preproc:\n");
+        for (int i = 0; i < vec_size(func_defs); i++) {
+            function* f = vec_at(func_defs, i);
+            dump_func(*f); nl;
+        }
+    }
 
     if (verbose > 0) printf("Explicating constants/variables.\n");
     for (int i = 0; i < vec_size(func_defs); i++) {
@@ -298,10 +300,11 @@ void init(void) {
     vec_push_back(c_plus.functions, &f_plus);
     vec_push_back(func_defs_cp, &c_plus);
     
-//    choice_point c_minus;
-//    c_minus.functions = new_vector(1, sizeof(function));
-//    vec_push_back(c_minus.functions, &f_minus);
-//    vec_push_back(func_defs_cp, &c_minus);
+    //minus is now found in std.mf
+    //choice_point c_minus;
+    //c_minus.functions = new_vector(1, sizeof(function));
+    //vec_push_back(c_minus.functions, &f_minus);
+    //vec_push_back(func_defs_cp, &c_minus);
 
     choice_point c_print;
     c_print.functions = new_vector(1, sizeof(function));
@@ -343,7 +346,7 @@ void print_help(void) {
     printf("MAFIALog compiler, very early experiment.\n");
     printf("  ./mlogc -f file.mf   : compile file \"file.mf\"\n");
     printf("  ./mlogc file.mf      :     \"           \"\n");
-    printf("  -v                   : verbose/debug    \n");
+    printf("  -v[v]                : verbose/debug    \n");
     printf("  -r                   : show mains returned result and answers\n");
     printf("  ./mlogc              : interactive mode\n");
 }

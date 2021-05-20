@@ -13,7 +13,7 @@
 #include "csv_append.h"
 #include "self_reboot.h"
 
-#define TEST_SIZE 4294967296/4096
+#define TEST_SIZE 4294967296*2
 //#define WARMUP 120
 
 extern int errno;
@@ -33,13 +33,13 @@ int main(int argc, char** argv) {
     
     printf("test size: %li\n", TEST_SIZE);
     size_t page_size = getpagesize();
-    size_t current_length = 1;
+    size_t current_length = page_size;
 
     //label the file with the start time
     struct timespec file_time;
     int res = clock_gettime(CLOCK_REALTIME, &file_time);
     clock_error_check(res);
-    char* filename = malloc(sizeof(char)*(9+digits(file_time.tv_sec)+4+1));//upfrontmmap_tXXX.csv\0
+    char* filename = malloc(sizeof(char)*(9+digits(file_time.tv_sec)+4+1));//realloc_tTTT.csv\0
     sprintf(filename, "realloc_t%i.csv", (int)file_time.tv_sec);
 
     //start timer
@@ -56,8 +56,8 @@ int main(int argc, char** argv) {
         exit(EXIT_FAILURE);
     }
 
-    int max_size = TEST_SIZE;
-    while (current_length <= max_size) {
+    long int max_size = TEST_SIZE/page_size;
+    while (current_length < max_size) {
         current_length *= 2;
         realloc_chunk = realloc(realloc_chunk, page_size*current_length);
         if (realloc_chunk == NULL) {
@@ -77,15 +77,17 @@ int main(int argc, char** argv) {
     save_page_faults(filename);
 
     printf("Checking that the addresses are valid...\n");
-    for (int i = 0; i < page_size*current_length; i++) {
+    for (size_t i = 0; i < page_size*current_length; i++) {
         realloc_chunk[i] = 7;
     }
-    for (int i = 0; i < page_size*current_length; i++) {
+    //printf("Set all addresses.\n");
+    for (size_t i = 0; i < page_size*current_length; i++) {
         if (realloc_chunk[i] != 7) {
-            printf("Error... different value read back from first area: %i at index %i.\n", realloc_chunk[i], i);
+            printf("Error... different value read back from first area: %i at index %li.\n", realloc_chunk[i], i);
             exit(EXIT_FAILURE);
         }
     }
+    //printf("Read all addresses.\n");
     free(realloc_chunk);
     
     //we are only interested in runs that are successful so we save its results after checking

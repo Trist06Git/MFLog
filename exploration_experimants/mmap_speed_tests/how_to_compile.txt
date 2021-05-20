@@ -1,0 +1,1 @@
+gcc -O3 -DWARMUP=3 generic_vector.c csv_append.c self_reboot.c proc_self.c common.c realloc_expansion_test.c

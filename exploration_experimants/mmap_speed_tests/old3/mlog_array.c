@@ -6,8 +6,8 @@
 //pop does a copy, then removes from the array
 //the caller needs to free the item once finished with it
 void* mfa_pop_back(mf_array* arr) {
-    uint8_t* res = (uint8_t*)malloc(arr->el_size);
-    uint8_t* item = (uint8_t*)mfa_at(arr, mfa_card(arr)-1);
+    uint8_t* res = malloc(arr->el_size);
+    uint8_t* item = mfa_at(arr, mfa_card(arr)-1);
     if (item == NULL) return NULL;
     memcpy(res, item, arr->el_size);
     mfa_remove_back(arr);
@@ -17,8 +17,8 @@ void* mfa_pop_back(mf_array* arr) {
 //pop does a copy, then removes from the array
 //the caller needs to free the item once finished with it
 void* mfa_pop_front(mf_array* arr) {
-    uint8_t* res = (uint8_t*)malloc(arr->el_size);
-    uint8_t* item = (uint8_t*)mfa_at(arr, 0);
+    uint8_t* res = malloc(arr->el_size);
+    uint8_t* item = mfa_at(arr, 0);
     if (item == NULL) return NULL;
     memcpy(res, item, arr->el_size);
     mfa_remove_front(arr);
@@ -51,16 +51,16 @@ bool mfa_set(mf_array* arr, long int i, void* element) {
     } else if (i == -1) {//push front
         //need to check precalc_alloced limit
         for (int j = 0; j < arr->el_size; j++) {
-            uint8_t* sized_el = (uint8_t*)element;
+            uint8_t* sized_el = element;
             arr->store_neg[(arr->count_neg*arr->el_size) + j] = sized_el[j];
         }
         arr->count_neg++;
         return true;
 
-    } else if (i == arr->count_pos+arr->count_neg) {//push back//was alloced_neg
+    } else if (i == arr->count_pos+arr->alloced_neg) {//push back
         for (int j = 0; j < arr->el_size; j++) {
-            uint8_t* sized_el = (uint8_t*)element;
-            arr->store_pos[(arr->count_pos*arr->el_size) + j] = sized_el[j];//why way this + i??
+            uint8_t* sized_el = element;
+            arr->store_pos[((arr->count_pos + i)*arr->el_size) + j] = sized_el[j];
         }
         arr->count_pos++;
         return true;
@@ -70,17 +70,17 @@ bool mfa_set(mf_array* arr, long int i, void* element) {
             real_i++;
             real_i = abs(real_i);
             for (int j = 0; j < arr->el_size; j++) {
-                uint8_t* sized_el = (uint8_t*)element;
+                uint8_t* sized_el = element;
                 arr->store_neg[(real_i*arr->el_size) + j] = sized_el[j];
             }
-            //arr->count_neg++;//Not expanding
+            arr->count_neg++;
             return true;
         } else {//pos
             for (int j = 0; j < arr->el_size; j++) {
-                uint8_t* sized_el = (uint8_t*)element;
+                uint8_t* sized_el = element;
                 arr->store_pos[(real_i*arr->el_size) + j] = sized_el[j];
             }
-            //arr->count_pos++;//Not expanding
+            arr->count_pos++;
             return true;
         }
     }
@@ -154,7 +154,7 @@ bool mfa_remove_at(mf_array* arr, long int i) {
     }
 }
 
-size_t mfa_card(mf_array* arr) {
+long int mfa_card(mf_array* arr) {
     return arr->count_neg + arr->count_pos;
 }
 
@@ -188,8 +188,8 @@ bool mfa_compare(mf_array* arr1, mf_array* arr2) {
     ) return false;
 
     for (int i = 0; i < mfa_card(arr1); i++) {
-        uint8_t* el1 = (uint8_t*)mfa_at(arr1, i);
-        uint8_t* el2 = (uint8_t*)mfa_at(arr2, i);
+        uint8_t* el1 = mfa_at(arr1, i);
+        uint8_t* el2 = mfa_at(arr2, i);
         for (int j = 0; j < arr1->el_size; j++) {
             if (el1[j] != el2[j]) return false;
         }
@@ -197,19 +197,13 @@ bool mfa_compare(mf_array* arr1, mf_array* arr2) {
     return true;
 }
 
-void mfa_set_comparator(mf_array* arr, int (*comp)(const void*, const void*, int)) {
-    arr->comparator = comp;
-}
-
-#define TEST_MAX 4294967296*2
-
 //NULL is failure
 mf_array* new_mfarray(size_t el_size) {
     if (!inited) init_mfarrays();
-    mf_array* arr = (mf_array*)malloc(sizeof(mf_array));
-    //size_t aligned = align_to_page(init_array_size, page_size);
-    size_t aligned = align_to_page(TEST_MAX, page_size);
+    mf_array* arr = malloc(sizeof(mf_array));
+    size_t aligned = align_to_page(init_array_size, page_size);
     arr->store_pos = new_store(aligned);
+    //printf("Created store_pos with size %li\n", aligned);
     if (arr->store_pos == NULL) {
         printf("Error, new_store() pos failed.\n");
         free(arr);
@@ -238,7 +232,7 @@ void free_mfarray(mf_array* arr) {
 
 //NULL is failure
 uint8_t* new_store(size_t to_alloc) {
-    uint8_t* store = (uint8_t*)mmap(
+    uint8_t* store = mmap(
         NULL,                           //dont care where the mapping is
         to_alloc,                
         PROT_READ|PROT_WRITE|PROT_EXEC, //protections
@@ -264,7 +258,8 @@ void free_store(uint8_t* store, size_t alloced) {
 
 bool init_mfarrays(void) {
     //manually fetched from getrlimit(), see user_vm_space_stats.c for details
-    init_array_size = sqrt(18446744073709551615.0);
+    //init_array_size = sqrt(18446744073709551615.0);
+    init_array_size = TEST_MAX;
     page_size = getpagesize();
     aligned_array_size = align_to_page(init_array_size, page_size);
     inited = true;

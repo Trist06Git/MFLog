@@ -13,7 +13,7 @@
 #include "csv_append.h"
 #include "self_reboot.h"
 
-#define TEST_SIZE 4294967296/4096
+#define TEST_SIZE 4294967296*2
 //#define WARMUP 120
 
 extern int errno;
@@ -37,7 +37,7 @@ int main(int argc, char** argv) {
     struct timespec file_time;
     int res = clock_gettime(CLOCK_REALTIME, &file_time);
     clock_error_check(res);
-    char* filename = malloc(sizeof(char)*(8+digits(file_time.tv_sec)+4+1));//upfrontmmap_tXXX.csv\0
+    char* filename = malloc(sizeof(char)*(8+digits(file_time.tv_sec)+4+1));//mremap_tTTT.csv\0
     sprintf(filename, "mremap_t%i.csv", (int)file_time.tv_sec);
 
     printf("Timing mremap 2n expansion...\n");
@@ -60,8 +60,8 @@ int main(int argc, char** argv) {
         exit(EXIT_FAILURE);
     }
 
-    int max_length = TEST_SIZE;
-    while (current_length <= max_length) {
+    long int max_length = TEST_SIZE/page_size;
+    while (current_length < max_length) {
         size_t old_length = current_length;
         current_length *= 2;
         chunk = mremap(

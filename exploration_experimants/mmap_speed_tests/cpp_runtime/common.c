@@ -3,11 +3,11 @@
 
 #include "common.h"
 
-int save_page_faults(char* filecode) {
+int save_page_faults(const char* filecode) {
     proc_self ps;
-    ps.comm = malloc(sizeof(char)*50);
+    ps.comm = (char*)malloc(sizeof(char)*50);
     cat_proc_self(&ps);
-    char* filename = malloc(sizeof(char) * (strlen(filecode) + strlen(".faults") + 1));
+    char* filename = (char*)malloc(sizeof(char) * (strlen(filecode) + strlen(".faults") + 1));
     sprintf(filename, "%s.faults", filecode);
     FILE* file = fopen(filename, "a+");
     if (file == NULL) {

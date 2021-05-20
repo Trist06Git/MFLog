@@ -24,16 +24,16 @@ void entry(vector* func_defs_cp, vector* globals, bool verbose_return) {
     outcome entry_res = unify(first_frame, func_defs_cp, globals, &global_call_sequ);
 
     if (verbose_return && entry_res == o_pass) {
-        printf("\"main\" returned a pass, with answers:\n");
         vector* res = head_results(first_frame, main_f);
+        printf("\"main\" returned a pass\n", vec_size(res)>0?", with answers:":".");
         for (int i = 0; i < vec_size(res); i++) {
             expr* r = vec_at(res, i);
             dump_expr(*r, true);
             printf("\n");
         }
-    } else if (verbose_return && entry_res == o_answers) {
+    }/* else if (verbose_return && entry_res == o_answers) {
         printf("\"main\" returned a pass, with no answers.\n");
-    } else if (verbose_return && entry_res == o_undet) {
+    }*/ else if (verbose_return && entry_res == o_undet) {
         printf("\"main\" returned but its results could not be determined.\n");
     } else if (verbose_return && entry_res == o_fail) {
         printf("\"main\" returned with a failure.\n");
@@ -42,7 +42,6 @@ void entry(vector* func_defs_cp, vector* globals, bool verbose_return) {
     free_frame(first_frame);
 }
 
-#define CONSOLIDATE_DEBUG
 //consolidate previous frame with next frame
 //G1 = G1 + G1 N G2, where N = intersect, G1 = prev_frm, G2 = next_frm
 outcome consolidate_frames_old(frame* prev_frm, frame* next_frm, int call_sequ) {
@@ -717,7 +716,7 @@ void add_frame_exprs(frame* frm, expr* e, int* call_sequ) {
         s.rhs = malloc(sizeof(expr));
        *s.lhs = make_query(&e->e.a);
        *s.rhs = copy_expr(&debug_dummy_var);
-        //dead code
+        //end dead code
     } else if (is_fcall_e(e)) {
         vector* params = e->e.f.params;
         for (int i = 0; i < vec_size(params); i++) {
@@ -777,7 +776,7 @@ substitution* get_sub_frm(frame* frm, expr* var) {
     }
     return NULL;
 }
-//truly horrid..
+
 substitution* get_sub_frm_i(frame* frm, int call_no, int var_no) {
     for (int g = 0; g < vec_size(frm->G); g++) {
         substitution* sub = vec_at(frm->G, g);
@@ -788,27 +787,6 @@ substitution* get_sub_frm_i(frame* frm, int call_no, int var_no) {
                 name.num == var_no) {
                     return sub;
             }
-            //char* name = sub->lhs->e.a.data.vr.symbol;
-            /////D_x_y
-            //if (strlen(name) < 3) return NULL;
-            //name += 2;//move to first num
-            //char* end = NULL;
-            //int this_call = strtol(name, &end, 10);
-            //name = end;
-            //end++;//move to second num
-            //char* end2 = NULL;
-            //int this_var = strtol(end, &end2, 10);
-//
-            //if (this_call == call_no && this_var == var_no) {
-            //    return sub;
-            //}
-
-            //if (strlen(name) > 4 &&
-            //    name[2] == call_no+48 &&
-            //    name[4] ==  var_no+48
-            //   ) {//D_x_y
-            //    return sub;
-            //}
         }
     }
     return NULL;
@@ -906,6 +884,7 @@ void equ_eliminate(expr* equ_ch, const expr* var, const expr* val) {
     }
 }
 
+//complexity has caused this to become unmaintainable, it needs a rewrite
 outcome eliminate(frame* frm) {
     //prevents O(n*m) deletes
     vector* deletes = new_vector(0, sizeof(int));

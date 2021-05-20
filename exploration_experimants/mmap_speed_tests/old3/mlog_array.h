@@ -16,11 +16,12 @@ static size_t page_size;
 static size_t aligned_array_size;
 static bool inited = false;
 
+#define TEST_MAX 4294967296*2
+
 //pos for positive
 //neg for negative
 typedef struct {
     size_t el_size;
-    int (*comparator)(const void*, const void*, int);
     
     long int count_pos;//will be used in negative comparison
     size_t alloced_pos;//needed for munmap
@@ -42,10 +43,9 @@ bool mfa_remove_front(mf_array*);
 bool mfa_set(mf_array*, long int i, void* element);
 void* mfa_at(mf_array*, long int i);
 bool mfa_remove_at(mf_array*, long int i);
-size_t mfa_card(mf_array*);
+long int mfa_card(mf_array*);
 mf_array* mfa_duplicate(mf_array*);
 bool mfa_compare(mf_array*, mf_array*);
-void mfa_set_comparator(mf_array*, int (*)(const void*, const void*, int));
 
 mf_array* new_mfarray(size_t el_size);
 void free_mfarray(mf_array*);

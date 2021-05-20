@@ -8,6 +8,7 @@ typedef struct vector {
     long int allocated;
     void* store;
     int el_size;
+    int (*comparator)(const void*, const void*, int);
     char* type; //for optional safety and debugging
 } vector;
 
@@ -22,6 +23,9 @@ void append_vector(vector*, vector*);
 vector* duplicate_vector(const vector*);
 vector* new_vector(long int, int);
 void free_vector(vector*);
+void vec_set_comparator(vector*, int (*)(const void*, const void*, int));
+int vec_byte_compare(const void* e1, const void* e2, int bytes);
+int vec_string_compare(const void* el1, const void* el2, int size);
 char* vec_type(vector*);//old
 
 #endif
