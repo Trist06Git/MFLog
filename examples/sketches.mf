@@ -1,0 +1,404 @@
+//lazy builtin sets that allow choice points with numbers
+//less would be a choice point of less(0), less(1), etc..
+
+less(x) = return < x.         => less(x, return) = return < x.
+set = less(5).                => set = [4, 3, 2, 1, 0]
+
+add_more(set) =               => add_more(set, return) =
+  return = 10 :: 9 :: set.         return = 10 :: 9 :: set.
+set = add_more(set).          => set = [10, 9, 4, 3, 2, 1, 0]
+
+//the set variable get shaddowed here
+//in reality it would be a different var with subscript
+//eg set0, set1, set2
+//also consider scope, so set inside add_more body would be set1
+//and would not clash with bound return set1
+
+
+
+//expanded less(x), on lazy <
+less(5, return) = return = 0.
+less(5, return) = return = 1.
+less(5, return) = return = 2.
+less(5, return) = return = 3.
+less(5, return) = return = 4.
+
+//the answer set of the choice point of less/2
+set = less(5).     => set = [4, 3, 2, 1, 0]
+
+//also implied:
+less(5, set0).
+add_more(set0, set1).   => set1 = [10, 9, 4, 3, 2, 1, 0]
+
+//as query:
+should_fail(x) =
+  x = 5,
+  less(5, 10).
+
+thing = should_fail(5).  => []? or bot/fail?... fail/bot I think
+
+////
+//in Davids cryptic style:
+l(x) = r < x.      => l(x, r) = r < x.
+s = l(5).                => s = [4, 3, 2, 1, 0]
+
+m(s) =             => m(s, r) =
+  r = 10::9::s.         r = 10::9::s.
+s = m(s).          => s = [10, 9, 4, 3, 2, 1, 0]
+
+
+
+///scraps:
+f(x) = x + 1.
+res = f(1, 2).     => []? and not fail/bot??... yes I think
+
+///
+bot = ⊥
+top = ⊤    //impossible to reach??
+not_bot = []
+contradiction(x) => 2 < 1.  => res = contradiction(_)   => res = ⊥
+negate(x) = x = bot.        => res = negate(⊥). => res = []
+negate(_) = bot.
+
+should_fail(x) =
+  x = 5,
+  contradiction(x).
+
+x = should_fail().          => should_fail(x). => whole_expr = ⊥/fail
+thing(y) =
+  x = should_fail(),        => this evals as bot/fail, so thing(y) evals as bot/fail
+  y = x + 1.
+
+wont_fail(x) =              => wont_fail(x) =
+  x = 5,                         x = 5,
+  negate(contradicion(x)).       res = contradiction(x),
+                                 negate(res).
+x = wont_fail().            => x = 5.
+
+
+//avoiding infinite recursion on explication
+menu(quit, state) =
+  quit = input(),
+  state = do_stuff(state),
+  render(state),
+  check_quit(quit),
+  menu(quit, state).
+//above will inf during pre-proc, maybe count fcalls in explic algo
+//and quit and tell user to add signature definition?
+//eg:
+
+menu/2.
+menu(quit, state) =
+  quit = input(),
+  check_quit(quit),
+  menu(quit, state).
+
+/////all answers vs 1
+f(x) = x = 1.
+f(x) = x = 2.
+f(x) = x = 3.
+
+main(res) =
+  res = all f(x).
+
+main(res) =
+  res = one f(x).
+
+main(res) =
+  res = all f(x)[2].
+
+//the third answer is returned, who is a list, then its "one" first answer
+main(res) =
+  res = one f(x)[2].
+
+////tuples?
+f(x) =
+  x = 1,
+  return = (1, 2).
+
+g(x) =          => g(x, res) =
+  res = f(x).   =>   f(x, r1),
+                =>   res = r1,
+                =>   res = (a, b),
+                =>   a = 1,
+                =>   b = 2.
+
+g(x) =          => g(x, r1, r2) =
+  res = f(x),   =>   f(x, r0),
+  res = (i, j), =>   res = r0,
+  h(i, r1),     =>   res = (i, j),
+  h(j, r2).     =>   h(i, r1),
+                =>   h(j, r2),
+
+simple(x) =     => simple(x),
+  x = (1,2).    =>   x = (a,b),
+                =>   a = 1,
+                =>   b = 2.
+////binding the vars of a tuple should be
+//the other way around, that way a sane
+//fully bound tuple is returned, without
+//anonymous vars
+simple(x) =     => simple(x),
+  x = (1,2).    =>   x = (1,2),
+                =>   t_0_0 = 1,
+                =>   t_0_1 = 2.
+
+////list syntax
+app(x, l) =        => app(1, 2::3::[], return) =
+  return = x::l.   =>   return = 1::2::3::[].
+ 
+app(x, l) =        => app(1, 2;;3;;[], return) =
+  return = x;;l.   =>   return = 1;;2;;3;;[].
+
+cat(l1, l2) =      => cat(1;;2, 3;;4, return) =
+  return = l1::l2. =>   return = 1;;2::3;;4.
+                     => return = [1,2]::[3,4].
+
+app(x, l) =
+  return = x :: l.
+app(1, [3;4]) =
+  return = 1 :: [3;4].
+
+res = app(1, [3;4]).
+
+cat(l1, l2) =
+  return = l1++l2.
+cat([1;2], [3;4], [1;2;3;4]) =
+  [1;2] ++ [3;4] = [1;2;3;4].
+
+res = cat([1;2], [3;4]).
+
+match(a, b, c, list) =
+  [a,b,c,_] = list.
+
+match(a, b, c, [1;2;3]) =
+  [a,b,c,_] = [1;2;3],
+  a = 1,
+  b = 2,
+  c = 3,
+  _ = [].
+
+match(a, b, c, [1,2]) =
+  [a,b,c,_] = [1,2],
+  a = 1,
+  b = 2,
+  c = [],
+  _ = Fail.
+
+get(i, list) =
+  list[i].
+
+get(5, [1;2;3]) =
+  Fail.
+
+//no leaking vars in lists
+f(x, return) =
+  return = [x;1].
+//ok, iff x is bound to a val,
+//fully instantiating the list
+
+
+////answer sets
+main(r) =       => main(r) =
+  natural(r),   =>   one natural(r),
+  all r < 10.   =>   one less_than(r, 10).
+
+      |                    |
+      V                    V
+all main(r) =
+  one natural(r),
+  one less_than(r, 10).
+
+all main(r) =
+  one integer(r),
+  one less_than(r, 10),
+  one greater_than(r, 0),
+  one in(r, [4;5;6]).
+
+////capturing results
+main(r) =
+  print_res(x),
+  x = is_cat("Whiskey").
+
+is_cat("Whiskey").
+
+print_res(true) =
+  print("yes"), nl().
+print_res(false) =
+  print("no"), nl().
+
+////facts
+age("Whiskey", 6).
+age("Tristan", 31).
+
+main() =
+  printnl(age_res),
+  age("Tristan", age_res).
+
+     |            |
+     V            V
+age(person, age_r) =
+  person = "Whiskey",
+  age_r  = 6.
+age(person, age_r) =
+  person = "Tristan",
+  age_r  = 31.
+age(person, age_r) =
+main() =
+  printnl(age_res),
+  age("Tristan", age_res).
+
+//undeterminable
+age(x, 6).        => age(U_0, U_1) =
+                  =>   U_0 = x,
+                  =>   U_1 = 6.
+main() =
+  age(p, a),
+  print(p),
+  print(" is "),
+  printnl(a).
+
+////back to lists/cons
+f([0;1;2]) = 1.
+g([1;2])   = 1.
+
+main() =
+  lst = [1;2],
+  x = 0::lst, 
+  return = f(x) = g(lst).
+
+    |         |
+    V         V
+main(return) =
+  lst = [1;2],
+  x = U_0,
+  cons(0, lst), //mutation cons
+  f(x, return),
+  g(lst, return).
+
+main() =
+  x = cons(1, []).     => 1::[]
+
+main() =
+  x = cons(1, 2, []).  => 1::2::[]
+
+//to test after naive implementation
+main() =
+  x = cons([3], [1;2;3]). => a::b::[3] = [1;2;3]
+                          => a=1, b=2, x=(a,b)
+
+/////pattern matching within functions
+f(a, b) =
+  x = l(a),
+  y = m(b),
+  | x = 1 -> g(x, y).
+  | y = 2 -> h(x, y).
+    |        |
+    V        V
+//splits into 2 f definitions
+f(a, b) =         f(a, b) =
+  x = l(a),         x = l(a),
+  y = m(b),         y = m(b),
+  x = 1, g(x, y).   x = 2, h(x, y).
+
+//lhs or rhs, and multiple
+f(a, b) =
+  | a = 1, b = 1 -> x = 2, f(x, r).
+  | a = 2        -> b = 2, f(a, r).
+//whats the point of the arrow??
+f(a, b) =
+  | a = 1, b = 1, x = 2, f(x, r).
+  | a = 2, b = 2, f(a, r).
+
+f(a, b) =
+  a = 1, b = 1, x = 2, f(x, r).
+f(a, b) =
+  a = 2, b = 2, f(a, r).
+
+f(a, b) =
+  | a = 1 -> g(b, return).
+  | b = 1 -> h(a, return).
+  |-> return = 1.
+
+f(x, y) =
+  y = 1,
+  | x = 1.
+  | x = 2.
+
+////on to at_index
+l = [1;2;3].
+main() =          =>  main() =
+  return = l[1].  =>    at_index(l, 1, r).
+
+main() =
+  at_index([1;2;3], 1, r).//what is at index r?
+main() =
+  at_index([1;2;3], 1, 2).//is it true that 2 is at index 1?
+main() =
+  at_index([1;2;3], i, 2).//what index is 2 at?
+main() =
+  at_index(lst, 1, 2).  => lst = [_;2].
+
+////list reference??
+main() =
+  lst = ref [1;2;3].
+main() =
+  lst = ref([1;2;3]).
+
+main() =
+  lst = [1;2;3],
+  return = ref lst.
+main() =
+  lst = [1;2;3],
+  return = ref(lst).
+
+main() =
+  x = do_stuff(),
+  y = do_more(x),
+  z = ref(y),
+  do_others(z).
+
+main() =
+  lst = [1;1;1],
+  lst[0] := 2,
+  return = lst.
+
+main() =
+  lst = [1;1;1],
+  lr = f(ref(lst)),
+  lr[1] := 2,       <-- mutate lst at 1
+  return = lst.
+
+
+///Note. at_set vs at_index
+main() =
+  lst = [1;1;1],
+  at_set(lst, 1, 2),
+  return = lst.
+
+at_index([1;2], 1, R)  =>  R = [1;2][1]
+
+at_index([1;2], 1)  =>  [1;2][1]
+        |
+        V
+at_index([1;2], 1, U_0), U_0. <-- after explication
+
+f(1, 1).
+f(1, 2).
+f(1, 3).
+
+////all answers
+main() =
+  return = all f(1).
+
+////strings
+main() =
+  return = "hello world.".
+
+h(x) = ...
+f(x) =
+  return = g(x),
+  h(return).
+f(x) =
+  y = h(),
+  return = p(y).

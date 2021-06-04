@@ -1,0 +1,63 @@
+//succ(a,b) = a = 0, b = 1.
+//succ(a,b) = a = 1, b = 2.
+//succ(a,b) = a = 2, b = 3.
+//succ(a,b) = a = 3, b = 4.
+//succ(a,b) = a = 4, b = 5.
+//succ(a,b) = a = 5, b = 6.
+//succ(a,b) = a = 6, b = 7.
+//succ(a,b) = a = 7, b = 8.
+//succ(a,b) = a = 8, b = 9.
+
+//NOTE, there is a problem while parsing facts
+//succ as raw facts seems to skip succ(5, 6)
+
+succ(0,1).
+succ(1,2).
+succ(2,3).
+succ(3,4).
+succ(4,5).
+//strange bug here, i think in parsing
+succ(a,b) =
+  a = 5,
+  b = 6.
+succ(6,7).
+succ(7,8).
+succ(8,9).
+
+s_lt(x, y) =
+  succ(x, y).
+s_lt(x, z) =
+  succ(x, y),
+  s_lt(y, z).
+
+s_plus(0, y, y).
+s_plus(x, y, z) =
+  succ(xx,x), 
+  succ(y,yy),
+  s_plus(xx,yy,z).
+
+times(0, y, 0).
+times(x, y, z) = 
+  succ(xx,x), 
+  times(xx, y, zz),
+  s_plus(y,zz,z). 
+
+main(result) =
+  s_plus(2, result, 5),
+  printnl(result).
+
+//main(result) =
+//  s_plus(2, 3, inter),
+//  s_plus(inter, 4, result).
+
+//main(1) =
+//  s_lt(0, 9).
+
+//main(r) =
+//  times(r, 3, 9),
+//  printnl(r).
+
+//main(result) =
+//  s_plus(3,1,inter),
+//  times(inter,2,result),
+//  printnl(result).

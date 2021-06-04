@@ -1,0 +1,15 @@
+//standard library
+
+printnl(x) =
+  print(x), nl(x).
+
+println(x) = //convenience nl vs ln
+  printnl(x).
+
+minus(a, b, r) = // 2 - 1 = 1
+  plus(r, b, a). // 1 + 1 = 2
+
+//tuples are broken again sorry...
+tuple(a, b) =
+  t1 = a,
+  t2 = b.

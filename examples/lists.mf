@@ -1,0 +1,610 @@
+
+//main(r) =
+//  r = tuple2(1,2).
+//
+//tuple2(x,y, r1,r2) =
+//  r1 = x,
+//  r2 = y.
+
+//main(r) =
+//  r = [1;2] = [x;y],
+//  r = [x;y],
+//  x = 1,
+//  y = 2.
+
+//main(r) =
+//  x = [1;2],
+//  r = f(x).
+//
+//f(x, return) =
+//  return = x = [1;2].
+
+//called var names from main are
+//leaking into f's scope via the list
+//Next todo. :done, i think..
+//main(r) =
+//  r = f([x;y]),
+//  x = 1, y = 2,
+//  printnl(x).
+//
+//f(a, return) =
+//  a = [1;2],
+//  return = a.
+
+//main(r) =
+//  r = f(1).
+//
+//f(a, return) =
+//  a = 1,
+//  return = a.
+
+//error for uninstantiated vars in list
+//main(r1) =
+//  r2 = f(r1),
+//  g(r2).
+//
+//f(x, return) =
+//  return = [x].
+//
+//g(y) =
+//  y = [1].
+
+//matching fcall with returned list vars
+//main(r) =
+//  f([r;2]),
+//  f([r;2]).
+//
+//f(lst_f) =
+//  g(lst_f).
+//
+//g(lst_g) =
+//  lst_g = [1;2].
+
+//maybe bug, Fixed!
+//main(r) =
+//  f(r),
+//  f(r).
+//
+//f(a) =
+//  g(a).
+//
+//g(b) =
+//  b = 1.
+
+//a more complicated vars in lists
+//main(r) =
+//  x = 3,
+//  f([r;2;x], 2).
+//
+//f(lst, mid) =
+//  lst = [1;mid;3].
+
+//empty list
+//main(r) =
+//  r = [].
+
+//list of list
+//main(r) =
+//  r = tuplise_list([[1;2];[3;4]]).
+//
+//tuplise_list(lst, t1, t2) =
+//  lst = [t1; t2].
+
+//main(r) = //fails
+//  r = tuplise_list([1]).
+
+//fdef pattern match
+//main(r) =
+//  all is_good([r;2], r).
+//
+//is_good([1;2]) = //no facts. yet..
+//  return = 1.
+//is_good([3;4], r) =
+//  r = 1.
+
+//main(r) =
+//  r = 1,
+//  f(1).
+//f(r) =
+//  r = 1.
+
+//main(r) =
+//  one integer(r),
+//  first integer(0),
+//  one integer(778864).
+
+//main(r) =
+//  [r;2] = [1;2].
+
+//main(r) =
+//  [1;2] = x,
+//  r = 1.
+
+//main(r) =
+//  x = [1;2],
+//  x = [r;2].
+
+//seems fine, no var leak/clash
+//main(r) =
+//  x = [a;b],
+//  r = f(x),
+//  a = 2,
+//  b = 1.
+//
+////come back here latter to investigate  a = a.
+//f(l) =
+//  a = 1, a = a,
+//  b = 2, b = b,
+//  return = 3.
+
+//lst = [1;2].
+//
+//main() =
+//  r = f(lst).
+//
+//f([1;2]) = 1.
+
+//main() =
+//  r = match_2([2;2;3], 2).
+//
+//match_2(lst, x) =
+//  lst = [x; x; _],
+//  return = 1.
+
+//main() =
+//  [1;2] = [3;4],
+//  r = 1.
+
+//main() = 
+//  [1;2] = [1;2],
+//  r = 1.
+
+//main() =
+//  [r; 2] = [1; 2].
+
+//main(r) =
+//  r = [1],
+//  r = [1].
+
+//main() =
+//  [return; _] = switch_l2([1;2]).
+
+//main() =
+//  [return; _; _] = switch_l2([1;2;3]).
+//
+//switch_l2([a;b]  , [b;a]  ).
+//switch_l2([a;b;_], [b;a;_]).
+
+//switch_l2([a;b]) =
+//  return = [b;a].
+
+//main() =
+//  r = lst_match([1;2]).
+//
+//lst_match([_]) = 1.
+//lst_match([_;2]) = 2.
+
+//main() =
+//  return = cons(1, 2, [3]).
+
+//main() =
+//  b = [2],
+//  c = [1;2],
+//  cons(a, b, c), //a::[2] = [1;2]
+//  return = a.
+
+//main() =
+//  a = 1,
+//  c = [1;2],
+//  cons(a, b, c),
+//  return = b.
+
+//main() =
+//  cons(fst, snd, tail, [1;2;3]),
+//  print(fst), nl(fst),
+//  print(snd), nl(snd).
+
+//main() =
+//  cons(1, 2, 3, [], lst),
+//  cons(8, lst, return).
+
+//main() =
+//  switch_head([1;2;8], return).
+//
+//switch_head(lst, return) =
+//  cons(next, head, tail, lst),
+//  cons(head, next, tail, return).
+
+//...works/
+//main(lst) =
+//  lst = [1;2;3],
+//  head(lst, h),
+//  tail(lst, t),
+//  printnl(h),
+//  printnl(t).
+
+//main() =
+//  lst = [1;2;3],
+//  cons(_, return, lst).
+
+//head(lst, h) =
+//  cons(h, _, lst).
+//
+//tail(lst, return) =
+//  cons(_, return, lst).
+
+//main() =
+//  cons(1,2,_,_),
+//  return = 3.
+
+//main() =
+//  switch_head([1;2;3]) = return::_.
+//main() =
+//  cons(1, 2, 3, [], myList),
+//  switch_head(myList).
+//
+//switch_head(lst) =
+//  cons(fst, snd, tail, lst),
+//  cons(snd, fst, tail, return).
+
+//main(return) =
+//  return = _,
+//  return = 1.
+
+//main() =
+//  return = x,
+//  return = _,
+//  return = 1,
+//  _ = _.
+
+//main() =
+//  return = get_nth([1;2;3;4;5], 3).
+//
+//get_nth(lst, 0) =
+//  cons(return, _, lst).
+//get_nth(lst, n) =
+//  minus(n, 1, step),
+//  cons(_, tail, lst),
+//  return = get_nth(tail, step).
+
+//main() =
+//  get_nth([1;2;3;4;5], 3).
+//
+//get_nth(lst, 0) =
+//  cons(return, _, lst).
+////not super clear here that getnth returns a value
+//get_nth(lst, n) =
+//  minus(n, 1, step),
+//  cons(_, tail, lst),
+//  get_nth(tail, step).
+
+//main() =
+//  cons(x, [2], [1;2]),
+//  return = x.
+
+//main(y) =
+//  x = [1;2],
+//  x = y.
+
+//f(0, r) = g(1, r).
+//g(x, r) = x = r.
+//main(r) =
+//  f(0, r).
+
+//action1() = 1.
+//action2() = 2.
+//action3() = 3.
+//
+//match(lst) =
+//  head(lst, 1),
+//  action1(return).
+//match(lst) =
+//  head(lst, 3),
+//  action2(return).
+//match(lst) =
+//  head(lst, 5),
+//  action3(return).
+//match(_) = 0.
+//
+//main() =
+//  match([3]).
+
+//f(_) = return = 1.
+//main(return) =
+//  f(1, return).
+
+//l(x, return) = plus(x, 1, return).
+//m(x, return) = return = x.
+//g(y, return) = minus(y, 1, return).
+//h(y, return) = plus(y, 1, return).
+//
+//f_match(1, y) = g(y).
+//f_match(2, y) = h(y).
+//
+//f(a, b) =
+//  l(a, x),
+//  m(b, y),
+//  f_match(x, y).
+//
+//main() =
+//  f(1,2).
+
+//main() =
+//  1::tail = [1;2;3],
+//  return = tail.
+
+//main() =
+//  head::_ = [1;2;3],
+//  return = head.
+
+//not working again, explication broken
+//switch_head(lst) =
+//  lst = fst::snd::tail,
+//  return = snd::fst::tail.
+//main() =
+//   switch_head([1;2;3;4]).
+
+//main(return) =
+//  return = [[1;2];[3;4]],
+//  printnl(return).
+
+////doesnt work yet, needs sub list elimination
+//main() =
+//  [[return;_];[_;_]] = [[1;2];[3;4]].
+
+//f(x) =
+//  [1;2;x].
+//
+//main() =
+//  [_;_;return] = f(3).
+
+//fix explication and make work with builtins
+//main(return) =
+//  return::_::_::[] = 1::2::3::[].
+//main() =
+//  cons(return, _, _, [], equ),
+//  cons(1, 2, 3, [], equ).
+
+////testing ref()
+//main() =
+//  return = ref([1;2;3]).
+
+//main() =
+//  lst = [1;2;3],
+//  return = ref(lst).
+
+////works, but the original referenc is being ditched
+//f(x, r) = r = [x;x;x].
+//g(lst, r) =
+//  lst = [a;b;c],
+//  r = [a2;b2;c2],
+//  plus(a, 1, a2),
+//  plus(b, 1, b2),
+//  plus(c, 1, c2).
+//
+//main() =
+//  f(1, l1),
+//  ref(l1, l2),
+//  g(l2, _),
+//  return = l1.
+
+//g(a, b) =
+//  a = 1, b = 2.
+//
+//f(lst, return) =
+//  return = lst[1].
+
+//main() =
+//  lst = [1;2;3],
+//  return = lst[1].
+
+//main() =
+//  ref([1;1;1], lst),
+//  lst[1] := 2,
+//  return = lst.
+
+//transform(lst, 0) =
+//  lst[0] := f(lst[0]).
+
+//f(x) = plus(x, 1).
+//
+//transform(_, -1).
+//transform(lst, n) =
+//  step = minus(n, 1),
+//  transform(lst, step),
+//  lst[n] := f(lst[n]).
+//
+//main() =
+//  lst = ref([7;7;7]),
+//  transform(lst, 2),
+//  return = lst.
+
+//mutate(lst, 0) = lst[0] := 0.
+//mutate(lst, n) =
+//  minus(n, 1, step),
+//  lst[n] := 0,
+//  mutate(lst, step).
+  
+//main() =
+//  ref([1;2;3;4], lst),
+//  mutate(lst, 3),
+//  return = lst.
+
+//simple_mutate(lst) =
+//  lst[0] := 0.
+//main() =
+//  ref([1;2;3], lst),
+//  simple_mutate(lst),
+//  return = lst.
+
+//g(1) = 1.
+//h(1) = 2.
+//i(1) = 3.
+//
+//f(x) =
+//  g(h(i(x))).//,
+//  //r2 = i(h(g(x))).
+//
+//main() =
+//  return = f(1).
+
+//f(0) = "false".
+//f(_) = "true".
+
+//g(0) = [1;2].
+
+//main(0) =
+//  printnl("Hello World!!").
+
+//f(x) = x + 3.
+//ceaser(_, -1).
+//ceaser(str, n) =
+//  step = minus(n, 1),
+//  ceaser(str, step),
+//  str[n] := f(str[n]).
+//
+//main() =
+//  str = ref("hello"),
+//  ceaser(str, 4),
+//  return = str.
+
+//f(x) = x + 3.
+//transform(lst, -1).
+//transform(lst, n) =
+//  step + 1 = n,
+//  transform(lst, step),
+//  lst[n] := f(lst[n]).
+//
+//main() =
+//  lst = ref([1;2;3]),
+//  size = card(lst) - 1,
+//  transform(lst, size),
+//  return = lst.
+
+//count(100).
+//count(number) =
+//  plus(number, 1, step),
+//  count(step).
+//
+//main() =
+//  count(0),
+//  return = 1.
+
+//main() =
+//  lst = [1;2;3],
+//  return = card(lst).
+
+//f(x) = x + 1.
+//g(x, y) = x + y.
+//
+//main() =
+//  return = g(f(1), 1).
+
+//f(x) = x + 3.
+//ceaser(_, -1).
+//ceaser(str, n) =
+//  ceaser(str, n-1),
+//  str[n] := f(str[n]).
+//
+//main() =
+//  str = ref("hello"),
+//  ceaser(str, 4),
+//  return = str.
+
+////with arity signature
+//m_loop(n):1 =
+//  n < 3,
+//  step = n + 1,
+//  printnl(n),
+//  m_loop(step).
+//
+//main() =
+//  m_loop(0),
+//  return = 3.
+
+//works, but need not() so as not to fail main
+//f(x) = x + 3.
+//ceaser(str, n):2 =
+//  str[n] := f(str[n]),
+//  //printnl(str),
+//  ceaser(str, n-1).
+//
+//main() =
+//  str = ref("hello"),
+//  not(ceaser(str, 4)),
+//  return = str.
+
+//main() =
+//  return = [1;[2];[2;[3]]].
+
+//main() =
+//  return = [1;2;3][1].
+
+//f(x) = x + 3.
+//ceaser(_, -1).
+//ceaser(str, n) =
+//  ceaser(str, n-1),
+//  str[n] := f(str[n]).
+//
+//main() =
+//  str = ref("hello"),
+//  ceaser(str, card(str)-1),
+//  return = str.
+
+//safe_mut(arr, n, x) =
+//  arr[n] := x.
+//safe_mut(_, _, _).
+//
+//main(lst) =
+//  lst = ref([1;2;3;4]),
+//  safe_mut(lst, 2, 2),
+//  safe_mut(lst, 10, 2),
+//  printnl(lst).
+
+sum_arr_imp(_, -1) = 0.
+sum_arr_imp(arr, i) =
+  arr[i] + sum_arr_imp(arr, i-1).
+
+//[] = NULL in implementation, not checking for NULL
+sum_arr_fnc(lst) =
+  lst = [],
+  0.
+sum_arr_fnc(lst) =
+  h::t = lst,
+  h + sum_arr_fnc(t).
+
+//main(res) =
+//  lst = [1;2;3;4],
+//  //res = sum_arr_imp(lst, card(lst)-1),
+//  res = sum_arr_fnc(lst),
+//  printnl(res).
+
+first_two(lst) =
+  cons(returnA, returnB, _, lst).
+
+//main(0) =
+//  first_two([1;2;3;4], a, b),
+//  printnl(a),
+//  printnl(b).
+
+//switch(lst) = lst = [ ], return = [ ].
+//switch(lst) = lst = [x], return = [x].
+//switch(lst) =
+//  cons(a, b, tail, lst),
+//  res = switch(tail),
+//  cons(b, a, res, return).
+//
+//main(0) =
+//  res = switch([1;2;3;4]),
+//  printnl(res).
+
+f(x) = x + 3.
+ceaser(arr, i):2 =
+  arr[i] := f(arr[i]),
+  ceaser(arr, i+1).
+ceaser(_, _).
+
+main(0) =
+  str = ref("hello"),
+  ceaser(str, 0),
+  printnl(str).

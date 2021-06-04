@@ -1,0 +1,90 @@
+
+//should be called explication
+
+main(r) =
+  r = f(1).
+
+f(x) =
+  x + 1.
+g(x) =
+  f(x),
+  1.
+
+h(x, y) =
+  f(x),
+  f(y).
+
+w(x) =
+  h(
+    g(f(x)),
+    g(x)
+  ).
+
+//w(x) =
+  //h( g(x) ).
+
+r(X, Y, Z) =
+  X = 1,
+  Y = 2,
+  Z = 3.
+
+s(X) = r(g(X)).//need to decompose first, then disimplicate
+
+//testing yacc/lex on unicode
+αβγδεζηθικλμνξοπρσςτυφχψω(Γ) = Γ + 1.
+
+func_with_comments(a, b) =
+  //call f on a
+  f(a),
+  //call f on b
+  f(b),
+  //return 1
+  return = 1.
+
+Myfunc(Y) = Y.
+numb3r(E) = E.
+
+Func_with_CAps_and_3423s(X) =
+  X.
+
+α_transform(x) = f(x).
+β_transform(x) = f(x).
+
+i(1) = 2.
+j(1) = 1.//should be the same as i
+k() = 1.
+
+l(x) =
+  return = f(x).
+
+n(x) =
+  return = f(x) = other,
+  f(other, return2).
+
+m(x) =
+  x = y = y.
+
+o(x) =
+  y.
+
+p(x) =
+  f(x) = f(f(x)) = 1.
+
+q(x) = x.
+r(x) = x = q(x).
+t(x) = z = q(x).
+//currently, x is the return, so it is bound to z
+//change it to: all params of q are bount, so bind
+//the bot or top outcome to z instead
+
+u(x) =
+  f(f(x)).
+
+//no root constants yet
+//π = 3.141.
+
+//comment test
+//f(X) = X.
+
+/*comment
+      test*/

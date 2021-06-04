@@ -1,0 +1,42 @@
+f(x) = x + 3.
+
+caesar(_, 0).
+caesar(str, n) =
+  str[n] := f(str[n]),
+  caesar(str, n-1).
+
+main() =
+  str = ref("hello"),
+  caesar(str, card(str)),
+  printnl(str),
+  return = 0.
+
+main() =
+  x = all f(1, x).
+
+complex(r, i) =
+  [[r;   i];
+   [0-r; i]].
+
+main() =
+  res = mul_matrix(complex(3, 5), complex(10, 2)),
+  [real, imag] = add_matrix(res, complex(3, 2))[0],
+  print_complex(real, imag),
+  return = 0.
+
+print_complex(r, i) =
+  print("real:"),print(real),
+  print(" imaginary:"),print(imag),
+  nl. 
+
+//unification
+f(x) = x / 2.
+g(x) = x + 3.
+h(x) =
+  f(x) = y,
+  [y, y] = return.
+
+main() =
+  a = f(x) = b,
+  g(1) = x,
+  [a, b] = h(x) = return.

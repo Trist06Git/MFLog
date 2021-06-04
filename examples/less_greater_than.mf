@@ -1,0 +1,13 @@
+
+main(r) =
+  x = 5,
+  x < 10,
+  x > 4,
+  r = x.
+
+m_greater_than(x, y) =
+  y < x.
+
+//main(r) =
+//  r < 10,
+//  r > 5.

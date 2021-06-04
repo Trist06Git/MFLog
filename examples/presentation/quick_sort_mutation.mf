@@ -1,0 +1,36 @@
+
+swap(arr, a, b) =
+  temp = arr[a],
+  arr[a] = arr[b],
+  arr[b] = temp.
+
+for(_, _, end, _, _, j) =
+  j >= end,
+  return = 0.
+for(arr, begin, end, pivot, i, j) =
+  arr[j] >= pivot,
+  j < end,
+  return = for(arr, begin, end, pivot, i, j+1).
+for(arr, begin, end, pivot, i, j) =
+  arr[j] < pivot,
+  j < end,
+  swap(arr, i, j),
+  return = 1 + for(arr, begin, end, pivot, i+1, j+1).
+
+partition(arr, begin, end) =
+  i = for(arr, begin, end, arr[end], begin),
+  swap(arr, i, end),
+  return = i.
+
+quick_sort(_,   begin, end) =
+  begin >= end.
+quick_sort(arr, begin, end) =
+  begin < end,
+  part = partition(arr, begin, end),
+  quick_sort(arr, begin, part-1),
+  quick_sort(arr, begin, end).
+
+main(arr) =
+  arr = ref([1;2;7;5;9;2;0;3]),
+  quick_sort(arr, 0, card(arr)-1),
+  printnl(arr).

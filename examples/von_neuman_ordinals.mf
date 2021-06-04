@@ -1,0 +1,36 @@
+
+//this is currently broken due to a bug in cons() which
+//is failing when appending an empty list to a list of lists..
+
+zero = [].
+
+succ(x) =
+  return = union(x, [x]).
+
+vn_to_int(x) =
+  card(x).
+
+main() =
+  x = succ(succ(zero)),
+  num = vn_to_int(x).
+
+//main() =
+//  Zero = [],
+//  One = succ(Zero),
+//  Two = succ(One).
+
+//main() =
+//  lst = [[];[]],
+//  cons([], lst, return). /// <-- bug here
+
+union(a, b) =
+  a = [],
+  return = b.
+union(a, b) =
+  b = [],
+  return = a.
+union(a, b) =
+  cons(h, t, a),
+  cons(h, b, r),
+  union(t, r).
+  

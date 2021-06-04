@@ -1,0 +1,9 @@
+
+non_terminating(a) =
+  return = non_terminating(a).
+
+terminating(a):2 =
+  return = terminating(a).
+
+main() =
+  1.

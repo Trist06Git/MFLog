@@ -1,0 +1,26 @@
+
+//Stepheny is the parent of Lionel
+parent("Stepheny", "Lionel").
+parent("Daniel",   "Lionel").
+parent("Stepheny", "Jane").
+parent("Albert",   "Jane").
+parent("Audrey",   "Albert").
+parent("Arthur",   "Hannah").
+
+sibling(child1, child2) =
+  parent(parent, child1),
+  parent(parent, child2).
+
+grandparent(grand, child) =
+  parent(grand, parent),
+  parent(parent, child).
+
+main() =
+  sibling("Jane", sib),
+  printnl(sib),
+  return = sib.
+
+main() =
+  grandparent("Audrey", grandchild),
+  printnl(return),
+  return = grandchild.
