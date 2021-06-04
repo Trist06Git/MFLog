@@ -14,7 +14,6 @@
 //#define WARMUP 120
 
 int main(int argc, char** argv) {
-    static_assert(1 == 0, "DO THIS WITH VEC.PUSH_FRONT()... ");
     std::cout << "Starting.\n" << std::endl;
     std::cout << "process id: " << getpid() << std::endl;
 #ifdef WARMUP

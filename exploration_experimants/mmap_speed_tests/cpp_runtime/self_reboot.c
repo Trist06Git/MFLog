@@ -8,5 +8,5 @@ void self_reboot(void) {
     sync();
     printf("rebooting in 3 seconds\n");
     sleep(3);
-    reboot(RB_AUTOBOOT);
+    //reboot(RB_AUTOBOOT);
 }

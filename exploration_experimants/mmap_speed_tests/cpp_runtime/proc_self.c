@@ -8,7 +8,7 @@
 //you must allocate a proc_self, and proc_self->comm char array yourself
 //returns -1 on failure
 int cat_proc_self(proc_self* ps) {
-    init_procfs();
+    //init_procfs();
     FILE* file = fopen("/proc/self/stat", "r");
     if (file == NULL) {
         perror("Error :: Could not open /proc/self/stat\n");
@@ -38,5 +38,6 @@ int cat_proc_self(proc_self* ps) {
 }
 
 int init_procfs(void) {
-    system("/bin/mount -o nosuid,noexec,nodev /proc");
+    //system("/bin/mount -o nosuid,noexec,nodev /proc");
+    return 0;
 }
